@@ -1,13 +1,16 @@
 package org.apache.spark.deploy.worker
 
+
+
+import scala.collection.JavaConversions._
+
 object Spawner {
-	// TODO: Obtain these values dynamically
-	val classpath = "core/target/scala-2.11/classes"
-	val scala = "/usr/bin/scala"
-	
-	def apply(classname: String): Unit = {		
-		logInfo("Spawning: " + processBuilder.command().toString())
-		val processBuilder = new ProcessBuilder(scala, "-cp", classpath, classname)
-		val process = processBuilder.start()		
+	def apply(classname: String): Unit = {
+		val sep = System.getProperty("file.separator")
+		val classpath = System.getProperty("java.class.path")
+		val java = System.getProperty("java.home") + sep + "bin" + sep + "java"
+
+		val processBuilder = new ProcessBuilder(java, "-cp", classpath, classname)
+		val process = processBuilder.start()
 	}
 }

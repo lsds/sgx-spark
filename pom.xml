@@ -88,9 +88,11 @@
     <module>common/unsafe</module>
     <module>common/tags</module>
     <module>core</module>
+<!--     
     <module>graphx</module>
     <module>mllib</module>
     <module>mllib-local</module>
+ -->
     <module>tools</module>
     <module>streaming</module>
     <module>sql/catalyst</module>
@@ -100,7 +102,9 @@
     <module>external/flume</module>
     <module>external/flume-sink</module>
     <module>external/flume-assembly</module>
+<!-- 
     <module>examples</module>
+-->
     <module>repl</module>
     <module>launcher</module>
     <module>external/kafka-0-8</module>
