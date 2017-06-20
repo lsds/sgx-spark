@@ -23,12 +23,14 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.{Partition, TaskContext}
 
+import java.io.Serializable
+
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
  */
 private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
     var prev: RDD[T],
-    f: (TaskContext, Int, Iterator[T]) => Iterator[U],  // (TaskContext, partition index, iterator)
+    f: (Int, Iterator[T]) => Iterator[U],  // (TaskContext, partition index, iterator)
     preservesPartitioning: Boolean = false)
   extends RDD[U](prev) {
 
@@ -41,7 +43,7 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 //    f(context, split.index, firstParent[T].iterator(split, context))
 
 	// Call into enclave, providing the function, the partition index, and the iterator
-	(new SgxMapPartitionsRDD[U,T]).sgxCompute(f, split.index, firstParent[T].iterator(split, context))
+	(new SgxMapPartitionsRDD[U,T]).compute(f, split.index, firstParent[T].iterator(split, context))
   }
 
   override def clearDependencies() {

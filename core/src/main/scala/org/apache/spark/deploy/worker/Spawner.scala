@@ -1,7 +1,5 @@
 package org.apache.spark.deploy.worker
 
-
-
 import scala.collection.JavaConversions._
 
 object Spawner {

@@ -19,7 +19,7 @@ package org.apache.spark.sgx
 
 import scala.reflect.ClassTag
 
-import org.apache.spark.TaskContext
+import java.io.Serializable
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
@@ -27,7 +27,7 @@ import org.apache.spark.TaskContext
 class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 
 //  def sgxCompute(f: (TaskContext, Int, Iterator[T]) => Iterator[U], split: Partition, context: TaskContext): Iterator[U] = {
-  def sgxCompute(f: (TaskContext, Int, Iterator[T]) => Iterator[U], partIndex: Int, it: Iterator[T]): Iterator[U] = {
-	  f(null, partIndex, it)
+  def compute(f: (Int, Iterator[T]) => Iterator[U], partIndex: Int, it: Iterator[T]): Iterator[U] = {
+	  f(partIndex, it)
   }
 }
