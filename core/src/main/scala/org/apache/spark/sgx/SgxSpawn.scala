@@ -10,6 +10,6 @@ object SgxSpawn {
 		val classname = SgxMain.getClass().getCanonicalName().dropRight(1)
 
 		val processBuilder = new ProcessBuilder(java, "-cp", classpath, classname)
-		val process = processBuilder.start()
+//		val process = processBuilder.start()
 	}
 }

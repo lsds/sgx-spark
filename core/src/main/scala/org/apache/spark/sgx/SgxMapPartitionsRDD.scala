@@ -6,23 +6,37 @@ import java.net._
 import java.io._
 import scala.io._
 
+
+case class SgxMapPartitionsRDDObject[U: ClassTag, T: ClassTag](
+	f: (Int, Iterator[T]) => Iterator[U],
+		partIndex: Int)
+	extends Serializable {
+	override def toString = s"SgxMapPartitionsRDDObject($f, $partIndex)"
+}
+
+case class SgxReply(
+		s : String)
+	extends Serializable {
+	override def toString = s"SgxReply($s)"
+}
+
 class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 	def compute(f: (Int, Iterator[T]) => Iterator[U], partIndex: Int, it: Iterator[T]): Iterator[U] = {
-		val s = new Socket(InetAddress.getByName("localhost"), 9999)
+		val obj = SgxMapPartitionsRDDObject(f, partIndex)
 
-		println("a")
+		val socket = new Socket(InetAddress.getByName("localhost"), 9999)
+		val oos = new ObjectOutputStream(socket.getOutputStream())
+		val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
-		val out = new PrintStream(s.getOutputStream())
-		println("b")
-		out.println("message to server")
-		println("c")
+		oos.writeObject(obj)
+		println("Snd object: " + obj + " (" + obj.getClass.getName() + ")")
 
-		val in = new BufferedSource(s.getInputStream()).getLines()
-		println("d")
-		println("Received: " + in.next())
-		println("e")
+		println(" start resolving")
+		val reply = ois.myReadObject()
+		println(" end resolving")
+		println("Rcv  reply: " + reply.getOrElse("NONE"))
 
-		s.close()
+		socket.close()
 
 		f(partIndex, it)
 	}
