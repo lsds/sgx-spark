@@ -4,22 +4,15 @@ import java.net._
 import java.io._
 import scala.io._
 
+import scala.util.Try
+
 class ObjectInputStreamWithCustomClassLoader(inputStream: InputStream) extends ObjectInputStream(inputStream) {
 	override def resolveClass(desc: java.io.ObjectStreamClass): Class[_] = {
-		println("  resolve: " + desc.getName + "(" + desc.getFields + ")")
 		try {
 			Class.forName(desc.getName, false, getClass.getClassLoader)
 		} catch {
 			case ex: ClassNotFoundException => super.resolveClass(desc)
 		}
-	}
-
-	def myReadObject(): Option[_] = {
-		try {
-			Some(readObject())
-		} catch {
-        	case e: Exception => None
-    	}
 	}
 }
 
@@ -32,19 +25,18 @@ object SgxMain {
 			val oos = new ObjectOutputStream(socket.getOutputStream())
 			val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
-			println(" start resolving")
-			val obj = ois.myReadObject()
-//			if (obj.isEmpty) {
-//				println(obj.asInstanceOf[Function[(Int, Iterator[_]), Iterator[_]]])
-//			}
+			// Read the object provided
+			val obj : SgxMapPartitionsRDDObject[Any,Any] = ois.readObject().asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
 
+			val x = obj.f(obj.partIndex, List("a","b","c","a").iterator)
+			try {
+				x.foreach { a => Try(println(a)) }
+			} catch {
+				case e: ClassCastException => None
+			}
 
-			println(" end resolving")
-			println("Rcv object: " + obj.getOrElse("NONE") + "(" + obj.getOrElse("NONE").getClass().getName + ")")
-
-			val reply = SgxReply("ack")
-			oos.writeObject(reply)
-			println("Snd  reply: " + reply)
+			// Send ack
+			oos.writeObject(SgxAck)
 
 			socket.close()
 		}
@@ -52,4 +44,5 @@ object SgxMain {
 		server.close()
 	}
 }
+
 
