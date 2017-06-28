@@ -1,10 +1,20 @@
 package org.apache.spark.sgx
 
-import java.net._
-import java.io._
-import scala.io._
+import java.net.InetAddress
+import java.net.ServerSocket
+
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.InputStream
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
 
 import scala.util.Try
+
+import scala.util.control.Breaks.breakable
+import scala.util.control.Breaks.break
+
+import scala.collection.mutable.ListBuffer
 
 class ObjectInputStreamWithCustomClassLoader(inputStream: InputStream) extends ObjectInputStream(inputStream) {
 	override def resolveClass(desc: java.io.ObjectStreamClass): Class[_] = {
@@ -26,17 +36,52 @@ object SgxMain {
 			val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
 			// Read the object provided
-			val obj : SgxMapPartitionsRDDObject[Any,Any] = ois.readObject().asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
+			val obj : SgxMapPartitionsRDDObject[Any,Any] = ois.readUnshared().asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
+			println("reading: " + obj)
 
-			val x = obj.f(obj.partIndex, List("a","b","c","a").iterator)
-			try {
-				x.foreach { a => Try(println(a)) }
-			} catch {
-				case e: ClassCastException => None
+			var list = new ListBuffer[Any]()
+			breakable {
+				while(true) {
+					ois.readUnshared() match {
+						case SgxDone => break
+						case x: Any => {
+							println("  Receiving: " + x + " (" + x.getClass.getName + ")")
+							list += x
+						}
+					}
+				}
 			}
+			println("  Received number of objects: " + list.size)
+
+			println("before f()")
+			val newit = obj.f(obj.partIndex, list.iterator)
+			println("after f(): " + newit)
+
+			newit.foreach {
+				x => println("Sending: " + x + " (" + x.getClass.getName + ")")
+				oos.writeUnshared(x)
+			}
+			oos.writeUnshared(SgxDone)
+			oos.flush()
+
+//			println(ois.readUnshared().getClass.getName)
+//			println(ois.readUnshared().getClass.getName)
+//			println(ois.readUnshared().getClass.getName)
+
+//			val a = ois.readUnshared().asInstanceOf[Array[Any]]
+//			println("reading: " + a + " (" + a.size + ")")
+//			a.foreach { x => println("  " + x) }
+
+//			val x = obj.f(obj.partIndex, List("a","b","c","a").iterator)
+//			try {
+//				x.foreach { a => Try(println(a)) }
+//			} catch {
+//				case e: ClassCastException => None
+//			}
 
 			// Send ack
-			oos.writeObject(SgxAck)
+//			oos.writeUnshared(SgxAck)
+//			oos.flush()
 
 			socket.close()
 		}
