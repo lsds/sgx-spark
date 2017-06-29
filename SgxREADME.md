@@ -1,5 +1,4 @@
 
-
 # Build and prepare
 
 ## Delete existing Maven Hadoop files
@@ -39,4 +38,4 @@ This is the only code that runs inside the enclave.
 
 ## Spark Job
 
-`sgx-spark# SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.JavaWordCount --master spark://localhost:7077 --deploy-mode cluster --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar file:///home/florian/GIT/sgx-spark/README.md.split 2`
+`sgx-spark# SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://localhost:7077 --deploy-mode cluster --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar <infile> <outdir>`
