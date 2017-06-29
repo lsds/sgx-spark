@@ -7,6 +7,7 @@ import java.net.Socket
 
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 
 import scala.util.control.Breaks.break
@@ -22,38 +23,52 @@ case class SgxMapPartitionsRDDObject[U: ClassTag, T: ClassTag](
 	override def toString = s"SgxMapPartitionsRDDObject($f, $partIndex)"
 }
 
-class SgxReply(s : String)
+object SocketHelper {
+	def send(oos: ObjectOutputStream, obj: Any): Unit = {
+		oos.reset()
+		oos.writeObject(obj)
+		oos.flush()
+	}
+
+	def read(ois: ObjectInputStream): Any = {
+		ois.readObject()
+	}
+
+//	def readMany(ois: ObjectInputStream, end: SgxMsg = SgxDone): ListBuffer[Any] = {
+//
+//	}
+}
+
+class SgxMsg(s : String)
 	extends Serializable {
 	override def toString = s"SgxReply($s)"
 }
 
-object SgxAck extends SgxReply("ack") {}
-object SgxDone extends SgxReply("done") {}
-object SgxFail extends SgxReply("fail") {}
+object SgxAck extends SgxMsg("ack") {}
+object SgxDone extends SgxMsg("done") {}
+object SgxFail extends SgxMsg("fail") {}
 
 class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
+
 	def compute(f: (Int, Iterator[T]) => Iterator[U], partIndex: Int, it: Iterator[T]): Iterator[U] = {
-		println("start of compute")
 		val socket = new Socket(InetAddress.getByName("localhost"), 9999)
 		val oos = new ObjectOutputStream(socket.getOutputStream())
 		val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
 		// Send object
 		println("Sending: " + SgxMapPartitionsRDDObject(f, partIndex))
-		oos.writeUnshared(SgxMapPartitionsRDDObject(f, partIndex))
-		oos.flush()
+		SocketHelper.send(oos, SgxMapPartitionsRDDObject(f, partIndex))
 
 		it.foreach {
 			x => println("Sending: " + x + " (" + x.getClass.getName + ")")
-			oos.writeUnshared(x)
+			SocketHelper.send(oos, x)
 		}
-		oos.writeUnshared(SgxDone)
-		oos.flush()
+		SocketHelper.send(oos, SgxDone)
 
 		var list = new ListBuffer[Any]()
 		breakable {
 			while(true) {
-				val o = ois.readUnshared() match {
+				SocketHelper.read(ois) match {
 					case SgxDone => break
 					case x: Any => {
 						println("  Receiving: " + x + " (" + x.getClass.getName + ")")
@@ -68,7 +83,6 @@ class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 		ois.close()
 		socket.close()
 
-		println("end of compute: returning iterator of size " + list.size)
 		list.iterator.asInstanceOf[Iterator[U]]
 	}
 }

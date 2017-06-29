@@ -36,13 +36,13 @@ object SgxMain {
 			val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
 			// Read the object provided
-			val obj : SgxMapPartitionsRDDObject[Any,Any] = ois.readUnshared().asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
+			val obj : SgxMapPartitionsRDDObject[Any,Any] = SocketHelper.read(ois).asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
 			println("reading: " + obj)
 
 			var list = new ListBuffer[Any]()
 			breakable {
 				while(true) {
-					ois.readUnshared() match {
+					SocketHelper.read(ois) match {
 						case SgxDone => break
 						case x: Any => {
 							println("  Receiving: " + x + " (" + x.getClass.getName + ")")
@@ -53,16 +53,13 @@ object SgxMain {
 			}
 			println("  Received number of objects: " + list.size)
 
-			println("before f()")
 			val newit = obj.f(obj.partIndex, list.iterator)
-			println("after f(): " + newit)
 
 			newit.foreach {
 				x => println("Sending: " + x + " (" + x.getClass.getName + ")")
-				oos.writeUnshared(x)
+				SocketHelper.send(oos, x)
 			}
-			oos.writeUnshared(SgxDone)
-			oos.flush()
+			SocketHelper.send(oos, SgxDone)
 
 			socket.close()
 		}
