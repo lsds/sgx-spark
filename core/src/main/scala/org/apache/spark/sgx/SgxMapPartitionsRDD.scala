@@ -38,8 +38,6 @@ class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 		val oos = new ObjectOutputStream(socket.getOutputStream())
 		val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
-//		val (it1,it2) = it.duplicate
-
 		// Send object
 		println("Sending: " + SgxMapPartitionsRDDObject(f, partIndex))
 		oos.writeUnshared(SgxMapPartitionsRDDObject(f, partIndex))
@@ -51,17 +49,6 @@ class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 		}
 		oos.writeUnshared(SgxDone)
 		oos.flush()
-
-//		println("Sending: " + a + " (" + a.size + ")")
-//		a.foreach { x => println("  " + x) }
-//		oos.writeUnshared(a)
-//		oos.flush()
-//
-//		// Receive reply
-//		ois.readUnshared() match {
-//			case SgxAck => println("Remote execution of " + f.getClass.getName + " succeeded")
-//			case SgxFail => println("Remote execution of " + f.getClass.getName + " failed")
-//		}
 
 		var list = new ListBuffer[Any]()
 		breakable {
@@ -81,7 +68,6 @@ class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 		ois.close()
 		socket.close()
 
-//		f(partIndex, it1)
 		println("end of compute: returning iterator of size " + list.size)
 		list.iterator.asInstanceOf[Iterator[U]]
 	}

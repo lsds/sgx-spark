@@ -18,9 +18,10 @@
 
 package org.apache.hadoop.io;
 
-import java.io.DataOutput;
 import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serializable;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -63,7 +64,7 @@ import org.apache.hadoop.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Writable {
+public interface Writable extends Serializable {
   /** 
    * Serialize the fields of this object to <code>out</code>.
    * 

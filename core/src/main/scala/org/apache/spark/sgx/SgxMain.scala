@@ -64,30 +64,9 @@ object SgxMain {
 			oos.writeUnshared(SgxDone)
 			oos.flush()
 
-//			println(ois.readUnshared().getClass.getName)
-//			println(ois.readUnshared().getClass.getName)
-//			println(ois.readUnshared().getClass.getName)
-
-//			val a = ois.readUnshared().asInstanceOf[Array[Any]]
-//			println("reading: " + a + " (" + a.size + ")")
-//			a.foreach { x => println("  " + x) }
-
-//			val x = obj.f(obj.partIndex, List("a","b","c","a").iterator)
-//			try {
-//				x.foreach { a => Try(println(a)) }
-//			} catch {
-//				case e: ClassCastException => None
-//			}
-
-			// Send ack
-//			oos.writeUnshared(SgxAck)
-//			oos.flush()
-
 			socket.close()
 		}
 
 		server.close()
 	}
 }
-
-
