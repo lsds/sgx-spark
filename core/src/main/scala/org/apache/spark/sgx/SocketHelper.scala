@@ -10,12 +10,14 @@ import scala.util.control.Breaks.breakable
 
 import scala.collection.mutable.ListBuffer
 
+private object SgxDone extends SgxMsg("done") {}
+
 class SocketHelper(socket: Socket) {
 
 	private	val oos = new ObjectOutputStream(socket.getOutputStream())
 	private	val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
-	def sendOne(obj: Any): Unit = {
+	def sendOne(obj: Any) = {
 		println("  Sending: " + obj + " (" + obj.getClass.getName + ")")
 		oos.reset()
 		oos.writeObject(obj)
@@ -35,7 +37,7 @@ class SocketHelper(socket: Socket) {
 		sendOne(SgxDone)
 	}
 
-	def recvMany(): ListBuffer[Any] = {
+	def recvMany(): Iterator[Any] = {
 		var list = new ListBuffer[Any]()
 		breakable {
 			while(true) {
@@ -46,7 +48,7 @@ class SocketHelper(socket: Socket) {
 			}
 		}
 		println("  Received number of objects: " + list.size)
-		list
+		list.iterator
 	}
 
 	def close() = {

@@ -18,10 +18,6 @@ class SgxMsg(s : String)
 	override def toString = s"SgxReply($s)"
 }
 
-object SgxAck extends SgxMsg("ack") {}
-object SgxDone extends SgxMsg("done") {}
-object SgxFail extends SgxMsg("fail") {}
-
 class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 	def compute(f: (Int, Iterator[T]) => Iterator[U], partIndex: Int, it: Iterator[T]): Iterator[U] = {
 		val sh = new SocketHelper(new Socket(InetAddress.getByName("localhost"), 9999))
@@ -31,10 +27,10 @@ class SgxMapPartitionsRDD[U: ClassTag, T: ClassTag] {
 		sh.sendMany(it)
 
 		// Receive the results
-		val list = sh.recvMany()
+		val results = sh.recvMany()
 
 		sh.close()
 
-		list.iterator.asInstanceOf[Iterator[U]]
+		results.asInstanceOf[Iterator[U]]
 	}
 }

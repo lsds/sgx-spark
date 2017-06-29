@@ -30,13 +30,13 @@ object SgxMain {
 
 			// Receive SgxMapPartitionsRDDObject object and data objects
 			val obj = sh.recvOne().asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
-			val list = sh.recvMany()
+			val data = sh.recvMany()
 
 			// Apply function f()
-			val newit = obj.f(obj.partIndex, list.iterator)
+			val it = obj.f(obj.partIndex, data)
 
 			// Return the results
-			sh.sendMany(newit)
+			sh.sendMany(it)
 
 			sh.close()
 		}
