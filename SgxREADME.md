@@ -20,7 +20,7 @@ specify the prefix flag.
 
 ## Build Spark
 
-`sgx-spark# mvn ./build/mvn -DskipTests package`
+`sgx-spark# build/mvn -DskipTests package`
 
 
 # Run 
