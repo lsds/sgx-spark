@@ -12,6 +12,8 @@ import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.TaskContext
+import java.net.InetAddress
+import java.net.Socket
 
 //
 //import scala.collection.AbstractIterator
@@ -109,19 +111,18 @@ class SgxIteratorServer[T](context: TaskContext, delegate: Iterator[T], myport: 
 		val sh = new SocketHelper(new ServerSocket(myport).accept())
 		breakable {
 			while(true) {
-				println(s"SgxIteratorServer($myport): Waiting ... ")
 				sh.recvOne() match {
 					case SgxMsgIteratorReqHasNext =>
 						val x = super.hasNext
-						println(s"SgxIteratorServer($myport): next()? " + x + "(" + x.getClass().getName + ")")
+						println(s"SgxIteratorServer($myport).hasNext() -> " + x)
 						sh.sendOne(x)
 						if (!super.hasNext) break
 					case SgxMsgIteratorReqNext =>
 						val x = super.next
-						println(s"SgxIteratorServer($myport): next()? " + x + "(" + x.getClass().getName + ")")
+						println(s"SgxIteratorServer($myport).next() -> " + x)
 						sh.sendOne(x)
 					case x: Any =>
-						println(s"SgxIteratorServer($myport): Unknown: " + x + "(" + x.getClass().getName + ")")
+						println(s"SgxIteratorServer($myport).UNKNOWN() -> " + x + "(" + x.getClass().getName + ")")
 				}
 			}
 		}
@@ -131,33 +132,31 @@ class SgxIteratorServer[T](context: TaskContext, delegate: Iterator[T], myport: 
 	}
 }
 
-class SgxIteratorServerBinding[T](itServer: SgxIteratorServer[T], theirPort: Int) extends Iterator[T] {
+class SgxIteratorServerBinding[T](itServer: SgxIteratorServer[T], theirHost: String, theirPort: Int) extends InterruptibleIterator[T](itServer.context, itServer.delegate) {
+	def getTheirHost(): String = { theirHost }
 	def getTheirPort(): Int = { theirPort }
-
-	override def next(): T = itServer.next()
-	override def hasNext(): Boolean = itServer.hasNext()
+	def getItServer(): SgxIteratorServer[T] = { itServer }
 }
 
 
-//
-//class SgxIteratorClient[T](id: SgxIteratorServerIdentifier) extends Iterator[T] {
-//
-//	val sh = new SocketHelper(new Socket(InetAddress.getByName(id.getHost()), id.getPort()))
-//
-//	override def hasNext: Boolean = {
-//		println("hasNext()?")
-//		sh.sendOne(SgxMsgIteratorReqHasNext)
-//		val x = sh.recvOne().asInstanceOf[Boolean]
-//		println(" -> " + x + " (" + x.getClass().getName + ")")
-//		x
-//	}
-//
-//	override def next: T = {
-//		println("next()?")
-//		sh.sendOne(SgxMsgIteratorReqNext)
-//		val x = sh.recvOne().asInstanceOf[T]
-//		println(" -> " + x + " (" + x.getClass().getName + ")")
-//		x
-//	}
-//}
-//
+
+class SgxIteratorClient[T](id: SgxIteratorServerIdentifier) extends Iterator[T] {
+
+	println(s"Connecting to remote iterator $id")
+	val sh = new SocketHelper(new Socket(InetAddress.getByName(id.getHost()), id.getPort()))
+
+	override def hasNext: Boolean = {
+		sh.sendOne(SgxMsgIteratorReqHasNext)
+		val x = sh.recvOne().asInstanceOf[Boolean]
+		println(s"$id.hasNext() -> $x")
+		x
+	}
+
+	override def next: T = {
+		sh.sendOne(SgxMsgIteratorReqNext)
+		val x = sh.recvOne().asInstanceOf[T]
+		println(s"$id.next() -> " + x)
+		x
+	}
+}
+

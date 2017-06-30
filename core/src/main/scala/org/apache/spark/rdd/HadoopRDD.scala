@@ -45,6 +45,7 @@ import java.net.Socket
 import org.apache.spark.sgx.SocketHelper
 import org.apache.spark.sgx.SgxIteratorServer
 import org.apache.spark.sgx.SgxTaskContext
+import org.apache.spark.sgx.SgxIteratorServerBinding
 
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
@@ -325,8 +326,7 @@ class HadoopRDD[K, V](
     sh.sendOne(sgxIter.identifier)
 	val theirPort = sh.recvOne().asInstanceOf[Int]
     println(s"Remote SGX side is listening on port $theirPort")
-//    new InterruptibleIterator[(K, V)](context, sgxIter)
-	sgxIter
+	new SgxIteratorServerBinding(sgxIter, "localhost", theirPort)
   }
 
   /** Maps over a partition, providing the InputSplit that was used as the base of the partition. */

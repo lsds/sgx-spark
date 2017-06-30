@@ -19,11 +19,17 @@ class ObjectInputStreamWithCustomClassLoader(inputStream: InputStream) extends O
 
 class SgxTask(itId: SgxIteratorServerIdentifier, port: Int) extends Runnable {
 	def run() = {
-		val server = new ServerSocket(port)
 		println(s"Starting new SgxTask on port $port. The corresponding remote iterator is $itId.")
-		while (true) {
-			val sh = new SocketHelper(server.accept())
-		}
+
+		val sh = new SocketHelper(new ServerSocket(port).accept())
+		val it = new SgxIteratorClient[Any](itId)
+
+		val obj = sh.recvOne().asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
+		val newit = obj.f(obj.partIndex, it)
+
+		sh.sendMany(newit)
+
+		sh.close()
 	}
 }
 

@@ -19,37 +19,45 @@ package org.apache.spark.rdd
 
 import scala.reflect.ClassTag
 
-import org.apache.spark.{Partition, TaskContext}
+import org.apache.spark.{ Partition, TaskContext }
 
 import java.io.Serializable
+import org.apache.spark.sgx.SgxIteratorServer
+import org.apache.spark.sgx.SgxMapPartitionsRDD
+import org.apache.spark.sgx.SgxIteratorServerBinding
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
  */
 private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
-    var prev: RDD[T],
-    f: (Int, Iterator[T]) => Iterator[U],  // (TaskContext, partition index, iterator)
-    preservesPartitioning: Boolean = false)
-  extends RDD[U](prev) {
+	var prev: RDD[T],
+	f: (Int, Iterator[T]) => Iterator[U], // (TaskContext, partition index, iterator)
+	preservesPartitioning: Boolean = false)
+		extends RDD[U](prev) {
 
-  override val partitioner = if (preservesPartitioning) firstParent[T].partitioner else None
+	override val partitioner = if (preservesPartitioning) firstParent[T].partitioner else None
 
-  override def getPartitions: Array[Partition] = firstParent[T].partitions
+	override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-  override def compute(split: Partition, context: TaskContext): Iterator[U] = {
-	  val itx = firstParent[T].iterator(split, context)
-	  println(" MapPartitionsRDD.compute("+f.getClass.getName+", "+split+", "+ itx.getClass.getName +")")
-//	  println("   firstParent[T].iterator(split, context).isInstanceOf[SgxIteratorServer[T]]? " + firstParent[T].iterator(split, context).isInstanceOf[SgxIteratorServer[T]])
-	  // Original call
-    f(split.index, itx)
+	override def compute(split: Partition, context: TaskContext): Iterator[U] = {
+		val it = firstParent[T].iterator(split, context)
+		println(" MapPartitionsRDD.compute(" + f.getClass.getName + ", " + split + ", " + it.getClass.getName + ")")
 
-	// Call into enclave, providing the function, the partition index, and the iterator
-//	(new SgxMapPartitionsRDD[U,T]).compute(f, split.index, firstParent[T].iterator(split, context))
-//	x
-  }
+		// Original call
+//		f(split.index, it)
 
-  override def clearDependencies() {
-    super.clearDependencies()
-    prev = null
-  }
+		// Call into enclave, providing the function, the partition index, and the iterator
+		it match {
+			case x: SgxIteratorServerBinding[T] => (new SgxMapPartitionsRDD[U,T]).computeSpec(f, split.index, x)
+			case x: Iterator[T] => (new SgxMapPartitionsRDD[U,T]).computeGen(f, split.index, x)
+		}
+
+		//	x
+//		f(split.index, it)
+	}
+
+	override def clearDependencies() {
+		super.clearDependencies()
+		prev = null
+	}
 }
