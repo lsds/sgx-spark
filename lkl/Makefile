@@ -42,7 +42,7 @@ test:
 	SPARK_LOCAL_IP=127.0.0.1 /usr/bin/java -cp ../assembly/target/scala-2.11/jars/\*:../conf/:../hadoop-2.6.5-src/hadoop-common-project/hadoop-kms/target/kms/WEB-INF/lib/* -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://localhost:7077 > worker.txt 2>&1 &
 	 sleep 2
 
-# Run Enclave 
+# Run Enclave (this needs to be updated to invoke sgx-lkl and setup the correct network paths between the host and the sgx jvm) 
 #	 @-$(shell openvpn --mktun --dev tap0)
 #	 $(shell ip link set dev tap0 up)
 #	 $(shell ip addr add 10.0.1.254/24 dev tap0)
