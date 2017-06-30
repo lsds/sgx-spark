@@ -322,11 +322,12 @@ class HadoopRDD[K, V](
     val sgxIter = new SgxIteratorServer[(K,V)](context, iter, myIterPort)
     new Thread(sgxIter).start
 
-	val sh = new SocketHelper(new Socket(InetAddress.getByName("localhost"), 9999))
-    sh.sendOne(sgxIter.identifier)
-	val theirPort = sh.recvOne().asInstanceOf[Int]
-    println(s"Remote SGX side is listening on port $theirPort")
-	new SgxIteratorServerBinding(sgxIter, "localhost", theirPort)
+//	val sh = new SocketHelper(new Socket(InetAddress.getByName("localhost"), 9999))
+//    sh.sendOne(sgxIter.identifier)
+//	val theirPort = sh.recvOne().asInstanceOf[Int]
+//    println(s"Remote SGX side is listening on port $theirPort")
+//	new SgxIteratorServerBinding(sgxIter, "localhost", theirPort)
+    sgxIter
   }
 
   /** Maps over a partition, providing the InputSplit that was used as the base of the partition. */

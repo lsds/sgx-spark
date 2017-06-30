@@ -17,19 +17,12 @@ class ObjectInputStreamWithCustomClassLoader(inputStream: InputStream) extends O
 	}
 }
 
-class SgxTask(itId: SgxIteratorServerIdentifier, port: Int) extends Runnable {
-	def run() = {
-		println(s"Starting new SgxTask on port $port. The corresponding remote iterator is $itId.")
+class SgxTask(obj: SgxFirstTask[Any,Any]) {
+	def run(): Iterator[Any] = {
+		println("Starting new SgxTask with remote iterator " + obj.id + ".")
 
-		val sh = new SocketHelper(new ServerSocket(port).accept())
-		val it = new SgxIteratorClient[Any](itId)
-
-		val obj = sh.recvOne().asInstanceOf[SgxMapPartitionsRDDObject[Any,Any]]
-		val newit = obj.f(obj.partIndex, it)
-
-		sh.sendMany(newit)
-
-		sh.close()
+		val it = new SgxIteratorClient[Any](obj.id)
+		obj.f(obj.partIndex, it)
 	}
 }
 
@@ -40,11 +33,10 @@ object SgxMain {
 		while (true) {
 			val sh = new SocketHelper(server.accept())
 
-			val itdesc = sh.recvOne().asInstanceOf[SgxIteratorServerIdentifier]
+			val itdesc = sh.recvOne().asInstanceOf[SgxFirstTask[Any,Any]]
 
-			val port = 40000 + scala.util.Random.nextInt(10000)
-			new Thread(new SgxTask(itdesc, port)).start()
-			sh.sendOne(port)
+			val it = new SgxTask(itdesc).run()
+			sh.sendMany(it)
 
 			sh.close()
 		}

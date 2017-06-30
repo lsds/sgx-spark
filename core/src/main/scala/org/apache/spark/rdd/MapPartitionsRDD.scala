@@ -25,6 +25,8 @@ import java.io.Serializable
 import org.apache.spark.sgx.SgxIteratorServer
 import org.apache.spark.sgx.SgxMapPartitionsRDD
 import org.apache.spark.sgx.SgxIteratorServerBinding
+import org.apache.spark.sgx.SgxFirstTask
+import org.apache.spark.sgx.SgxOtherTask
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
@@ -48,8 +50,8 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 
 		// Call into enclave, providing the function, the partition index, and the iterator
 		it match {
-			case x: SgxIteratorServerBinding[T] => (new SgxMapPartitionsRDD[U,T]).computeSpec(f, split.index, x)
-			case x: Iterator[T] => (new SgxMapPartitionsRDD[U,T]).computeGen(f, split.index, x)
+			case x: SgxIteratorServer[T] => (new SgxMapPartitionsRDD[U,T]).compute(new SgxFirstTask[U,T](f, split.index, x.identifier))
+			case x: Iterator[T] => (new SgxMapPartitionsRDD[U,T]).compute(new SgxOtherTask(f, split.index, x))
 		}
 
 		//	x
