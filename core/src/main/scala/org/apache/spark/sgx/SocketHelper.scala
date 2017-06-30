@@ -9,6 +9,7 @@ import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 
 import scala.collection.mutable.ListBuffer
+import org.apache.spark.sgx.SgxMsg
 
 private object SgxDone extends SgxMsg("done") {}
 
@@ -18,7 +19,7 @@ class SocketHelper(socket: Socket) {
 	private	val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
 	def sendOne(obj: Any) = {
-		println("  Sending: " + obj + " (" + obj.getClass.getName + ")")
+//		println("  Sending: " + obj + " (" + obj.getClass.getName + ")")
 		oos.reset()
 		oos.writeObject(obj)
 		oos.flush()
@@ -26,7 +27,7 @@ class SocketHelper(socket: Socket) {
 
 	def recvOne(): Any = {
 		val o = ois.readObject()
-		println("  Receiving: " + o + " (" + o.getClass.getName + ")")
+//		println("  Receiving: " + o + " (" + o.getClass.getName + ")")
 		o
 	}
 
@@ -47,7 +48,7 @@ class SocketHelper(socket: Socket) {
 				}
 			}
 		}
-		println("  Received number of objects: " + list.size)
+//		println("  Received number of objects: " + list.size)
 		list.iterator
 	}
 

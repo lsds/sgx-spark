@@ -17,8 +17,6 @@
 
 package org.apache.spark.rdd
 
-import org.apache.spark.sgx.SgxMapPartitionsRDD
-
 import scala.reflect.ClassTag
 
 import org.apache.spark.{Partition, TaskContext}
@@ -39,11 +37,15 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext): Iterator[U] = {
+	  val itx = firstParent[T].iterator(split, context)
+	  println(" MapPartitionsRDD.compute("+f.getClass.getName+", "+split+", "+ itx.getClass.getName +")")
+//	  println("   firstParent[T].iterator(split, context).isInstanceOf[SgxIteratorServer[T]]? " + firstParent[T].iterator(split, context).isInstanceOf[SgxIteratorServer[T]])
 	  // Original call
-//    f(context, split.index, firstParent[T].iterator(split, context))
+    f(split.index, itx)
 
 	// Call into enclave, providing the function, the partition index, and the iterator
-	(new SgxMapPartitionsRDD[U,T]).compute(f, split.index, firstParent[T].iterator(split, context))
+//	(new SgxMapPartitionsRDD[U,T]).compute(f, split.index, firstParent[T].iterator(split, context))
+//	x
   }
 
   override def clearDependencies() {

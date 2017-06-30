@@ -40,6 +40,11 @@ import org.apache.spark.rdd.HadoopRDD.HadoopMapPartitionsWithSplitRDD
 import org.apache.spark.scheduler.{HDFSCacheTaskLocation, HostTaskLocation}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownHookManager}
+import java.net.InetAddress
+import java.net.Socket
+import org.apache.spark.sgx.SocketHelper
+import org.apache.spark.sgx.SgxIteratorServer
+import org.apache.spark.sgx.SgxTaskContext
 
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
@@ -200,6 +205,7 @@ class HadoopRDD[K, V](
   }
 
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
+	  println("HadoopRDD.compute("+theSplit.toString()+")")
     val iter = new NextIterator[(K, V)] {
 
       private val split = theSplit.asInstanceOf[HadoopPartition]
@@ -307,7 +313,20 @@ class HadoopRDD[K, V](
         }
       }
     }
-    new InterruptibleIterator[(K, V)](context, iter)
+	// Original call
+	// new InterruptibleIterator[(K, V)](context, iter)
+
+	// TODO: Catch exception if port is in use
+	val myIterPort = 30000 + scala.util.Random.nextInt(10000)
+    val sgxIter = new SgxIteratorServer[(K,V)](context, iter, myIterPort)
+    new Thread(sgxIter).start
+
+	val sh = new SocketHelper(new Socket(InetAddress.getByName("localhost"), 9999))
+    sh.sendOne(sgxIter.identifier)
+	val theirPort = sh.recvOne().asInstanceOf[Int]
+    println(s"Remote SGX side is listening on port $theirPort")
+//    new InterruptibleIterator[(K, V)](context, sgxIter)
+	sgxIter
   }
 
   /** Maps over a partition, providing the InputSplit that was used as the base of the partition. */
@@ -393,6 +412,7 @@ private[spark] object HadoopRDD extends Logging {
     override def getPartitions: Array[Partition] = firstParent[T].partitions
 
     override def compute(split: Partition, context: TaskContext): Iterator[U] = {
+    	println("HadoopMapPartitionsWithSplitRDD.compute("+split.toString()+")")
       val partition = split.asInstanceOf[HadoopPartition]
       val inputSplit = partition.inputSplit.value
       f(inputSplit, firstParent[T].iterator(split, context))

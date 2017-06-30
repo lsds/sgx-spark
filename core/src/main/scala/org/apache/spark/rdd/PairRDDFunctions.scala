@@ -1123,6 +1123,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
     writer.preSetup()
 
     val writeToFile = (context: TaskContext, iter: Iterator[(K, V)]) => {
+    	println("Starting writeToFile")
       // Hadoop wants a 32-bit task attempt ID, so if ours is bigger than Int.MaxValue, roll it
       // around by taking a mod. We expect that no task will be attempted 2 billion times.
       val taskAttemptId = (context.taskAttemptId % Int.MaxValue).toInt
