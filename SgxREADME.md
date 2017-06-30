@@ -7,7 +7,10 @@
 
 ## Build modified Hadoop
 
-You need to have Google Protocol Buffers 2.5 installed (see https://stackoverflow.com/a/29799354/2273470). Then:
+You need to have Google Protocol Buffers 2.5 installed (see https://stackoverflow.com/a/29799354/2273470).
+Note that these instructions are for Arch Linux. For Ubuntu 16.04, you'll need to remove the existing
+protoc installed by default (version 2.6.1) and when running configure for 2.5.0, don't
+specify the prefix flag.
 
 `sgx-spark/hadoop-2.6.5-src# mvn package -DskipTests`
 
