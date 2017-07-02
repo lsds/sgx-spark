@@ -1,9 +1,13 @@
+# CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
+SGX_LKL=/data/jdl11/lkl/sgx-lkl
+
 ALPINE_MAJOR=3.6
 ALPINE_VERSION=3.6.1
 ALPINE_ARCH=x86_64
 
 ALPINE_TAR=alpine-minirootfs.tar.gz
 MOUNTPOINT=/media/ext4disk
+SPARK_DIR=/spark
 
 IMAGE_SIZE_MB=500
 CLASSPATH_JARS=conf/:assembly/target/scala-2.11/jars/\*
@@ -25,6 +29,15 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	sudo install buildenv.sh $(MOUNTPOINT)/usr/sbin
 
+# Copy enclave jars and files into alpine disk image
+	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)
+	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/jars
+	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars
+	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
+	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
+	sudo cp ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
+
+	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	sudo mkdir -p $(MOUNTPOINT)/opt
 	sudo tar -xf jre8-no-segv.tar.gz -C $(MOUNTPOINT)/opt
 
@@ -42,11 +55,11 @@ test:
 	cd ../ && SPARK_LOCAL_IP=127.0.0.1 /usr/bin/java -cp $(CLASSPATH_JARS):../conf/ -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://localhost:7077 > lkl/worker.txt 2>&1 &
 	 sleep 2
 
-# Run Enclave (this needs to be updated to invoke sgx-lkl and setup the correct network paths between the host and the sgx jvm) 
-#	 @-$(shell openvpn --mktun --dev tap0)
-#	 $(shell ip link set dev tap0 up)
-#	 $(shell ip addr add 10.0.1.254/24 dev tap0)
-	cd ../ && /usr/bin/java -cp $(CLASSPATH_JARS):examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
+# Run Enclave
+	@-$(shell openvpn --mktun --dev tap0)
+	$(shell ip link set dev tap0 up)
+	$(shell ip addr add 10.0.1.254/24 dev tap0)
+	cd ../ && LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib MUSL_STRACELKL=1 MUSL_VERBOSELKL=1 MUSL_TRACE_MMAP=1 MUSL_TAP=tap0 MUSL_HD=${PWD}/alpine-rootfs.img MUSL_KERNEL=0 MUSL_VERSION=1 MUSL_ESLEEP=1 MUSL_SSLEEP=4000 MUSL_ESPINS=50000 MUSL_SSPINS=500 MUSL_STHREADS=32 MUSL_ETHREADS=4 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2000k -XX:ReservedCodeCacheSize=2000K -Xms2000k -Xmx2000k -XX:CompressedClassSpaceSize=1500K -XX:MaxMetaspaceSize=8000K -XX:+UseCompressedClassPointers -XX:+PrintCompilation -cp /spark/conf/:/spark/assembly/target/scala-2.11/jars\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
 	 sleep 2
 
 # Spark Job
