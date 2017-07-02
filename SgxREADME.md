@@ -42,3 +42,14 @@ This is the only code that runs inside the enclave.
 ## Spark Job
 
 `sgx-spark# SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://localhost:7077 --deploy-mode cluster --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar <infile> <outdir>`
+
+## To Run the Example on SGX-LKL 
+
+First, follow all of the instructions above to make and build hadoop and spark. Then cd into the `spark-sgx/lkl`
+directory and edit the `Makefile` to point to your `sgx-lkl` directory (this needs to have already been cloned and compiled
+seperately).
+
+Run `make` in `spark-sgx/lkl`. This will build the disk image and attempt to execute the worker, master, enclave code and spark
+job/driver processes.
+
+Comment the code out in the Makefile if you wish to run the enclave code inside sgx-lkl, or on the host machine (without lkl)
