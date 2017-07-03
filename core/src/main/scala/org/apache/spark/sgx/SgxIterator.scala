@@ -22,6 +22,8 @@ import java.net.Socket
 //
 object SgxMsgIteratorReqHasNext extends SgxMsg("iterator.req.hasNext") {}
 object SgxMsgIteratorReqNext extends SgxMsg("iterator.req.next") {}
+object SgxMsgIteratorReqClose extends SgxMsg("iterator.req.close") {}
+
 //
 ///**
 // * Note by FK: Currently not in use. May be useful at some later point.
@@ -97,13 +99,15 @@ class SgxIteratorServer[T](context: TaskContext, delegate: Iterator[T], myport: 
 	val identifier = new SgxIteratorServerIdentifier("localhost", myport)
 
 	override def next(): T = {
-		println(s"SgxIteratorServer($myport): Regular next() call")
-		super.next()
+//		println(s"SgxIteratorServer($myport): Regular next() call")
+//		super.next()
+		throw new RuntimeException(s"Access this iterator via port $myport")
 	}
 
 	override def hasNext(): Boolean = {
-		println(s"SgxIteratorServer($myport): Regular hasNext() call")
-		super.hasNext
+//		println(s"SgxIteratorServer($myport): Regular hasNext() call")
+//		super.hasNext
+		throw new RuntimeException(s"Access this iterator via port $myport")
 	}
 
 	def run = {
@@ -121,6 +125,8 @@ class SgxIteratorServer[T](context: TaskContext, delegate: Iterator[T], myport: 
 						val x = super.next
 						println(s"SgxIteratorServer($myport).next() -> " + x)
 						sh.sendOne(x)
+					case SgxMsgIteratorReqClose =>
+						break
 					case x: Any =>
 						println(s"SgxIteratorServer($myport).UNKNOWN() -> " + x + "(" + x.getClass().getName + ")")
 				}
@@ -157,6 +163,10 @@ class SgxIteratorClient[T](id: SgxIteratorServerIdentifier) extends Iterator[T] 
 		val x = sh.recvOne().asInstanceOf[T]
 		println(s"$id.next() -> " + x)
 		x
+	}
+
+	def close() = {
+		sh.sendOne(SgxMsgIteratorReqClose)
 	}
 }
 

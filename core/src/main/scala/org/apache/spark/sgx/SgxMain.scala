@@ -4,6 +4,10 @@ import java.io.InputStream
 import java.io.ObjectInputStream
 import java.net.ServerSocket
 
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 
@@ -34,11 +38,27 @@ object SgxMain {
 			val sh = new SocketHelper(server.accept())
 
 			val itdesc = sh.recvOne().asInstanceOf[SgxFirstTask[Any,Any]]
+			println("Starting task")
 
-			val it = new SgxTask(itdesc).run()
-			sh.sendMany(it)
+			val future = Future {
+				new SgxTask(itdesc).run()
+			}
 
-			sh.close()
+			val it = Await.result(future, Duration.Inf)
+			println("Iterator is ready.")
+			new Thread(new Runnable() {
+				def run = {
+					sh.sendMany(it)
+					sh.close()
+				}
+			}).start()
+			println("Started thread.")
+
+
+//			val it = new SgxTask(itdesc).run()
+//			sh.sendMany(it)
+//
+//			sh.close()
 		}
 
 		server.close()
