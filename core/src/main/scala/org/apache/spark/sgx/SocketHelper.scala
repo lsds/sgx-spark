@@ -1,15 +1,11 @@
 package org.apache.spark.sgx
 
+import java.io.ObjectOutputStream
 import java.net.Socket
 
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
-
+import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
-
-import scala.collection.mutable.ListBuffer
-import org.apache.spark.sgx.SgxMsg
 
 private object SgxDone extends SgxMsg("done") {}
 
@@ -19,16 +15,13 @@ class SocketHelper(socket: Socket) {
 	private	val ois = new ObjectInputStreamWithCustomClassLoader(socket.getInputStream())
 
 	def sendOne(obj: Any) = {
-//		println("  Sending: " + obj + " (" + obj.getClass.getName + ")")
 		oos.reset()
 		oos.writeObject(obj)
 		oos.flush()
 	}
 
 	def recvOne(): Any = {
-		val o = ois.readObject()
-//		println("  Receiving: " + o + " (" + o.getClass.getName + ")")
-		o
+		ois.readObject()
 	}
 
 	def sendMany(it: Iterator[Any]): Unit = {
@@ -48,7 +41,6 @@ class SocketHelper(socket: Socket) {
 				}
 			}
 		}
-//		println("  Received number of objects: " + list.size)
 		list.iterator
 	}
 

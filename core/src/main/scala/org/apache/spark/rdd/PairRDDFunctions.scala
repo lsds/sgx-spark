@@ -45,6 +45,14 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.util.Utils
 import org.apache.spark.util.collection.CompactBuffer
 import org.apache.spark.util.random.StratifiedSamplingUtils
+import org.apache.spark.sgx.FakeIterator
+import org.apache.spark.sgx.SocketHelper
+import java.net.InetAddress
+import java.net.Socket
+import org.apache.spark.sgx.SgxMsgIteratorReqClose
+import org.apache.spark.sgx.SgxMsgAccessFakeIterator
+import org.apache.spark.sgx.SgxIteratorProviderIdentifier
+import org.apache.spark.sgx.SgxIteratorConsumer
 
 /**
  * Extra functions available on RDDs of (key, value) pairs through an implicit conversion.
@@ -1123,7 +1131,6 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
     writer.preSetup()
 
     val writeToFile = (context: TaskContext, iter: Iterator[(K, V)]) => {
-    	println("Starting writeToFile")
       // Hadoop wants a 32-bit task attempt ID, so if ours is bigger than Int.MaxValue, roll it
       // around by taking a mod. We expect that no task will be attempted 2 billion times.
       val taskAttemptId = (context.taskAttemptId % Int.MaxValue).toInt
@@ -1136,7 +1143,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
 
       Utils.tryWithSafeFinallyAndFailureCallbacks {
         while (iter.hasNext) {
-          val record = iter.next()
+          val record = iter.next().asInstanceOf[(K,V)]
           writer.write(record._1.asInstanceOf[AnyRef], record._2.asInstanceOf[AnyRef])
 
           // Update bytes written metric every few records

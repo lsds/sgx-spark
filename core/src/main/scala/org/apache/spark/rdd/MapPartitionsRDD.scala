@@ -22,11 +22,11 @@ import scala.reflect.ClassTag
 import org.apache.spark.{ Partition, TaskContext }
 
 import java.io.Serializable
-import org.apache.spark.sgx.SgxIteratorServer
+import org.apache.spark.sgx.SgxIteratorProvider
 import org.apache.spark.sgx.SgxMapPartitionsRDD
-import org.apache.spark.sgx.SgxIteratorServerBinding
 import org.apache.spark.sgx.SgxFirstTask
 import org.apache.spark.sgx.SgxOtherTask
+import org.apache.spark.sgx.FakeIterator
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
@@ -42,20 +42,18 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 	override def getPartitions: Array[Partition] = firstParent[T].partitions
 
 	override def compute(split: Partition, context: TaskContext): Iterator[U] = {
-		val it = firstParent[T].iterator(split, context)
-		println(" MapPartitionsRDD.compute(" + f.getClass.getName + ", " + split + ", " + it.getClass.getName + ")")
-
 		// Original call
-//		f(split.index, it)
+//		f(split.index, firstParent[T].iterator(split, context))
 
 		// Call into enclave, providing the function, the partition index, and the iterator
-		it match {
-			case x: SgxIteratorServer[T] => (new SgxMapPartitionsRDD[U,T]).compute(new SgxFirstTask[U,T](f, split.index, x.identifier))
-			case x: Iterator[T] => (new SgxMapPartitionsRDD[U,T]).compute(new SgxOtherTask(f, split.index, x))
+		firstParent[T].iterator(split, context) match {
+			case x: SgxIteratorProvider[T] =>
+				(new SgxMapPartitionsRDD[U,T]).compute(new SgxFirstTask[U,T](f, split.index, x.identifier))
+			case x: FakeIterator[T] =>
+				(new SgxMapPartitionsRDD[U,T]).compute(new SgxOtherTask(f, split.index, x))
+			case x: Any =>
+				throw new RuntimeException("Unsupported iterator type at this point: " + x.getClass.getName)
 		}
-
-		//	x
-//		f(split.index, it)
 	}
 
 	override def clearDependencies() {

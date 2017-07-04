@@ -43,9 +43,7 @@ import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownH
 import java.net.InetAddress
 import java.net.Socket
 import org.apache.spark.sgx.SocketHelper
-import org.apache.spark.sgx.SgxIteratorServer
-import org.apache.spark.sgx.SgxTaskContext
-import org.apache.spark.sgx.SgxIteratorServerBinding
+import org.apache.spark.sgx.SgxIteratorProvider
 
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
@@ -206,7 +204,6 @@ class HadoopRDD[K, V](
   }
 
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
-	  println("HadoopRDD.compute("+theSplit.toString()+")")
     val iter = new NextIterator[(K, V)] {
 
       private val split = theSplit.asInstanceOf[HadoopPartition]
@@ -317,16 +314,11 @@ class HadoopRDD[K, V](
 	// Original call
 	// new InterruptibleIterator[(K, V)](context, iter)
 
-	// TODO: Catch exception if port is in use
-	val myIterPort = 30000 + scala.util.Random.nextInt(10000)
-    val sgxIter = new SgxIteratorServer[(K,V)](context, iter, myIterPort)
+    // SGX: This iterator will run as a service outside of the enclave
+    // and read/provide the (K,V) pairs. The consumer of this iterator
+    // lives inside the enclave and accesses the iterator via its socket interface.
+    val sgxIter = new SgxIteratorProvider[(K,V)](iter)
     new Thread(sgxIter).start
-
-//	val sh = new SocketHelper(new Socket(InetAddress.getByName("localhost"), 9999))
-//    sh.sendOne(sgxIter.identifier)
-//	val theirPort = sh.recvOne().asInstanceOf[Int]
-//    println(s"Remote SGX side is listening on port $theirPort")
-//	new SgxIteratorServerBinding(sgxIter, "localhost", theirPort)
     sgxIter
   }
 
