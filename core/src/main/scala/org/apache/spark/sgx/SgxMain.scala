@@ -74,21 +74,21 @@ class SgxOtherTaskApply(obj: SgxOtherTask[Any,Any], realit: Iterator[Any]) {
 	}
 }
 
-class FakeIteratorManager {
-	var fakeIterators = new TrieMap[UUID,Iterator[Any]]()
+class IdentifierManager[T,F](c: UUID => F) {
+	var identifiers = new TrieMap[UUID,T]()
 
-	def create(realIt: Iterator[Any]): FakeIterator[Any] = {
-		val id = UUID.randomUUID()
-		fakeIterators = fakeIterators ++ List(id -> realIt)
-		new FakeIterator[Any](id)
+	def create(obj: T): F = {
+		val uuid = UUID.randomUUID()
+		identifiers = identifiers ++ List(uuid -> obj)
+		c(uuid)
 	}
 
-	def get(id: UUID): Iterator[Any] = {
-		fakeIterators.apply(id)
+	def get(id: UUID): T = {
+		identifiers.apply(id)
 	}
 
-	def remove(id: UUID): Iterator[Any] = {
-		fakeIterators.remove(id).get
+	def remove(id: UUID): T = {
+		identifiers.remove(id).get
 	}
 }
 
@@ -96,7 +96,7 @@ object SgxMain {
 	def main(args: Array[String]): Unit = {
 
 		val server = new ServerSocket(9999)
-		val fakeIterators = new FakeIteratorManager
+		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 
 		while (true) {
 			val sh = new SocketHelper(server.accept())
