@@ -13,9 +13,9 @@ object MyWordCount {
       // Load our input data.
       val input =  sc.textFile(inputFile)
       // Split up into words.
-      val words = input.flatMap(line => line.split(" "))
+      val words = input.flatMap(line => { println("splitting"); line.split(" ")})
       // Transform into word and count.
-      val counts = words.map(word => (word, 1))//.reduceByKey{case (x, y) => x + y}
+      val counts = words.map(word => { println("counting"); (word, 1)})//.reduceByKey{case (x, y) => x + y}
       // Save the word count back out to a text file, causing evaluation.
       counts.saveAsTextFile(outputFile)
     }

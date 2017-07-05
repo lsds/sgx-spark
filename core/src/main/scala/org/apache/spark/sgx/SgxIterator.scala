@@ -1,76 +1,91 @@
 package org.apache.spark.sgx
 
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
-
-import java.net.Socket
+import java.net.ServerSocket
 
 import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
-
-import scala.collection.AbstractIterator
+import org.apache.spark.InterruptibleIterator
+import org.apache.spark.TaskContext
+import java.net.InetAddress
+import java.net.Socket
+import org.apache.commons.lang3.NotImplementedException
+import java.util.UUID
 
 object SgxMsgIteratorReqHasNext extends SgxMsg("iterator.req.hasNext") {}
 object SgxMsgIteratorReqNext extends SgxMsg("iterator.req.next") {}
+object SgxMsgIteratorReqClose extends SgxMsg("iterator.req.close") {}
 
+case class SgxMsgAccessFakeIterator(fakeId: UUID) extends SgxMsg("iterator.fake.access") {}
 
-/**
- * Note by FK: Currently not in use. May be useful at some later point.
- */
+class SgxIteratorProviderIdentifier(host: String, port: Int) extends Serializable {
+	def getHost(): String = { host }
+	def getPort(): Int = { port }
+}
 
-class SgxIteratorStub[T](oos: ObjectOutputStream, ois: ObjectInputStream) extends AbstractIterator[T] {
+class SgxIteratorProvider[T](delegate: Iterator[T]) extends InterruptibleIterator[T](null, delegate) with Runnable {
+	val myport = 40000 + scala.util.Random.nextInt(10000)
+	val identifier = new SgxIteratorProviderIdentifier("localhost", myport)
 
-	def this(oos: ObjectOutputStream, ois: ObjectInputStream, x: Int)  {
-		this(oos, ois)
-		println("Constructor")
+	/**
+	 * Always throws an UnsupportedOperationException. Access this Iterator via the socket interface.
+	 * Note: We allow calls to hasNext(), since they are, e.g., used by the superclass' toString() method.
+	 */
+	override def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via port $myport.")
+
+	def run = {
+		println(s"Running SgxIteratorProvider on port $myport")
+		val sh = new SocketHelper(new ServerSocket(myport).accept())
+		var run = true
+		while(run) {
+			sh.recvOne() match {
+				case SgxMsgIteratorReqHasNext =>
+					sh.sendOne(super.hasNext)
+				case SgxMsgIteratorReqNext =>
+					sh.sendOne(super.next)
+				case SgxMsgIteratorReqClose =>
+					stop(sh)
+					run = false
+				case x: Any =>
+					println(s"SgxIteratorProvider($myport): Unknown input message provided.")
+			}
+		}
 	}
 
-	override def hasNext: Boolean = {
-		println("hasNext()?")
-		oos.writeObject(SgxMsgIteratorReqHasNext)
-		oos.flush
-		val x = ois.readObject().asInstanceOf[Boolean]
-		println(" -> " + x + " (" + x.getClass().getName + ")")
-		x
-	}
-
-	override def next: T = {
-		println("next()?")
-		oos.writeObject(SgxMsgIteratorReqNext)
-		oos.flush
-		val x = ois.readObject().asInstanceOf[T]
-		println(" -> " + x + " (" + x.getClass().getName + ")")
-		x
+	def stop(sh: SocketHelper) = {
+		println(s"Stopping SgxIteratorServer on port $myport")
+		sh.close()
 	}
 }
 
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator[T] {
 
-class SgxIteratorReal[T](it: Iterator[T], oos: ObjectOutputStream, ois: ObjectInputStream) extends Runnable {
+	private val sh = new SocketHelper(new Socket(InetAddress.getByName(id.getHost()), id.getPort()))
+	private var closed = false
 
-	def run = {
-		println("Running SgxIteratorReal")
-		breakable {
-			while(true) {
-				println("Waiting ... ")
-				ois.readObject() match {
-					case SgxMsgIteratorReqHasNext =>
-						val x = it.hasNext
-						println("next()? " + x + "(" + x.getClass().getName + ")")
-						oos.writeObject(x)
-						oos.flush
-						if (!it.hasNext) break
-					case SgxMsgIteratorReqNext =>
-						val x = it.next
-						println("next()? " + x + "(" + x.getClass().getName + ")")
-						oos.writeObject(x)
-						oos.flush
-					case x: Any =>
-						println("Unknown: " + x + "(" + x.getClass().getName + ")")
-				}
-				println("loop done")
-			}
-		}
+	override def hasNext: Boolean = {
+		if (closed) false
 
-		println("break")
+		sh.sendOne(SgxMsgIteratorReqHasNext)
+		val hasNext = sh.recvOne().asInstanceOf[Boolean]
+		if (!hasNext) close()
+		hasNext
 	}
+
+	override def next: T = {
+		if (closed) null
+
+		sh.sendOne(SgxMsgIteratorReqNext)
+		sh.recvOne().asInstanceOf[T]
+	}
+
+	def close() = {
+		closed = true
+		sh.sendOne(SgxMsgIteratorReqClose)
+		sh.close()
+	}
+}
+
+case class FakeIterator[T](id: UUID) extends Iterator[T] with Serializable {
+	override def hasNext: Boolean =  throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
+	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 }

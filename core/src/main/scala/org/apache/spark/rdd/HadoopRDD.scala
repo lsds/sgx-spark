@@ -40,6 +40,10 @@ import org.apache.spark.rdd.HadoopRDD.HadoopMapPartitionsWithSplitRDD
 import org.apache.spark.scheduler.{HDFSCacheTaskLocation, HostTaskLocation}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownHookManager}
+import java.net.InetAddress
+import java.net.Socket
+import org.apache.spark.sgx.SocketHelper
+import org.apache.spark.sgx.SgxIteratorProvider
 
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
@@ -307,7 +311,15 @@ class HadoopRDD[K, V](
         }
       }
     }
-    new InterruptibleIterator[(K, V)](context, iter)
+	// Original call
+	// new InterruptibleIterator[(K, V)](context, iter)
+
+    // SGX: This iterator will run as a service outside of the enclave
+    // and read/provide the (K,V) pairs. The consumer of this iterator
+    // lives inside the enclave and accesses the iterator via its socket interface.
+    val sgxIter = new SgxIteratorProvider[(K,V)](iter)
+    new Thread(sgxIter).start
+    sgxIter
   }
 
   /** Maps over a partition, providing the InputSplit that was used as the base of the partition. */
@@ -393,6 +405,7 @@ private[spark] object HadoopRDD extends Logging {
     override def getPartitions: Array[Partition] = firstParent[T].partitions
 
     override def compute(split: Partition, context: TaskContext): Iterator[U] = {
+    	println("HadoopMapPartitionsWithSplitRDD.compute("+split.toString()+")")
       val partition = split.asInstanceOf[HadoopPartition]
       val inputSplit = partition.inputSplit.value
       f(inputSplit, firstParent[T].iterator(split, context))

@@ -39,7 +39,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.rpc._
 import org.apache.spark.util.{ThreadUtils, Utils}
-import org.apache.spark.sgx.SgxSpawn
 
 private[deploy] class Worker(
     override val rpcEnv: RpcEnv,
@@ -210,7 +209,7 @@ private[deploy] class Worker(
     // Attach the worker metrics servlet handler to the web ui after the metrics system is started.
     metricsSystem.getServletHandlers.foreach(webUi.attachHandler)
 
-    SgxSpawn()
+//    SgxSpawn()
   }
 
   /**

@@ -17,37 +17,47 @@
 
 package org.apache.spark.rdd
 
-import org.apache.spark.sgx.SgxMapPartitionsRDD
-
 import scala.reflect.ClassTag
 
-import org.apache.spark.{Partition, TaskContext}
+import org.apache.spark.{ Partition, TaskContext }
 
 import java.io.Serializable
+import org.apache.spark.sgx.SgxIteratorProvider
+import org.apache.spark.sgx.SgxMapPartitionsRDD
+import org.apache.spark.sgx.SgxFirstTask
+import org.apache.spark.sgx.SgxOtherTask
+import org.apache.spark.sgx.FakeIterator
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
  */
 private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
-    var prev: RDD[T],
-    f: (Int, Iterator[T]) => Iterator[U],  // (TaskContext, partition index, iterator)
-    preservesPartitioning: Boolean = false)
-  extends RDD[U](prev) {
+	var prev: RDD[T],
+	f: (Int, Iterator[T]) => Iterator[U], // (TaskContext, partition index, iterator)
+	preservesPartitioning: Boolean = false)
+		extends RDD[U](prev) {
 
-  override val partitioner = if (preservesPartitioning) firstParent[T].partitioner else None
+	override val partitioner = if (preservesPartitioning) firstParent[T].partitioner else None
 
-  override def getPartitions: Array[Partition] = firstParent[T].partitions
+	override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-  override def compute(split: Partition, context: TaskContext): Iterator[U] = {
-	  // Original call
-//    f(context, split.index, firstParent[T].iterator(split, context))
+	override def compute(split: Partition, context: TaskContext): Iterator[U] = {
+		// Original call
+//		f(split.index, firstParent[T].iterator(split, context))
 
-	// Call into enclave, providing the function, the partition index, and the iterator
-	(new SgxMapPartitionsRDD[U,T]).compute(f, split.index, firstParent[T].iterator(split, context))
-  }
+		// Call into enclave, providing the function, the partition index, and the iterator
+		firstParent[T].iterator(split, context) match {
+			case x: SgxIteratorProvider[T] =>
+				(new SgxMapPartitionsRDD[U,T]).compute(new SgxFirstTask[U,T](f, split.index, x.identifier))
+			case x: FakeIterator[T] =>
+				(new SgxMapPartitionsRDD[U,T]).compute(new SgxOtherTask(f, split.index, x))
+			case x: Any =>
+				throw new RuntimeException("Unsupported iterator type at this point: " + x.getClass.getName)
+		}
+	}
 
-  override def clearDependencies() {
-    super.clearDependencies()
-    prev = null
-  }
+	override def clearDependencies() {
+		super.clearDependencies()
+		prev = null
+	}
 }

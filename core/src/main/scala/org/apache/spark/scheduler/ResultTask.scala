@@ -25,6 +25,13 @@ import java.util.Properties
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sgx.FakeIterator
+import org.apache.spark.sgx.SgxIteratorConsumer
+import org.apache.spark.sgx.SocketHelper
+import java.net.InetAddress
+import java.net.Socket
+import org.apache.spark.sgx.SgxMsgAccessFakeIterator
+import org.apache.spark.sgx.SgxIteratorProviderIdentifier
 
 /**
  * A task that sends back the output to the driver application.
@@ -84,7 +91,23 @@ private[spark] class ResultTask[T, U](
       threadMXBean.getCurrentThreadCpuTime - deserializeStartCpuTime
     } else 0L
 
-    func(context, rdd.iterator(partition, context))
+      // Original call
+//    func(context, rdd.iterator(partition, context))
+
+    // SGX: func() corresponds to the Action of the entire Spark Job
+    // and will return the corresponding output. As such, it transfers
+    // the data from the enclave to the outside: if we see a FakeIterator,
+    // then we must turn it into an SgxIteratorConsumer and access the
+    // corresponding in-enclave iterator vis sockets.
+    val it = rdd.iterator(partition, context) match {
+    	case x: FakeIterator[T] =>
+    		val sh = new SocketHelper(new Socket(InetAddress.getByName("localhost"), 9999))
+    		sh.sendOne(SgxMsgAccessFakeIterator(x.id))
+    		new SgxIteratorConsumer(sh.recvOne().asInstanceOf[SgxIteratorProviderIdentifier])
+    	case x: Iterator[T] => x
+    }
+
+    func(context, it)
   }
 
   // This is only callable on the driver side.
