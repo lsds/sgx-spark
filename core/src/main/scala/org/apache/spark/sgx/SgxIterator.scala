@@ -11,16 +11,15 @@ import java.net.Socket
 import org.apache.commons.lang3.NotImplementedException
 import java.util.UUID
 
+class SgxMsg(val s: String) extends Serializable
+
 object SgxMsgIteratorReqHasNext extends SgxMsg("iterator.req.hasNext") {}
 object SgxMsgIteratorReqNext extends SgxMsg("iterator.req.next") {}
 object SgxMsgIteratorReqClose extends SgxMsg("iterator.req.close") {}
 
 case class SgxMsgAccessFakeIterator(fakeId: UUID) extends SgxMsg("iterator.fake.access") {}
 
-class SgxIteratorProviderIdentifier(host: String, port: Int) extends Serializable {
-	def getHost(): String = { host }
-	def getPort(): Int = { port }
-}
+class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Serializable {}
 
 class SgxIteratorProvider[T](delegate: Iterator[T]) extends InterruptibleIterator[T](null, delegate) with Runnable {
 	val myport = 40000 + scala.util.Random.nextInt(10000)
@@ -59,23 +58,21 @@ class SgxIteratorProvider[T](delegate: Iterator[T]) extends InterruptibleIterato
 
 class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator[T] {
 
-	private val sh = new SocketHelper(new Socket(InetAddress.getByName(id.getHost()), id.getPort()))
+	private val sh = new SocketHelper(new Socket(InetAddress.getByName(id.host), id.port))
 	private var closed = false
 
 	override def hasNext: Boolean = {
 		if (closed) false
-
-		sh.sendOne(SgxMsgIteratorReqHasNext)
-		val hasNext = sh.recvOne().asInstanceOf[Boolean]
-		if (!hasNext) close()
-		hasNext
+		else {
+			val hasNext = sh.sendRecv[Boolean](SgxMsgIteratorReqHasNext)
+			if (!hasNext) close()
+			hasNext
+		}
 	}
 
 	override def next: T = {
-		if (closed) null
-
-		sh.sendOne(SgxMsgIteratorReqNext)
-		sh.recvOne().asInstanceOf[T]
+		if (closed) throw new RuntimeException("Iterator was closed.")
+		else sh.sendRecv[T](SgxMsgIteratorReqNext)
 	}
 
 	def close() = {

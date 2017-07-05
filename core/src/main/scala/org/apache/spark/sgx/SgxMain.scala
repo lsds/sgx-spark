@@ -35,7 +35,6 @@ class SgxSuperTask[U: ClassTag, T: ClassTag] (
 	f: (Int, Iterator[T]) => Iterator[U],
 	partIndex: Int)
 		extends Serializable {
-	override def toString = s"SgxSuperTask($f, $partIndex)"
 }
 
 case class SgxFirstTask[U: ClassTag, T: ClassTag] (
@@ -43,7 +42,6 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag] (
 	partIndex: Int,
 	id: SgxIteratorProviderIdentifier)
 		extends SgxSuperTask[U,T](f, partIndex) {
-	override def toString = s"SgxFirstTask($f, $partIndex, $id)"
 }
 
 case class SgxOtherTask[U: ClassTag, T: ClassTag] (
@@ -75,7 +73,7 @@ class SgxOtherTaskApply(obj: SgxOtherTask[Any,Any], realit: Iterator[Any]) {
 }
 
 class IdentifierManager[T,F](c: UUID => F) {
-	var identifiers = new TrieMap[UUID,T]()
+	private var identifiers = new TrieMap[UUID,T]()
 
 	def create(obj: T): F = {
 		val uuid = UUID.randomUUID()
@@ -83,13 +81,8 @@ class IdentifierManager[T,F](c: UUID => F) {
 		c(uuid)
 	}
 
-	def get(id: UUID): T = {
-		identifiers.apply(id)
-	}
-
-	def remove(id: UUID): T = {
-		identifiers.remove(id).get
-	}
+	def get(id: UUID): T = identifiers.apply(id)
+	def remove(id: UUID): T = identifiers.remove(id).get
 }
 
 object SgxMain {
