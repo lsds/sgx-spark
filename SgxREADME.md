@@ -1,4 +1,3 @@
-
 # Build and prepare
 
 ## Delete existing Maven Hadoop files
@@ -14,14 +13,13 @@ specify the prefix flag.
 
 `sgx-spark/hadoop-2.6.5-src# mvn package -DskipTests`
 
-## Install the modified Haoop
-
-`sgx-spark# ./install-maven-dependencies.sh`
-
 ## Build Spark
 
 `sgx-spark# build/mvn -DskipTests package`
 
+## Make Spark use the modified Hadoop
+
+`sgx-spark# cp hadoop-2.6.5-src/hadoop-common-project/hadoop-common/target/hadoop-common-2.6.5.jar assembly/target/scala-2.11/jars/hadoop-common-2.6.5.jar`
 
 # Run 
 
