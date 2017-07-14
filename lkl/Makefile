@@ -1,5 +1,5 @@
 # CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
-SGX_LKL=/data/jdl11/lkl/sgx-lkl
+SGX_LKL=/data/fkelbert/sgx-lkl
 
 ALPINE_MAJOR=3.6
 ALPINE_VERSION=3.6.1
@@ -28,10 +28,11 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 	sudo tar -C $(MOUNTPOINT) -xvf $(ALPINE_TAR)
 	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	sudo install buildenv.sh $(MOUNTPOINT)/usr/sbin
+	sudo cp $(SGX_LKL)/apps/jre8-no-segv-nommap.tar.gz .
 
 # Copy Scala Library
 	sudo cp scala-library.jar $(MOUNTPOINT)/home
-	sudo unzip $(MOUNTPOINT)/home/scala-library.jar -d $(MOUNTPOINT)/home/scala-library
+#	sudo unzip $(MOUNTPOINT)/home/scala-library.jar -d $(MOUNTPOINT)/home/scala-library
 
 # Copy enclave jars and files into alpine disk image
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)
@@ -43,7 +44,7 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 
 	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	sudo mkdir -p $(MOUNTPOINT)/opt
-	sudo tar -xf jre8-no-segv.tar.gz -C $(MOUNTPOINT)/opt
+	sudo tar -xf jre8-no-segv-nommap.tar.gz -C $(MOUNTPOINT)/opt
 
 	sudo chroot $(MOUNTPOINT) /bin/sh /usr/sbin/buildenv.sh
 
@@ -52,18 +53,19 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 
 test:
 # Run Master
-	cd ../ && SPARK_LOCAL_IP=127.0.0.1 /usr/bin/java -cp $(CLASSPATH_JARS) -Xmx1g org.apache.spark.deploy.master.Master --host 127.0.0.1 --port 7077 --webui-port 8080 > lkl/master.txt 2>&1 &
+	cd ../ && SPARK_LOCAL_IP=127.0.0.1 java -cp $(CLASSPATH_JARS) -Xmx1g org.apache.spark.deploy.master.Master --host 127.0.0.1 --port 7077 --webui-port 8080 > lkl/master.txt 2>&1 &
 	 sleep 2
 
 # Run Worker
-	cd ../ && SPARK_LOCAL_IP=127.0.0.1 /usr/bin/java -cp $(CLASSPATH_JARS):../conf/ -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://localhost:7077 > lkl/worker.txt 2>&1 &
+	cd ../ && SPARK_LOCAL_IP=127.0.0.1 java -cp $(CLASSPATH_JARS):../conf/ -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://localhost:7077 > lkl/worker.txt 2>&1 &
 	 sleep 2
 
 # Run Enclave with LKL 
 	@-$(shell openvpn --mktun --dev tap0)
 	$(shell ip link set dev tap0 up)
 	$(shell ip addr add 10.0.1.254/24 dev tap0)
-	cd ../ && LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib MUSL_STRACELKL=1 MUSL_VERBOSELKL=1 MUSL_TRACE_MMAP=1 MUSL_TAP=tap0 MUSL_HD=${PWD}/alpine-rootfs.img MUSL_KERNEL=0 MUSL_VERSION=1 MUSL_ESLEEP=1 MUSL_SSLEEP=4000 MUSL_ESPINS=50000 MUSL_SSPINS=500 MUSL_STHREADS=32 MUSL_ETHREADS=4 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2000k -XX:ReservedCodeCacheSize=2000K -Xms2000k -Xmx8000k -XX:CompressedClassSpaceSize=1500K -XX:MaxMetaspaceSize=16000K -XX:+UseCompressedClassPointers -XX:+PrintCompilation -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
+	cd ../ && java -cp assembly/target/scala-2.11/jars/\*:examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
+#	cd ../ && LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib MUSL_STRACELKL=1 MUSL_VERBOSELKL=1 MUSL_TRACE_MMAP=1 MUSL_TAP=tap0 MUSL_HD=${PWD}/alpine-rootfs.img MUSL_KERNEL=0 MUSL_VERSION=1 MUSL_ESLEEP=1 MUSL_SSLEEP=4000 MUSL_ESPINS=50000 MUSL_SSPINS=500 MUSL_STHREADS=32 MUSL_ETHREADS=4 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2000k -XX:ReservedCodeCacheSize=2000K -Xms2000k -Xmx8000k -XX:CompressedClassSpaceSize=1500K -XX:MaxMetaspaceSize=16000K -XX:+UseCompressedClassPointers -XX:+PrintCompilation -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
 
 # Run Enclave on HOST using mounted disk image (just for testing/debugging purposes)
 #	$(shell mkdir -p /data/temp && mount -o loop alpine-rootfs.img /data/temp/)
