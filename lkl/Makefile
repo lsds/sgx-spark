@@ -1,5 +1,7 @@
-# CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
-SGX_LKL=/data/jdl11/lkl/sgx-lkl
+#
+#CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
+#SGX_LKL=/data/jdl11/lkl/sgx-lkl
+SGX_LKL=/home/dokeeffe/dev/SIM-sgx-lkl
 
 ALPINE_MAJOR=3.6
 ALPINE_VERSION=3.6.1
@@ -50,40 +52,45 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 	sudo umount $(MOUNTPOINT)
 	sudo chown $(USER) "$@"
 
-test:
-# Run Master
+
+test: start-master start-worker start-enclave start-job
+
+test-nosgx: start-master start-worker start-enclave-nosgx start-job
+
+start-master:
 	cd ../ && SPARK_LOCAL_IP=127.0.0.1 /usr/bin/java -cp $(CLASSPATH_JARS) -Xmx1g org.apache.spark.deploy.master.Master --host 127.0.0.1 --port 7077 --webui-port 8080 > lkl/master.txt 2>&1 &
-	 sleep 2
 
-# Run Worker
+start-worker:
+	sleep 2
 	cd ../ && SPARK_LOCAL_IP=127.0.0.1 /usr/bin/java -cp $(CLASSPATH_JARS):../conf/ -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://localhost:7077 > lkl/worker.txt 2>&1 &
-	 sleep 2
 
-# Run Enclave with LKL 
+start-enclave:
 	@-$(shell openvpn --mktun --dev tap0)
 	$(shell ip link set dev tap0 up)
 	$(shell ip addr add 10.0.1.254/24 dev tap0)
-	cd ../ && LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib MUSL_STRACELKL=1 MUSL_VERBOSELKL=1 MUSL_TRACE_MMAP=1 MUSL_TAP=tap0 MUSL_HD=${PWD}/alpine-rootfs.img MUSL_KERNEL=0 MUSL_VERSION=1 MUSL_ESLEEP=1 MUSL_SSLEEP=4000 MUSL_ESPINS=50000 MUSL_SSPINS=500 MUSL_STHREADS=32 MUSL_ETHREADS=4 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2000k -XX:ReservedCodeCacheSize=2000K -Xms2000k -Xmx8000k -XX:CompressedClassSpaceSize=1500K -XX:MaxMetaspaceSize=16000K -XX:+UseCompressedClassPointers -XX:+PrintCompilation -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
+	sleep 4
+	cd ../ && LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib MUSL_STRACELKL=1 MUSL_VERBOSELKL=1 MUSL_TRACE_MMAP=1 MUSL_TAP=tap0 MUSL_HD=${PWD}/alpine-rootfs.img MUSL_KERNEL=0 MUSL_VERSION=1 MUSL_ESLEEP=1 MUSL_SSLEEP=4000 MUSL_ESPINS=50000 MUSL_SSPINS=500 MUSL_STHREADS=32 MUSL_ETHREADS=4 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2000k -XX:ReservedCodeCacheSize=2000K -Xms2000k -Xmx8000k -XX:CompressedClassSpaceSize=1500K -XX:MaxMetaspaceSize=16000K -XX:+UseCompressedClassPointers -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
 
 # Run Enclave on HOST using mounted disk image (just for testing/debugging purposes)
 #	$(shell mkdir -p /data/temp && mount -o loop alpine-rootfs.img /data/temp/)
 #	cd ../ && /usr/bin/java -XX:InitialCodeCacheSize=2000k -XX:ReservedCodeCacheSize=2000K -Xms2000k -Xmx8000k -XX:CompressedClassSpaceSize=1500K -XX:MaxMetaspaceSize=16000K -XX:+UseCompressedClassPointers -XX:+PrintCompilation -cp /data/temp/home/scala-library/:/data/temp/spark/conf/:/data/temp/spark/assembly/target/scala-2.11/jars/\*:/data/temp/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
 
-	 sleep 2
 
-# Spark Job
+start-enclave-nosgx:
+	sleep 4
+	cd ../ &&  java -cp conf:assembly/target/scala-2.11/jars/\*:examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
+
+start-job:
+	sleep 6
 	cd ../ && SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://localhost:7077 --deploy-mode cluster --verbose --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(shell pwd)/example_input_file $(shell pwd)/output > lkl/job.txt 2>&1 &
-
-# Kill Process and clean up networking
-#   @-$(shell openvpn --rmtun --dev tap0)
-#   @-$(shell pkill -9 sgx-lkl-starter)
 
 clean:
 	rm -rf alpine*
 	rm -rf *.txt
 	rm -rf ../work
 	rm -rf output
-	pkill -9 java
-	pkill -9 sgx-lkl-starter
-	pkill -9 spark
+	pkill -9 java ; true
+	pkill -9 sgx-lkl-starter  ; true
+	pkill -9 spark ; true
+
 
