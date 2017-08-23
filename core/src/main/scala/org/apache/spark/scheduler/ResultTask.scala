@@ -32,6 +32,8 @@ import java.net.InetAddress
 import java.net.Socket
 import org.apache.spark.sgx.SgxMsgAccessFakeIterator
 import org.apache.spark.sgx.SgxIteratorProviderIdentifier
+import org.apache.spark.sgx.SgxEnvVar
+import org.apache.spark.sgx.SocketOpenSendRecvClose
 
 /**
  * A task that sends back the output to the driver application.
@@ -100,11 +102,16 @@ private[spark] class ResultTask[T, U](
     // then we must turn it into an SgxIteratorConsumer and access the
     // corresponding in-enclave iterator vis sockets.
     val it = rdd.iterator(partition, context) match {
-    	case x: FakeIterator[T] =>
-    		val sh = new SocketHelper(new Socket(InetAddress.getByName("localhost"), 9999))
-    		sh.sendOne(SgxMsgAccessFakeIterator(x.id))
-    		new SgxIteratorConsumer(sh.recvOne().asInstanceOf[SgxIteratorProviderIdentifier])
-    	case x: Iterator[T] => x
+      case x: FakeIterator[T] =>
+        println("RunTask: Accessing FAKE iterator")
+        val f = SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](SgxEnvVar.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SgxEnvVar.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"), SgxMsgAccessFakeIterator(x.id))
+//        val sh = new SocketHelper(new Socket(SgxEnvVar.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SgxEnvVar.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT")))
+//      	val f = sh.sendRecv[SgxIteratorProviderIdentifier](SgxMsgAccessFakeIterator(x.id))
+//  		  println("  result: " + f + "("+f.getClass.getName+")")
+      	new SgxIteratorConsumer(f)
+    	case x: Iterator[T] => 
+		    println("RunTask: Accessing REAL iterator")
+		    x
     }
 
     func(context, it)

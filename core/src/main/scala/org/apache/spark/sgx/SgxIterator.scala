@@ -6,9 +6,9 @@ import scala.util.control.Breaks.break
 import scala.util.control.Breaks.breakable
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.TaskContext
+import java.net.ConnectException
 import java.net.InetAddress
 import java.net.Socket
-import org.apache.commons.lang3.NotImplementedException
 import java.util.UUID
 
 class SgxMsg(val s: String) extends Serializable
@@ -19,11 +19,13 @@ object SgxMsgIteratorReqClose extends SgxMsg("iterator.req.close") {}
 
 case class SgxMsgAccessFakeIterator(fakeId: UUID) extends SgxMsg("iterator.fake.access") {}
 
-class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Serializable {}
+class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Serializable {
+	override def toString() = "SgxIteratorProviderIdentifier(host=" + host + ", port=" + port + ")"
+}
 
-class SgxIteratorProvider[T](delegate: Iterator[T]) extends InterruptibleIterator[T](null, delegate) with Runnable {
+class SgxIteratorProvider[T](delegate: Iterator[T], host: String) extends InterruptibleIterator[T](null, delegate) with Runnable {
 	val myport = 40000 + scala.util.Random.nextInt(10000)
-	val identifier = new SgxIteratorProviderIdentifier("localhost", myport)
+	val identifier = new SgxIteratorProviderIdentifier(host, myport)
 
 	/**
 	 * Always throws an UnsupportedOperationException. Access this Iterator via the socket interface.
@@ -32,10 +34,11 @@ class SgxIteratorProvider[T](delegate: Iterator[T]) extends InterruptibleIterato
 	override def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via port $myport.")
 
 	def run = {
-		println(s"Running SgxIteratorProvider on port $myport")
+		println(s"SgxIteratorProvider now listening on port $myport")
 		val sh = new SocketHelper(new ServerSocket(myport).accept())
-		var run = true
-		while(run) {
+		println(s"SgxIteratorProvider accepted connection on port $myport")
+		var running = true
+		while(running) {
 			sh.recvOne() match {
 				case SgxMsgIteratorReqHasNext =>
 					sh.sendOne(super.hasNext)
@@ -43,7 +46,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T]) extends InterruptibleIterato
 					sh.sendOne(super.next)
 				case SgxMsgIteratorReqClose =>
 					stop(sh)
-					run = false
+					running = false
 				case x: Any =>
 					println(s"SgxIteratorProvider($myport): Unknown input message provided.")
 			}
@@ -54,11 +57,16 @@ class SgxIteratorProvider[T](delegate: Iterator[T]) extends InterruptibleIterato
 		println(s"Stopping SgxIteratorServer on port $myport")
 		sh.close()
 	}
+
+	override def toString(): String = {
+		this.getClass.getSimpleName + "(host=" + host + ", port=" + myport + ", identifier=" + identifier + ")"
+	}
 }
 
 class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator[T] {
 
-	private val sh = new SocketHelper(new Socket(InetAddress.getByName(id.host), id.port))
+	println("Connecting to: " + id.host + " "  + id.port)
+	private val sh = new SocketHelper(Retry(10)(new Socket(InetAddress.getByName(id.host), id.port)))
 	private var closed = false
 
 	override def hasNext: Boolean = {
@@ -85,4 +93,6 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator
 case class FakeIterator[T](id: UUID) extends Iterator[T] with Serializable {
 	override def hasNext: Boolean =  throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
+
+	override def toString = "FakeIterator(" + id + ")"
 }

@@ -43,6 +43,7 @@ import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownH
 import java.net.InetAddress
 import java.net.Socket
 import org.apache.spark.sgx.SocketHelper
+import org.apache.spark.sgx.SgxEnvVar
 import org.apache.spark.sgx.SgxIteratorProvider
 
 /**
@@ -317,8 +318,9 @@ class HadoopRDD[K, V](
     // SGX: This iterator will run as a service outside of the enclave
     // and read/provide the (K,V) pairs. The consumer of this iterator
     // lives inside the enclave and accesses the iterator via its socket interface.
-    val sgxIter = new SgxIteratorProvider[(K,V)](iter)
-    new Thread(sgxIter).start
+    val sgxIter = new SgxIteratorProvider[(K,V)](iter, SgxEnvVar.getIpFromEnvVarOrAbort("SPARK_SGX_HOST_IP"))
+    println("HadoopRDD.compute(): Setting up Provider " + sgxIter)
+    new Thread(sgxIter).start 
     sgxIter
   }
 
