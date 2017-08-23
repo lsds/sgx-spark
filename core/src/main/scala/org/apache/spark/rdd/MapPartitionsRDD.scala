@@ -22,16 +22,11 @@ import scala.reflect.ClassTag
 import org.apache.spark.{ Partition, TaskContext }
 
 import java.io.Serializable
+
 import org.apache.spark.sgx.SgxIteratorProvider
 import org.apache.spark.sgx.SgxFirstTask
 import org.apache.spark.sgx.SgxOtherTask
 import org.apache.spark.sgx.FakeIterator
-import org.apache.spark.sgx.SocketHelper
-import java.net.InetAddress
-import java.net.Socket
-import org.apache.spark.sgx.SocketOpenSendRecvClose
-import org.apache.spark.sgx.SgxSuperTask
-import org.apache.spark.sgx.SgxEnvVar
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
@@ -55,7 +50,7 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 			case x: FakeIterator[T] => new SgxOtherTask(f, split.index, x)
 			case x: Any => throw new RuntimeException("Unsupported iterator type at this point: " + x.getClass.getName)
 		}
-		SocketOpenSendRecvClose[Iterator[U]](SgxEnvVar.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SgxEnvVar.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"), task)
+		task.executeInsideEnclave()
 	}
 
 	override def clearDependencies() {

@@ -25,15 +25,8 @@ import java.util.Properties
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+
 import org.apache.spark.sgx.FakeIterator
-import org.apache.spark.sgx.SgxIteratorConsumer
-import org.apache.spark.sgx.SocketHelper
-import java.net.InetAddress
-import java.net.Socket
-import org.apache.spark.sgx.SgxMsgAccessFakeIterator
-import org.apache.spark.sgx.SgxIteratorProviderIdentifier
-import org.apache.spark.sgx.SgxEnvVar
-import org.apache.spark.sgx.SocketOpenSendRecvClose
 
 /**
  * A task that sends back the output to the driver application.
@@ -93,28 +86,18 @@ private[spark] class ResultTask[T, U](
       threadMXBean.getCurrentThreadCpuTime - deserializeStartCpuTime
     } else 0L
 
-      // Original call
-//    func(context, rdd.iterator(partition, context))
+    // Original call
+    // func(context, rdd.iterator(partition, context))
 
     // SGX: func() corresponds to the Action of the entire Spark Job
     // and will return the corresponding output. As such, it transfers
     // the data from the enclave to the outside: if we see a FakeIterator,
     // then we must turn it into an SgxIteratorConsumer and access the
-    // corresponding in-enclave iterator vis sockets.
-    val it = rdd.iterator(partition, context) match {
-      case x: FakeIterator[T] =>
-        println("RunTask: Accessing FAKE iterator")
-        val f = SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](SgxEnvVar.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SgxEnvVar.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"), SgxMsgAccessFakeIterator(x.id))
-//        val sh = new SocketHelper(new Socket(SgxEnvVar.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SgxEnvVar.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT")))
-//      	val f = sh.sendRecv[SgxIteratorProviderIdentifier](SgxMsgAccessFakeIterator(x.id))
-//  		  println("  result: " + f + "("+f.getClass.getName+")")
-      	new SgxIteratorConsumer(f)
-    	case x: Iterator[T] => 
-		    println("RunTask: Accessing REAL iterator")
-		    x
+    // corresponding in-enclave SgxIteratorProvider.
+    rdd.iterator(partition, context) match {
+      case f: FakeIterator[T] => func(context, f.access(true))
+    	case i: Iterator[T] => func(context, i)
     }
-
-    func(context, it)
   }
 
   // This is only callable on the driver side.

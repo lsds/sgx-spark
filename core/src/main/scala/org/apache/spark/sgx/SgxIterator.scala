@@ -1,29 +1,26 @@
 package org.apache.spark.sgx
 
-import java.net.ServerSocket
-
-import scala.util.control.Breaks.break
-import scala.util.control.Breaks.breakable
 import org.apache.spark.InterruptibleIterator
-import org.apache.spark.TaskContext
-import java.net.ConnectException
-import java.net.InetAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.util.UUID
+import org.apache.spark.sgx.sockets.SocketEnv
+import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
+import org.apache.spark.sgx.sockets.SocketHelper
+import org.apache.spark.sgx.sockets.Retry
 
-class SgxMsg(val s: String) extends Serializable
+private object MsgIteratorReqHasNext extends Serializable {}
+private object MsgIteratorReqNext extends Serializable {}
+private object MsgIteratorReqClose extends Serializable {}
 
-object SgxMsgIteratorReqHasNext extends SgxMsg("iterator.req.hasNext") {}
-object SgxMsgIteratorReqNext extends SgxMsg("iterator.req.next") {}
-object SgxMsgIteratorReqClose extends SgxMsg("iterator.req.close") {}
-
-case class SgxMsgAccessFakeIterator(fakeId: UUID) extends SgxMsg("iterator.fake.access") {}
+case class MsgAccessFakeIterator(fakeId: UUID) extends Serializable {}
 
 class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Serializable {
-	override def toString() = "SgxIteratorProviderIdentifier(host=" + host + ", port=" + port + ")"
+	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
 }
 
-class SgxIteratorProvider[T](delegate: Iterator[T], host: String) extends InterruptibleIterator[T](null, delegate) with Runnable {
+class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, delegate) with Runnable {
+	val host = SocketEnv.getIpFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP")
 	val myport = 40000 + scala.util.Random.nextInt(10000)
 	val identifier = new SgxIteratorProviderIdentifier(host, myport)
 
@@ -40,11 +37,11 @@ class SgxIteratorProvider[T](delegate: Iterator[T], host: String) extends Interr
 		var running = true
 		while(running) {
 			sh.recvOne() match {
-				case SgxMsgIteratorReqHasNext =>
+				case MsgIteratorReqHasNext =>
 					sh.sendOne(super.hasNext)
-				case SgxMsgIteratorReqNext =>
+				case MsgIteratorReqNext =>
 					sh.sendOne(super.next)
-				case SgxMsgIteratorReqClose =>
+				case MsgIteratorReqClose =>
 					stop(sh)
 					running = false
 				case x: Any =>
@@ -58,21 +55,19 @@ class SgxIteratorProvider[T](delegate: Iterator[T], host: String) extends Interr
 		sh.close()
 	}
 
-	override def toString(): String = {
-		this.getClass.getSimpleName + "(host=" + host + ", port=" + myport + ", identifier=" + identifier + ")"
-	}
+	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + myport + ", identifier=" + identifier + ")"
 }
 
 class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator[T] {
 
-	println("Connecting to: " + id.host + " "  + id.port)
-	private val sh = new SocketHelper(Retry(10)(new Socket(InetAddress.getByName(id.host), id.port)))
+	println(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
+	private val sh = new SocketHelper(Retry(10)(new Socket(id.host, id.port)))
 	private var closed = false
 
 	override def hasNext: Boolean = {
 		if (closed) false
 		else {
-			val hasNext = sh.sendRecv[Boolean](SgxMsgIteratorReqHasNext)
+			val hasNext = sh.sendRecv[Boolean](MsgIteratorReqHasNext)
 			if (!hasNext) close()
 			hasNext
 		}
@@ -80,12 +75,12 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator
 
 	override def next: T = {
 		if (closed) throw new RuntimeException("Iterator was closed.")
-		else sh.sendRecv[T](SgxMsgIteratorReqNext)
+		else sh.sendRecv[T](MsgIteratorReqNext)
 	}
 
 	def close() = {
 		closed = true
-		sh.sendOne(SgxMsgIteratorReqClose)
+		sh.sendOne(MsgIteratorReqClose)
 		sh.close()
 	}
 }
@@ -93,6 +88,13 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator
 case class FakeIterator[T](id: UUID) extends Iterator[T] with Serializable {
 	override def hasNext: Boolean =  throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
-
-	override def toString = "FakeIterator(" + id + ")"
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
+	
+	def access(inEnclave: Boolean): Iterator[T] = {
+	  new SgxIteratorConsumer(
+  	      SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](
+  	      SocketEnv.getIpFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP"),
+  	      SocketEnv.getPortFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_PORT" else "SPARK_SGX_HOST_PORT"),
+  	      MsgAccessFakeIterator(id)))
+	}
 }

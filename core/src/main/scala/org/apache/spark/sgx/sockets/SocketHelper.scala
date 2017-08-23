@@ -1,22 +1,17 @@
-package org.apache.spark.sgx
+package org.apache.spark.sgx.sockets
 
 import java.io.ObjectInputStream
-
 import java.io.ObjectOutputStream
 import java.net.Socket
-
 import scala.collection.mutable.ListBuffer
-import java.net.InetAddress
 
-private object SgxDone extends SgxMsg("done") {}
+private object MsgDone {}
 
 class SocketHelper(socket: Socket) {
-	val name = "    SocketHelper(" + socket + "): "
-
 	private	val os = socket.getOutputStream()
 	private	val oos = new ObjectOutputStream(os)
 	private	val is = socket.getInputStream()
-	private	val ois = new ObjectInputStreamWithCustomClassLoader(is)
+	private	val ois = new ObjectInputStream(is)
 
 	def sendOne(obj: Any) = {
 		oos.reset()
@@ -37,13 +32,13 @@ class SocketHelper(socket: Socket) {
 		it.foreach {
 			x => sendOne(x)
 		}
-		sendOne(SgxDone)
+		sendOne(MsgDone)
 	}
 
 	def recvMany(): Iterator[Any] = {
 		var list = new ListBuffer[Any]()
 		while(recvOne() match {
-			case SgxDone => false
+			case MsgDone => false
 			case x: Any =>
 				list += x
 				true
@@ -81,13 +76,9 @@ object Retry {
  */
 object SocketOpenSendRecvClose {
 	def apply[O](host: String, port: Int, in: Any): O = {
-		println("Sending to " + host + ":" + port + " => " + in)
-		val sh = new SocketHelper(Retry(10)(new Socket(InetAddress.getByName(host), port)))
-		sh.sendOne(in)
-		println(s"  Sent ok ... Waiting for reply")
-		val res = sh.recvOne()
-		println(s"  Reply: " + res)
+		val sh = new SocketHelper(Retry(10)(new Socket(host, port)))
+		val res = sh.sendRecv[O](in)
 		sh.close()
-		res.asInstanceOf[O]
+		res
 	}
 }

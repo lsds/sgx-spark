@@ -1,13 +1,9 @@
-package org.apache.spark.sgx
+package org.apache.spark.sgx.sockets
 
 import org.apache.spark.internal.Logging
 import com.google.common.net.InetAddresses
 
-case class SgxEnvVar() extends Logging {
-    
-}
-
-object SgxEnvVar extends Logging {
+object SocketEnv extends Logging {
   def getIpFromEnvVarOrAbort(envvar: String): String = {
     val addr = sys.env.get(envvar).getOrElse("")
     if (!InetAddresses.isInetAddress(addr)) {
