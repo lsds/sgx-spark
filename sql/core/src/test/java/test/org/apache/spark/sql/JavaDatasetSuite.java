@@ -1283,6 +1283,83 @@ public class JavaDatasetSuite implements Serializable {
     ds.collectAsList();
   }
 
+  public enum EnumBean {
+    A("www.elgoog.com"),
+    B("www.google.com");
+
+    private String url;
+
+    EnumBean(String url) {
+      this.url = url;
+    }
+
+    public String getUrl() {
+      return url;
+    }
+
+    public void setUrl(String url) {
+      this.url = url;
+    }
+  }
+
+  @Test
+  public void testEnum() {
+    List<EnumBean> data = Arrays.asList(EnumBean.B);
+    Encoder<EnumBean> encoder = Encoders.bean(EnumBean.class);
+    Dataset<EnumBean> ds = spark.createDataset(data, encoder);
+    Assert.assertEquals(ds.collectAsList(), data);
+  }
+
+  public static class BeanWithEnum {
+    EnumBean enumField;
+    String regularField;
+
+    public String getRegularField() {
+      return regularField;
+    }
+
+    public void setRegularField(String regularField) {
+      this.regularField = regularField;
+    }
+
+    public EnumBean getEnumField() {
+      return enumField;
+    }
+
+    public void setEnumField(EnumBean field) {
+      this.enumField = field;
+    }
+
+    public BeanWithEnum(EnumBean enumField, String regularField) {
+      this.enumField = enumField;
+      this.regularField = regularField;
+    }
+
+    public BeanWithEnum() {
+    }
+
+    public String toString() {
+      return "BeanWithEnum(" + enumField  + ", " + regularField + ")";
+    }
+
+    public boolean equals(Object other) {
+      if (other instanceof BeanWithEnum) {
+        BeanWithEnum beanWithEnum = (BeanWithEnum) other;
+        return beanWithEnum.regularField.equals(regularField) && beanWithEnum.enumField.equals(enumField);
+      }
+      return false;
+    }
+  }
+
+  @Test
+  public void testBeanWithEnum() {
+    List<BeanWithEnum> data = Arrays.asList(new BeanWithEnum(EnumBean.A, "mira avenue"),
+            new BeanWithEnum(EnumBean.B, "flower boulevard"));
+    Encoder<BeanWithEnum> encoder = Encoders.bean(BeanWithEnum.class);
+    Dataset<BeanWithEnum> ds = spark.createDataset(data, encoder);
+    Assert.assertEquals(ds.collectAsList(), data);
+  }
+
   public static class EmptyBean implements Serializable {}
 
   @Test
@@ -1398,5 +1475,66 @@ public class JavaDatasetSuite implements Serializable {
     Dataset<NestedSmallBean> ds2 =
       ds1.map((MapFunction<NestedSmallBean, NestedSmallBean>) b -> b, encoder);
     Assert.assertEquals(beans, ds2.collectAsList());
+  }
+
+  @Test
+  public void testSpecificLists() {
+    SpecificListsBean bean = new SpecificListsBean();
+    ArrayList<Integer> arrayList = new ArrayList<>();
+    arrayList.add(1);
+    bean.setArrayList(arrayList);
+    LinkedList<Integer> linkedList = new LinkedList<>();
+    linkedList.add(1);
+    bean.setLinkedList(linkedList);
+    bean.setList(Collections.singletonList(1));
+    List<SpecificListsBean> beans = Collections.singletonList(bean);
+    Dataset<SpecificListsBean> dataset =
+      spark.createDataset(beans, Encoders.bean(SpecificListsBean.class));
+    Assert.assertEquals(beans, dataset.collectAsList());
+  }
+
+  public static class SpecificListsBean implements Serializable {
+    private ArrayList<Integer> arrayList;
+    private LinkedList<Integer> linkedList;
+    private List<Integer> list;
+
+    public ArrayList<Integer> getArrayList() {
+      return arrayList;
+    }
+
+    public void setArrayList(ArrayList<Integer> arrayList) {
+      this.arrayList = arrayList;
+    }
+
+    public LinkedList<Integer> getLinkedList() {
+      return linkedList;
+    }
+
+    public void setLinkedList(LinkedList<Integer> linkedList) {
+      this.linkedList = linkedList;
+    }
+
+    public List<Integer> getList() {
+      return list;
+    }
+
+    public void setList(List<Integer> list) {
+      this.list = list;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      SpecificListsBean that = (SpecificListsBean) o;
+      return Objects.equal(arrayList, that.arrayList) &&
+        Objects.equal(linkedList, that.linkedList) &&
+        Objects.equal(list, that.list);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(arrayList, linkedList, list);
+    }
   }
 }
