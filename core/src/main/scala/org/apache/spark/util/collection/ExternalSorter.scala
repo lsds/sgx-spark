@@ -32,6 +32,8 @@ import org.apache.spark.executor.ShuffleWriteMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer._
 import org.apache.spark.storage.{BlockId, DiskBlockObjectWriter}
+import org.apache.spark.sgx.FakeIterator
+import org.apache.spark.sgx.Encryption
 
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
@@ -182,6 +184,11 @@ private[spark] class ExternalSorter[K, V, C](
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
 
+    val records2 = records match {
+      case f: FakeIterator[Product2[K, V]] => f.access(true)
+      case i: Iterator[Product2[K, V]] => i
+    }
+
     if (shouldCombine) {
       // Combine values in-memory first using our AppendOnlyMap
       val mergeValue = aggregator.get.mergeValue
@@ -190,17 +197,17 @@ private[spark] class ExternalSorter[K, V, C](
       val update = (hadValue: Boolean, oldValue: C) => {
         if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
       }
-      while (records.hasNext) {
+      while (records2.hasNext) {
         addElementsRead()
-        kv = records.next()
+        kv = records2.next()
         map.changeValue((getPartition(kv._1), kv._1), update)
         maybeSpillCollection(usingMap = true)
       }
     } else {
       // Stick values into our buffer
-      while (records.hasNext) {
+      while (records2.hasNext) {
         addElementsRead()
-        val kv = records.next()
+        val kv = records2.next()
         buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
         maybeSpillCollection(usingMap = false)
       }

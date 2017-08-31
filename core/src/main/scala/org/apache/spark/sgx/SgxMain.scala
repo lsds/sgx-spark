@@ -38,7 +38,7 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag] (
   
   def apply(): Iterator[U] = {
     val future = Future {
-			f(partIndex, new SgxIteratorConsumer[T](id))
+			f(partIndex, new SgxIteratorConsumer[T](id, false, 3))
 		}
 
 		Await.result(future, Duration.Inf)
@@ -82,7 +82,7 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 	def run() = {
 		val sh = new SocketHelper(s)
 
-		val reply = sh.recvOne() match {
+		sh.sendOne(sh.recvOne() match {
 			case x: SgxFirstTask[_,_] => 
 			  fakeIterators.create(x.apply())
 
@@ -90,12 +90,10 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 			  fakeIterators.create(x.apply(fakeIterators.remove(x.it.id)))
 
 			case x: MsgAccessFakeIterator =>
-				val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true)
+				val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true, 3)
 				new Thread(iter).start()
 				iter.identifier
-		}
-		
-		sh.sendOne(reply)
+		})
 		sh.close()
 	}
 }

@@ -19,7 +19,7 @@ class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Ser
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
 }
 
-class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, delegate) with Runnable {
+class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Long = 0) extends InterruptibleIterator[T](null, delegate) with Runnable {
 	val host = SocketEnv.getIpFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP")
 	val myport = 40000 + scala.util.Random.nextInt(10000)
 	val identifier = new SgxIteratorProviderIdentifier(host, myport)
@@ -37,15 +37,21 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 		var running = true
 		while(running) {
 			sh.recvOne() match {
-				case MsgIteratorReqHasNext =>
-					sh.sendOne(super.hasNext)
-				case MsgIteratorReqNext =>
-					sh.sendOne(super.next)
+				case MsgIteratorReqHasNext => sh.sendOne(super.hasNext)
+				case MsgIteratorReqNext => {
+				  val n = super.next
+				  val m = if (inEnclave) {
+				    n match {
+				      case x: scala.Tuple2[_,_] => new scala.Tuple2[String,Any](Encryption.encrypt(x._1, key), x._2)
+				      case x: Any => x
+				    }
+				  } else n
+				  sh.sendOne(m)
+				}
 				case MsgIteratorReqClose =>
 					stop(sh)
 					running = false
-				case x: Any =>
-					println(s"SgxIteratorProvider($myport): Unknown input message provided.")
+				case x: Any => println(s"SgxIteratorProvider($myport): Unknown input message provided.")
 			}
 		}
 	}
@@ -58,7 +64,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + myport + ", identifier=" + identifier + ")"
 }
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator[T] {
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean, key: Long = 0) extends Iterator[T] {
 
 	println(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
 	private val sh = new SocketHelper(Retry(10)(new Socket(id.host, id.port)))
@@ -74,8 +80,17 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator
 	}
 
 	override def next: T = {
-		if (closed) throw new RuntimeException("Iterator was closed.")
-		else sh.sendRecv[T](MsgIteratorReqNext)
+		if (closed) throw new NoSuchElementException("Iterator was closed.")
+		else {
+		  val n = sh.sendRecv[Any](MsgIteratorReqNext)
+		  val m = if (providerIsInEnclave) {
+		    n match {
+		      case x: scala.Tuple2[String,Any] => new scala.Tuple2[Any,Any](Encryption.decrypt(x._1, key), x._2)
+		      case x: Any => x
+		    }
+		  } else n
+		  m.asInstanceOf[T]
+		}
 	}
 
 	def close() = {
@@ -90,11 +105,11 @@ case class FakeIterator[T](id: UUID) extends Iterator[T] with Serializable {
 	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
 	
-	def access(inEnclave: Boolean): Iterator[T] = {
+	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
 	  new SgxIteratorConsumer(
-  	      SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](
-  	      SocketEnv.getIpFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP"),
-  	      SocketEnv.getPortFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_PORT" else "SPARK_SGX_HOST_PORT"),
-  	      MsgAccessFakeIterator(id)))
+          SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](
+          SocketEnv.getIpFromEnvVarOrAbort(if (providerIsInEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP"),
+          SocketEnv.getPortFromEnvVarOrAbort(if (providerIsInEnclave) "SPARK_SGX_ENCLAVE_PORT" else "SPARK_SGX_HOST_PORT"),
+          MsgAccessFakeIterator(id)), providerIsInEnclave, key)
 	}
 }

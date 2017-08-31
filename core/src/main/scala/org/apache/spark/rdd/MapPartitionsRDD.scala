@@ -45,12 +45,11 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 		// Original call
 		// f(split.index, firstParent[T].iterator(split, context))
 
-		val task = firstParent[T].iterator(split, context) match {
-			case x: SgxIteratorProvider[T] => new SgxFirstTask[U,T](f, split.index, x.identifier)
-			case x: FakeIterator[T] => new SgxOtherTask(f, split.index, x)
-			case x: Any => throw new RuntimeException("Unsupported iterator type at this point: " + x.getClass.getName)
+		firstParent[T].iterator(split, context) match {
+			case x: SgxIteratorProvider[T] => new SgxFirstTask[U,T](f, split.index, x.identifier).executeInsideEnclave()
+			case x: FakeIterator[T] => new SgxOtherTask(f, split.index, x).executeInsideEnclave()
+			case x: Iterator[T] => f(split.index, firstParent[T].iterator(split, context))
 		}
-		task.executeInsideEnclave()
 	}
 
 	override def clearDependencies() {

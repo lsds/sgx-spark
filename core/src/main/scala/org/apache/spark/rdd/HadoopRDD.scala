@@ -42,6 +42,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownHookManager}
 
 import org.apache.spark.sgx.SgxIteratorProvider
+import org.apache.spark.sgx.Encryption
 
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
@@ -314,7 +315,7 @@ class HadoopRDD[K, V](
 
     // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
     // The corresponding SgxIteratorConsumer lives inside the enclave.
-    val sgxIter = new SgxIteratorProvider[(K,V)](iter, false)    
+    val sgxIter = new SgxIteratorProvider[(K,V)](iter, false, 3)
     new Thread(sgxIter).start 
     sgxIter
   }
