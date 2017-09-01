@@ -31,7 +31,7 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 	sudo tar -C $(MOUNTPOINT) -xvf $(ALPINE_TAR)
 	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	sudo install buildenv.sh $(MOUNTPOINT)/usr/sbin
-	sudo cp $(SGX_LKL)/apps/$(JVM) .
+	sudo cp $(SGX_LKL)/apps/jvm/$(JVM) .
 
 # Copy Scala Library
 	sudo cp scala-library.jar $(MOUNTPOINT)/home
@@ -69,7 +69,8 @@ start-enclave:
 	$(shell ip link set dev tap0 up)
 	$(shell ip addr add 10.0.1.254/24 dev tap0)
 	sleep 4
-	cd ../ LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib SGXLKL_STRACELKL=1 SGXLKL_VERBOSE=1 SGXLKL_TRACE_SYSCALL=0 SGXLKL_TRACE_MMAP=0 SGXLKL_TAP=tap0 SGXLKL_HD=${PWD}/alpine-rootfs.img SGXLKL_KERNEL=0 SGXLKL_VERSION=1 SGXLKL_ESLEEP=1 SGXLKL_SSLEEP=4000 SGXLKL_ESPINS=50000 SGXLKL_SSPINS=500 SGXLKL_STHREADS=8 SGXLKL_ETHREADS=4 SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2000k -XX:ReservedCodeCacheSize=2000K -Xms2000k -Xmx16m -XX:CompressedClassSpaceSize=8000K -XX:MaxMetaspaceSize=16000K -XX:+UseCompressedClassPointers -XX:+AssumeMP -Xint -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain
+# ENV vars provide the least amount of memory as figured out on 31/8/2017 with the MyWordCount example on file SgxReadme.md
+	cd ../ LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib SGXLKL_STRACELKL=1 SGXLKL_VERBOSE=1 SGXLKL_TRACE_SYSCALL=0 SGXLKL_TRACE_MMAP=0 SGXLKL_TAP=tap0 SGXLKL_HD=${PWD}/alpine-rootfs.img SGXLKL_KERNEL=0 SGXLKL_VERSION=1 SGXLKL_ESLEEP=1 SGXLKL_SSLEEP=4000 SGXLKL_ESPINS=50000 SGXLKL_SSPINS=500 SGXLKL_STHREADS=8 SGXLKL_ETHREADS=4 SGXLKL_STACK_SIZE=256000 SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2m -XX:ReservedCodeCacheSize=2m -Xms2m -Xmx2m -XX:CompressedClassSpaceSize=2m -XX:MaxMetaspaceSize=12m -XX:+UseCompressedClassPointers -XX:+AssumeMP -Xint -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain
 
 start-enclave-nosgx:
 	sleep 4
