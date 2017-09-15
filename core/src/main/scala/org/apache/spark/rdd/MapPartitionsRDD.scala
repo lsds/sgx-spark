@@ -46,7 +46,7 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 		// f(split.index, firstParent[T].iterator(split, context))
 
 		firstParent[T].iterator(split, context) match {
-			case x: SgxIteratorProvider[T] => new SgxFirstTask[U,T](f, split.index, x.identifier).executeInsideEnclave()
+			case x: SgxIteratorProvider[T] => new SgxFirstTask(f, split.index, x.identifier).executeInsideEnclave()
 			case x: FakeIterator[T] => new SgxOtherTask(f, split.index, x).executeInsideEnclave()
 			case x: Iterator[T] => f(split.index, firstParent[T].iterator(split, context))
 		}

@@ -23,6 +23,8 @@ import com.google.common.hash.Hashing
 
 import org.apache.spark.annotation.DeveloperApi
 
+import org.apache.spark.sgx.SgxFct2
+
 /**
  * :: DeveloperApi ::
  * A simple open hash table optimized for the append-only use case, where keys
@@ -132,7 +134,8 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
       if (!haveNullValue) {
         incrementSize()
       }
-      nullValue = updateFunc(haveNullValue, nullValue)
+//      nullValue = updateFunc(haveNullValue, nullValue)
+      nullValue = new SgxFct2[Boolean,V,V](updateFunc, haveNullValue, nullValue).executeInsideEnclave()
       haveNullValue = true
       return nullValue
     }
@@ -142,12 +145,14 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
       val curKey = data(2 * pos)
       if (curKey.eq(null)) {
         val newValue = updateFunc(false, null.asInstanceOf[V])
+//    	val newValue = new SgxFct2[Boolean,V,V](updateFunc, false, null.asInstanceOf[V]).executeInsideEnclave()
         data(2 * pos) = k
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         incrementSize()
         return newValue
       } else if (k.eq(curKey) || k.equals(curKey)) {
-        val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
+//        val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
+    	val newValue = new SgxFct2[Boolean,V,V](updateFunc, true, data(2 * pos + 1).asInstanceOf[V]).executeInsideEnclave()
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         return newValue
       } else {

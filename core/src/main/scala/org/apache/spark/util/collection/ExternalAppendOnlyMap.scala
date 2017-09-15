@@ -161,7 +161,8 @@ class ExternalAppendOnlyMap[K, V, C](
       if (maybeSpill(currentMap, estimatedSize)) {
         currentMap = new SizeTrackingAppendOnlyMap[K, C]
       }
-      currentMap.changeValue(curEntry._1, update)
+      // FIXME (throws exception)
+//      currentMap.changeValue(curEntry._1, update)
       addElementsRead()
     }
   }

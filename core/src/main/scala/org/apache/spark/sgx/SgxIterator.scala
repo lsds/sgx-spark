@@ -13,7 +13,7 @@ private object MsgIteratorReqHasNext extends Serializable {}
 private object MsgIteratorReqNext extends Serializable {}
 private object MsgIteratorReqClose extends Serializable {}
 
-case class MsgAccessFakeIterator(fakeId: UUID) extends Serializable {}
+case class MsgAccessFakeIterator(fakeId: Long) extends Serializable {}
 
 class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Serializable {
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
@@ -100,7 +100,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 	}
 }
 
-case class FakeIterator[T](id: UUID) extends Iterator[T] with Serializable {
+case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 	override def hasNext: Boolean =  throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"

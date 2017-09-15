@@ -12,8 +12,8 @@ SPARK_DIR=/spark
 IMAGE_SIZE_MB=2000
 CLASSPATH_JARS=conf/:assembly/target/scala-2.11/jars/\*
 
-#VM=jre8-no-segv-nommap.tar.gz
-JVM=jre8-no-segv-nommap-slowdebug.tar.gz
+JVM=jre8-no-segv-nommap.tar.gz
+#JVM=jre8-no-segv-nommap-slowdebug.tar.gz
 
 .DELETE_ON_ERROR:
 
@@ -33,17 +33,16 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 	sudo install buildenv.sh $(MOUNTPOINT)/usr/sbin
 	sudo cp $(SGX_LKL)/apps/jvm/$(JVM) .
 
-# Copy Scala Library
+	# Copy Scala Library
 	sudo cp scala-library.jar $(MOUNTPOINT)/home
-#	sudo unzip $(MOUNTPOINT)/home/scala-library.jar -d $(MOUNTPOINT)/home/scala-library
 
-# Copy enclave jars and files into alpine disk image
+	# Copy enclave jars and files into alpine disk image
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)
-	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/jars
+	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars
 	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
 	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
-	sudo cp ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
+	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
 
 	sudo mkdir -p $(MOUNTPOINT)/opt
 	sudo tar -xf $(JVM) -C $(MOUNTPOINT)/opt
