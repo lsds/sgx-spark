@@ -26,6 +26,7 @@ import org.scalatest.{BeforeAndAfter, PrivateMethodTester}
 
 import org.apache.spark.{SparkException, SparkFunSuite}
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
+import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.DataSourceScanExec
 import org.apache.spark.sql.execution.command.ExplainCommand
@@ -739,11 +740,13 @@ class JDBCSuite extends SparkFunSuite
         } else {
           None
         }
+      override def isCascadingTruncateTable(): Option[Boolean] = Some(true)
     }, testH2Dialect))
     assert(agg.canHandle("jdbc:h2:xxx"))
     assert(!agg.canHandle("jdbc:h2"))
     assert(agg.getCatalystType(0, "", 1, null) === Some(LongType))
     assert(agg.getCatalystType(1, "", 1, null) === Some(StringType))
+    assert(agg.isCascadingTruncateTable() === Some(true))
   }
 
   test("DB2Dialect type mapping") {
@@ -970,30 +973,28 @@ class JDBCSuite extends SparkFunSuite
 
   test("jdbc API support custom schema") {
     val parts = Array[String]("THEID < 2", "THEID >= 2")
+    val customSchema = "NAME STRING, THEID INT"
     val props = new Properties()
-    props.put("customSchema", "NAME STRING, THEID BIGINT")
-    val schema = StructType(Seq(
-      StructField("NAME", StringType, true), StructField("THEID", LongType, true)))
+    props.put("customSchema", customSchema)
     val df = spark.read.jdbc(urlWithUserAndPass, "TEST.PEOPLE", parts, props)
     assert(df.schema.size === 2)
-    assert(df.schema === schema)
+    assert(df.schema === CatalystSqlParser.parseTableSchema(customSchema))
     assert(df.count() === 3)
   }
 
   test("jdbc API custom schema DDL-like strings.") {
     withTempView("people_view") {
+      val customSchema = "NAME STRING, THEID INT"
       sql(
         s"""
            |CREATE TEMPORARY VIEW people_view
            |USING org.apache.spark.sql.jdbc
            |OPTIONS (uRl '$url', DbTaBlE 'TEST.PEOPLE', User 'testUser', PassWord 'testPass',
-           |customSchema 'NAME STRING, THEID INT')
+           |customSchema '$customSchema')
         """.stripMargin.replaceAll("\n", " "))
-      val schema = StructType(
-        Seq(StructField("NAME", StringType, true), StructField("THEID", IntegerType, true)))
       val df = sql("select * from people_view")
-      assert(df.schema.size === 2)
-      assert(df.schema === schema)
+      assert(df.schema.length === 2)
+      assert(df.schema === CatalystSqlParser.parseTableSchema(customSchema))
       assert(df.count() === 3)
     }
   }
