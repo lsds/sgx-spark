@@ -8,10 +8,8 @@ import scala.collection.mutable.ListBuffer
 private object MsgDone {}
 
 class SocketHelper(socket: Socket) {
-	private	val os = socket.getOutputStream()
-	private	val oos = new ObjectOutputStream(os)
-	private	val is = socket.getInputStream()
-	private	val ois = new ObjectInputStream(is)
+	private	val oos = new ObjectOutputStream(socket.getOutputStream())
+	private	val ois = new ObjectInputStream(socket.getInputStream())
 
 	def sendOne(obj: Any) = {
 		oos.reset()
@@ -54,7 +52,7 @@ class SocketHelper(socket: Socket) {
 }
 
 /**
- * Inspired by 
+ * Inspired by
  * https://stackoverflow.com/questions/7930814/whats-the-scala-way-to-implement-a-retry-able-call-like-this-one
  */
 object Retry {

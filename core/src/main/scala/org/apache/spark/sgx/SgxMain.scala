@@ -4,6 +4,7 @@ import java.io.InputStream
 import java.io.ObjectInputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.{Executors, ExecutorService}
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -21,7 +22,6 @@ import gnu.trove.map.hash.TLongObjectHashMap
 
 class SgxExecuteInside[R] extends Serializable {
   def executeInsideEnclave(): R = {
-	println("Sending " + this + " to enclave")
     SocketOpenSendRecvClose[R](SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"), this)
   }
 }
@@ -36,7 +36,7 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag] (
   override def toString = this.getClass.getSimpleName + "(f=" +  f + ", partIndex=" + partIndex + ", id=" + id + ")"
 }
 
-case class SgxOtherTask[U: ClassTag, T: ClassTag] (
+case class SgxOtherTask[U,T] (
 	f: (Int, Iterator[T]) => Iterator[U],
 	partIndex: Int,
 	it: FakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
@@ -83,9 +83,10 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 
 			case x: MsgAccessFakeIterator =>
 				val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true, 3)
-				new Thread(iter).start()
+				new Thread(iter).start
 				iter.identifier
 		})
+
 		sh.close()
 	}
 }
@@ -94,11 +95,18 @@ object SgxMain {
 	def main(args: Array[String]): Unit = {
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"))
+		val pool: ExecutorService = Executors.newFixedThreadPool(100)
+
 		println("Main: Waiting for connections on port " + server.getLocalPort)
 
-		while (true) {
-			new Thread(new SgxMainRunner(server.accept(), fakeIterators)).start()
+		try {
+			while (true) {
+				pool.execute(new SgxMainRunner(server.accept(), fakeIterators))
+			}
 		}
-		server.close()
+		finally {
+			server.close()
+			pool.shutdown()
+		}
 	}
 }

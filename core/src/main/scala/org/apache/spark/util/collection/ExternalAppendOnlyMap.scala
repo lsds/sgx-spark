@@ -149,7 +149,9 @@ class ExternalAppendOnlyMap[K, V, C](
     // a new closure each time
     var curEntry: Product2[K, V] = null
     val update: (Boolean, C) => C = (hadVal, oldVal) => {
-      if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
+      println("current entry: " + curEntry._1 + ", " + curEntry._2 + ", mergeValue:" + mergeValue + " ("+mergeValue.getClass.getSimpleName+"), createCombiner: (" + createCombiner.getClass.getSimpleName + ")")
+      if (hadVal) mergeValue(oldVal, curEntry._2)
+      else createCombiner(curEntry._2)
     }
 
     while (entries.hasNext) {
@@ -162,7 +164,7 @@ class ExternalAppendOnlyMap[K, V, C](
         currentMap = new SizeTrackingAppendOnlyMap[K, C]
       }
       // FIXME (throws exception)
-//      currentMap.changeValue(curEntry._1, update)
+      currentMap.changeValue(curEntry._1, update)
       addElementsRead()
     }
   }

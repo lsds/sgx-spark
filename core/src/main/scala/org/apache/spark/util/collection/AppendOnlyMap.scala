@@ -24,6 +24,7 @@ import com.google.common.hash.Hashing
 import org.apache.spark.annotation.DeveloperApi
 
 import org.apache.spark.sgx.SgxFct2
+import scala.reflect.ClassTag
 
 /**
  * :: DeveloperApi ::
@@ -134,25 +135,37 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
       if (!haveNullValue) {
         incrementSize()
       }
-//      nullValue = updateFunc(haveNullValue, nullValue)
+//    Original call
+//    nullValue = updateFunc(haveNullValue, nullValue)
       nullValue = new SgxFct2[Boolean,V,V](updateFunc, haveNullValue, nullValue).executeInsideEnclave()
       haveNullValue = true
       return nullValue
     }
     var pos = rehash(k.hashCode) & mask
     var i = 1
+
     while (true) {
       val curKey = data(2 * pos)
       if (curKey.eq(null)) {
-        val newValue = updateFunc(false, null.asInstanceOf[V])
-//    	val newValue = new SgxFct2[Boolean,V,V](updateFunc, false, null.asInstanceOf[V]).executeInsideEnclave()
+
+    	// SGX call
+    	val newValue = new SgxFct2[Boolean,V,V](updateFunc, false, null.asInstanceOf[V]).executeInsideEnclave()
+
+//    	Original call
+//      val newValue = updateFunc(false, null.asInstanceOf[V])
+
         data(2 * pos) = k
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         incrementSize()
         return newValue
       } else if (k.eq(curKey) || k.equals(curKey)) {
-//        val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
+
+  		// SGX call
     	val newValue = new SgxFct2[Boolean,V,V](updateFunc, true, data(2 * pos + 1).asInstanceOf[V]).executeInsideEnclave()
+
+//    	Original call
+//    	val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
+
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         return newValue
       } else {
