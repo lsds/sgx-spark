@@ -33,9 +33,9 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 	override def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via port $myport.")
 
 	def call(): Unit = {
-		println(s"SgxIteratorProvider now listening on port $myport")
+		SgxLogger.out(s"SgxIteratorProvider now listening on port $myport")
 		val sh = new SocketHelper(new ServerSocket(myport).accept())
-		println(s"SgxIteratorProvider accepted connection on port $myport")
+		SgxLogger.out(s"SgxIteratorProvider accepted connection on port $myport")
 		var running = true
 		while(running) {
 			sh.recvOne() match {
@@ -53,13 +53,13 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 				case MsgIteratorReqClose =>
 					stop(sh)
 					running = false
-				case x: Any => println(s"SgxIteratorProvider($myport): Unknown input message provided.")
+				case _: Any => SgxLogger.out(s"SgxIteratorProvider($myport): Unknown input message provided.")
 			}
 		}
 	}
 
 	def stop(sh: SocketHelper) = {
-		println(s"Stopping SgxIteratorServer on port $myport")
+		SgxLogger.out(s"Stopping SgxIteratorServer on port $myport")
 		sh.close()
 	}
 
@@ -68,7 +68,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 
 class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean, key: Long = 0) extends Iterator[T] {
 
-	println(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
+	SgxLogger.out(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
 	private val sh = new SocketHelper(Retry(10)(new Socket(id.host, id.port)))
 	private var closed = false
 

@@ -85,7 +85,7 @@ object SgxClientHandle {
 	override def toString() = this.getClass.getSimpleName  + "(remoteHost="+SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP")+", remotePort="+(SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT")) +")"
 }
 
-class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]], completion: ExecutorCompletionService[Unit]) extends Callable[Unit] {
+class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Callable[Unit] {
 	def call(): Unit = {
 		val sh = new SocketHelper(s)
 
@@ -103,11 +103,11 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 
 				case x: MsgAccessFakeIterator =>
 					val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true, 3)
-					completion.submit(iter)
+					Completor.submit(iter)
 					sh.sendOne(iter.identifier)
 
 				case _ =>
-					println(this + ": Unknown input message provided.")
+					SgxLogger.out(this + ": Unknown input message provided.")
 					running = false
 			}
 		}
@@ -120,19 +120,18 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 
 object Completor extends ExecutorCompletionService[Unit](Executors.newFixedThreadPool(32)) {}
 
-class Waiter(compl: ExecutorCompletionService[Unit]) extends Callable[Unit] {
-	def call(): Unit = while (true) compl.take
+class Waiter() extends Callable[Unit] {
+       def call(): Unit = while (true) Completor.take
 }
 
 object SgxMain {
 	def main(args: Array[String]): Unit = {
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"))
-		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
 
-		println("Main: Waiting for connections on port " + server.getLocalPort)
+		SgxLogger.out("Main: Waiting for connections on port " + server.getLocalPort)
 
-		completion.submit(new Waiter(completion))
-		completion.submit(new SgxMainRunner(server.accept(), fakeIterators, completion))
+		Completor.submit(new Waiter())
+		Completor.submit(new SgxMainRunner(server.accept(), fakeIterators))
 	}
 }

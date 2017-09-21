@@ -41,7 +41,6 @@ class MyUpdate[C,K,V](createCombiner: V => C,
 		mergeValue: (C, V) => C,
     	curEntry: Product2[K, V]) extends Serializable {
 	def update(hadVal: Boolean, oldVal: C) = {
-		println("hadVal=" + hadVal + ", oldVal=" + oldVal + ", curEntry._1=" + curEntry._1 + ", curEntry._2=" + curEntry._2)
       if (hadVal) mergeValue(oldVal, curEntry._2)
       else createCombiner(curEntry._2)
     }
