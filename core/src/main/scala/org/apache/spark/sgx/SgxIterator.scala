@@ -108,10 +108,11 @@ case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
 
 	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
-	  new SgxIteratorConsumer(
-          SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](
-          SocketEnv.getIpFromEnvVarOrAbort(if (providerIsInEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP"),
-          SocketEnv.getPortFromEnvVarOrAbort(if (providerIsInEnclave) "SPARK_SGX_ENCLAVE_PORT" else "SPARK_SGX_HOST_PORT"),
-          MsgAccessFakeIterator(id)), providerIsInEnclave, key)
+		val ident = if (providerIsInEnclave) SgxClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
+			else SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](
+	          SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_HOST_IP"),
+	          SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_HOST_PORT"),
+	          MsgAccessFakeIterator(id))
+	     new SgxIteratorConsumer(ident, providerIsInEnclave, key)
 	}
 }

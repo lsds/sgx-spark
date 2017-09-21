@@ -37,8 +37,6 @@ import org.apache.spark.storage.{BlockId, BlockManager}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalAppendOnlyMap.HashComparator
 
-import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
-
 class MyUpdate[C,K,V](createCombiner: V => C,
 		mergeValue: (C, V) => C,
     	curEntry: Product2[K, V]) extends Serializable {
