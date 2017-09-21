@@ -9,6 +9,8 @@ import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
 import org.apache.spark.sgx.sockets.SocketHelper
 import org.apache.spark.sgx.sockets.Retry
 
+import java.util.concurrent.Callable
+
 private object MsgIteratorReqHasNext extends Serializable {}
 private object MsgIteratorReqNext extends Serializable {}
 private object MsgIteratorReqClose extends Serializable {}
@@ -19,7 +21,7 @@ class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Ser
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
 }
 
-class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Long = 0) extends InterruptibleIterator[T](null, delegate) with Runnable {
+class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Long = 0) extends InterruptibleIterator[T](null, delegate) with Callable[Unit] {
 	val host = SocketEnv.getIpFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP")
 	val myport = 40000 + scala.util.Random.nextInt(10000)
 	val identifier = new SgxIteratorProviderIdentifier(host, myport)
@@ -30,7 +32,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 	 */
 	override def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via port $myport.")
 
-	def run = {
+	def call(): Unit = {
 		println(s"SgxIteratorProvider now listening on port $myport")
 		val sh = new SocketHelper(new ServerSocket(myport).accept())
 		println(s"SgxIteratorProvider accepted connection on port $myport")

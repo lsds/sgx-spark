@@ -20,9 +20,19 @@ import org.apache.spark.sgx.sockets.SocketHelper
 
 import gnu.trove.map.hash.TLongObjectHashMap
 
+import org.apache.spark.sgx.sockets.SocketEnv
+import org.apache.spark.sgx.sockets.Retry
+
+private object MsgNewGenericService extends Serializable {}
+private object MsgCloseGenericService extends Serializable {}
+
 class SgxExecuteInside[R] extends Serializable {
   def executeInsideEnclave(): R = {
-    SocketOpenSendRecvClose[R](SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"), this)
+	  print(this + "executeInsideEnclave() ...")
+	  val x = GenericServiceClientHandle.sendRecv[R](this)
+//    SocketOpenSendRecvClose[R](SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"), this)
+	  println("done")
+	  x
   }
 }
 
@@ -72,7 +82,51 @@ class IdentifierManager[T,F](c: Long => F) {
 	}
 }
 
-class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Callable[Unit] {
+class GenericService(fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Callable[Unit] {
+	val port = SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT") - 1
+
+	def call(): Unit = {
+		val sh = new SocketHelper(new ServerSocket(port).accept())
+		var running = true
+		while(running) {
+			println(this + " waiting for packets")
+			sh.recvOne() match {
+				case x: SgxFct2[_,_,_] => println(this + "  incoming: " + x); sh.sendOne(x.apply())
+				case x: SgxFirstTask[_,_] => println(this + "  incoming: " + x); sh.sendOne(fakeIterators.create(x.apply()))
+				case x: SgxOtherTask[_,_] => println(this + "  incoming: " + x); sh.sendOne(fakeIterators.create(x.apply(fakeIterators.remove(x.it.id))))
+
+				case MsgCloseGenericService =>
+					println(this + "  incoming: MsgCloseGenericService");
+					stop(sh)
+					running = false
+
+				case _ =>
+					println(this + ": Unknown input message provided.")
+			}
+		}
+	}
+
+	def stop(sh: SocketHelper) = {
+		sh.close()
+	}
+
+	override def toString() = this.getClass.getSimpleName + "(port="+port+")"
+}
+
+object GenericServiceClientHandle {
+	private val sh = new SocketHelper(Retry(10)(new Socket(SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT") - 1)))
+	println(this + " established connection")
+
+	def sendRecv[R](in: Any): R = this.synchronized {
+		println(this + " sending: " + in)
+		sh.sendRecv(in)
+	}
+
+	override def toString() = this.getClass.getSimpleName  + "(remoteHost="+SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP")+", remotePort="+(SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT") - 1) +")"
+}
+
+
+class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]], completion: ExecutorCompletionService[Unit]) extends Callable[Unit] {
 	def call(): Unit = {
 		val sh = new SocketHelper(s)
 
@@ -83,7 +137,7 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 
 			case x: MsgAccessFakeIterator =>
 				val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true, 3)
-				new Thread(iter).start
+				completion.submit(iter)
 				iter.identifier
 		})
 
@@ -93,9 +147,7 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 
 class Waiter(compl: ExecutorCompletionService[Unit]) extends Callable[Unit] {
 	def call(): Unit = {
-		while (true) {
-			val f = compl.take
-		}
+		while (true) compl.take
 	}
 }
 
@@ -108,11 +160,12 @@ object SgxMain {
 		println("Main: Waiting for connections on port " + server.getLocalPort)
 
 		completion.submit(new Waiter(completion))
+		completion.submit(new GenericService(fakeIterators))
 
 		try {
 			while (true) {
 //				completion.submit(new SgxMainRunner(server.accept(), fakeIterators))
-				new SgxMainRunner(server.accept(), fakeIterators).call()
+				new SgxMainRunner(server.accept(), fakeIterators, completion).call()
 			}
 		}
 		finally {
