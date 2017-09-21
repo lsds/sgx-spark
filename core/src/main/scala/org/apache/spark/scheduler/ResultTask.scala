@@ -27,7 +27,6 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 import org.apache.spark.sgx.FakeIterator
-import org.apache.spark.sgx.Encryption
 
 /**
  * A task that sends back the output to the driver application.

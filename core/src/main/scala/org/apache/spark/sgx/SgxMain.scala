@@ -4,7 +4,7 @@ import java.io.InputStream
 import java.io.ObjectInputStream
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.concurrent.{Executors, ExecutorService}
+import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCompletionService}
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -72,8 +72,8 @@ class IdentifierManager[T,F](c: Long => F) {
 	}
 }
 
-class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Runnable {
-	def run() = {
+class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Callable[Unit] {
+	def call(): Unit = {
 		val sh = new SocketHelper(s)
 
 		sh.sendOne(sh.recvOne() match {
@@ -91,22 +91,32 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 	}
 }
 
+class Waiter(compl: ExecutorCompletionService[Unit]) extends Callable[Unit] {
+	def call(): Unit = {
+		while (true) {
+			val f = compl.take
+		}
+	}
+}
+
 object SgxMain {
 	def main(args: Array[String]): Unit = {
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"))
-		val pool: ExecutorService = Executors.newFixedThreadPool(100)
+		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
 
 		println("Main: Waiting for connections on port " + server.getLocalPort)
 
+		completion.submit(new Waiter(completion))
+
 		try {
 			while (true) {
-				pool.execute(new SgxMainRunner(server.accept(), fakeIterators))
+//				completion.submit(new SgxMainRunner(server.accept(), fakeIterators))
+				new SgxMainRunner(server.accept(), fakeIterators).call()
 			}
 		}
 		finally {
 			server.close()
-			pool.shutdown()
 		}
 	}
 }

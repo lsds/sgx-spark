@@ -42,7 +42,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 				  val n = super.next
 				  val m = if (inEnclave) {
 				    n match {
-				      case x: scala.Tuple2[_,_] => new scala.Tuple2[String,Any](Encryption.encrypt(x._1, key), x._2)
+				      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, key), x._2)
 				      case x: Any => x
 				    }
 				  } else n
@@ -85,7 +85,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 		  val n = sh.sendRecv[Any](MsgIteratorReqNext)
 		  val m = if (providerIsInEnclave) {
 		    n match {
-		      case x: scala.Tuple2[String,Any] => new scala.Tuple2[Any,Any](Encryption.decrypt(x._1, key), x._2)
+		      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(key), x._2)
 		      case x: Any => x
 		    }
 		  } else n
@@ -104,7 +104,7 @@ case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 	override def hasNext: Boolean =  throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
-	
+
 	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
 	  new SgxIteratorConsumer(
           SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](

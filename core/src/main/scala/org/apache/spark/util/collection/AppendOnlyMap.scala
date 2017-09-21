@@ -24,7 +24,6 @@ import com.google.common.hash.Hashing
 import org.apache.spark.annotation.DeveloperApi
 
 import org.apache.spark.sgx.SgxFct2
-import scala.reflect.ClassTag
 
 /**
  * :: DeveloperApi ::
@@ -124,6 +123,8 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
     }
   }
 
+
+
   /**
    * Set the value for key to updateFunc(hadValue, oldValue), where oldValue will be the old value
    * for key, if any, or null otherwise. Returns the newly updated value.
@@ -135,9 +136,10 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
       if (!haveNullValue) {
         incrementSize()
       }
-//    Original call
-//    nullValue = updateFunc(haveNullValue, nullValue)
+      // SGX call
       nullValue = new SgxFct2[Boolean,V,V](updateFunc, haveNullValue, nullValue).executeInsideEnclave()
+      // Original call
+      // nullValue = updateFunc(haveNullValue, nullValue)
       haveNullValue = true
       return nullValue
     }
@@ -147,25 +149,19 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
     while (true) {
       val curKey = data(2 * pos)
       if (curKey.eq(null)) {
-
     	// SGX call
     	val newValue = new SgxFct2[Boolean,V,V](updateFunc, false, null.asInstanceOf[V]).executeInsideEnclave()
-
-//    	Original call
-//      val newValue = updateFunc(false, null.asInstanceOf[V])
-
+    	// Original call
+    	// val newValue = updateFunc(false, null.asInstanceOf[V])
         data(2 * pos) = k
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         incrementSize()
         return newValue
       } else if (k.eq(curKey) || k.equals(curKey)) {
-
   		// SGX call
     	val newValue = new SgxFct2[Boolean,V,V](updateFunc, true, data(2 * pos + 1).asInstanceOf[V]).executeInsideEnclave()
-
-//    	Original call
-//    	val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
-
+    	// Original call
+    	// val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         return newValue
       } else {

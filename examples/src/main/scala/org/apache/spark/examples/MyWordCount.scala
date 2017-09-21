@@ -14,17 +14,14 @@ object MyWordCount {
     val input = sc.textFile(inputFile)
     // Split up into words.
     val words = input.flatMap(line => {
-      println("splitting: " + line)
       line.split(" ")
     })
     // Transform into word and count.
     val counts = words.map(word => {
-      println("counting: " + word)
       (word, 1)
     })
     .reduceByKey {
       case (x, y) => {
-        println("reducing: " + x + " + " + y)
         x + y
       }
     }

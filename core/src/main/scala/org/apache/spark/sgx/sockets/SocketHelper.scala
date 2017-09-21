@@ -12,6 +12,7 @@ class SocketHelper(socket: Socket) {
 	private	val ois = new ObjectInputStream(socket.getInputStream())
 
 	def sendOne(obj: Any) = {
+		println("Sending: " + obj + "("+obj.getClass().getSimpleName+") to " + socket.getInetAddress + ":" + socket.getPort)
 		oos.reset()
 		oos.writeObject(obj)
 		oos.flush()
