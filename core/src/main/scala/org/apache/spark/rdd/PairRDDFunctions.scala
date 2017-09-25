@@ -43,6 +43,8 @@ import org.apache.spark.util.{SerializableConfiguration, SerializableJobConf, Ut
 import org.apache.spark.util.collection.CompactBuffer
 import org.apache.spark.util.random.StratifiedSamplingUtils
 
+import org.apache.spark.sgx.SgxSettings
+
 /**
  * Extra functions available on RDDs of (key, value) pairs through an implicit conversion.
  */
@@ -753,8 +755,13 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    */
   def mapValues[U](f: V => U): RDD[(K, U)] = self.withScope {
     val cleanF = self.context.clean(f)
-    new MapPartitionsRDD[(K, U), (K, V)](self,
+    if (SgxSettings.SGX_ENABLED)    
+    new MapPartitionsRDDSgx[(K, U), (K, V)](self,
       (pid, iter) => iter.map { case (k, v) => (k, cleanF(v)) },
+      preservesPartitioning = true)
+    else
+    new MapPartitionsRDD[(K, U), (K, V)](self,
+      (context, pid, iter) => iter.map { case (k, v) => (k, cleanF(v)) },
       preservesPartitioning = true)
   }
 
@@ -764,8 +771,15 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    */
   def flatMapValues[U](f: V => TraversableOnce[U]): RDD[(K, U)] = self.withScope {
     val cleanF = self.context.clean(f)
-    new MapPartitionsRDD[(K, U), (K, V)](self,
+    if (SgxSettings.SGX_ENABLED) 
+    new MapPartitionsRDDSgx[(K, U), (K, V)](self,
       (pid, iter) => iter.flatMap { case (k, v) =>
+        cleanF(v).map(x => (k, x))
+      },
+      preservesPartitioning = true)
+    else
+    new MapPartitionsRDD[(K, U), (K, V)](self,
+      (context, pid, iter) => iter.flatMap { case (k, v) =>
         cleanF(v).map(x => (k, x))
       },
       preservesPartitioning = true)

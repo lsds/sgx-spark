@@ -42,6 +42,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownHookManager}
 
 import org.apache.spark.sgx.SgxIteratorProvider
+import org.apache.spark.sgx.SgxSettings
 
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
@@ -309,14 +310,16 @@ class HadoopRDD[K, V](
         }
       }
     }
-	  // Original call
-	  // new InterruptibleIterator[(K, V)](context, iter)
 
-    // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
-    // The corresponding SgxIteratorConsumer lives inside the enclave.
-    val sgxIter = new SgxIteratorProvider[(K,V)](iter, false, 3)
-    new Thread(sgxIter).start
-    sgxIter
+    if (SgxSettings.SGX_ENABLED) {
+      // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
+      // The corresponding SgxIteratorConsumer lives inside the enclave.
+      val sgxIter = new SgxIteratorProvider[(K,V)](iter, false, 3)
+      new Thread(sgxIter).start
+      sgxIter
+    }
+    else
+    new InterruptibleIterator[(K, V)](context, iter)
   }
 
   /** Maps over a partition, providing the InputSplit that was used as the base of the partition. */
@@ -402,7 +405,6 @@ private[spark] object HadoopRDD extends Logging {
     override def getPartitions: Array[Partition] = firstParent[T].partitions
 
     override def compute(split: Partition, context: TaskContext): Iterator[U] = {
-    	println("HadoopMapPartitionsWithSplitRDD.compute("+split.toString()+")")
       val partition = split.asInstanceOf[HadoopPartition]
       val inputSplit = partition.inputSplit.value
       f(inputSplit, firstParent[T].iterator(split, context))
