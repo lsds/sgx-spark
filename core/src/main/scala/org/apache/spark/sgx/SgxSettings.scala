@@ -12,4 +12,7 @@ object SgxSettings {
 	val HOST_PORT = SocketEnv.getPortFromEnvVar("SPARK_SGX_HOST_PORT")
 
 	val RETRIES = 10
+	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("8").toInt
+
+	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt
 }

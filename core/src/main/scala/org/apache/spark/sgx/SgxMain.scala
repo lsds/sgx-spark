@@ -4,7 +4,7 @@ import java.io.InputStream
 import java.io.ObjectInputStream
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCompletionService}
+import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCompletionService, LinkedBlockingDeque}
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -36,7 +36,7 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag] (
 	id: SgxIteratorProviderIdentifier)
 		extends SgxExecuteInside[Iterator[U]] {
 
-  def apply(): Iterator[U] = Await.result(Future { f(partIndex, new SgxIteratorConsumer[T](id, false, 3)) }, Duration.Inf)
+  def apply(): Iterator[U] = Await.result(Future { f(partIndex, new SgxIteratorConsumer[T](id, false)) }, Duration.Inf)
   override def toString = this.getClass.getSimpleName + "(f=" +  f + ", partIndex=" + partIndex + ", id=" + id + ")"
 }
 
@@ -77,10 +77,21 @@ class IdentifierManager[T,F](c: Long => F) {
 }
 
 object ClientHandle {
-	val sh = new SocketHelper(Retry(SgxSettings.RETRIES)(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT)))
+	private val availableHandles = new LinkedBlockingDeque[SocketHelper]()
 
-	def sendRecv[O](in: Any) = sh.synchronized {
-		sh.sendRecv[O](in)
+	0 to SgxSettings.CONNECTIONS foreach { _ =>
+		availableHandles.add(new SocketHelper(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT)))
+	}
+
+	def sendRecv[O](in: Any) = {
+		val h = availableHandles.synchronized {
+			availableHandles.take
+		}
+		val ret = h.sendRecv[O](in)
+		availableHandles.synchronized {
+			availableHandles.add(h)
+		}
+		ret
 	}
 }
 
@@ -95,7 +106,7 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 				case x: SgxOtherTask[_,_] => fakeIterators.create(x.apply(fakeIterators.remove(x.it.id)))
 
 				case x: MsgAccessFakeIterator =>
-					val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true, 3)
+					val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true)
 					new Thread(iter).start
 					iter.identifier
 			})

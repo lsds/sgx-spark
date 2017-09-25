@@ -21,7 +21,7 @@ class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Ser
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
 }
 
-class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Long = 0) extends InterruptibleIterator[T](null, delegate) with Runnable with Logging {
+class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, delegate) with Runnable with Logging {
 	val host = if (inEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP
 	val port = 40000 + scala.util.Random.nextInt(10000)
 	val identifier = new SgxIteratorProviderIdentifier(host, port)
@@ -44,7 +44,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 				  val n = super.next
 				  val m = if (inEnclave) {
 				    n match {
-				      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, key), x._2)
+				      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
 				      case x: Any => x
 				    }
 				  } else n
@@ -66,7 +66,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ", identifier=" + identifier + ")"
 }
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean, key: Long = 0) extends Iterator[T] with Logging {
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean) extends Iterator[T] with Logging {
 
 	logDebug(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
 	private val sh = new SocketHelper(Retry(10)(new Socket(id.host, id.port)))
@@ -87,7 +87,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 		  val n = sh.sendRecv[Any](MsgIteratorReqNext)
 		  val m = if (providerIsInEnclave) {
 		    n match {
-		      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(key), x._2)
+		      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(SgxSettings.ENCRYPTION_KEY), x._2)
 		      case x: Any => x
 		    }
 		  } else n
@@ -111,6 +111,6 @@ case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 		val iter = if (providerIsInEnclave) ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
 			else SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](SgxSettings.HOST_IP, SgxSettings.HOST_PORT, MsgAccessFakeIterator(id))
 
-		new SgxIteratorConsumer(iter, providerIsInEnclave, key)
+		new SgxIteratorConsumer(iter, providerIsInEnclave)
 	}
 }
