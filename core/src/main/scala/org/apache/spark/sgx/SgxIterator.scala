@@ -20,7 +20,7 @@ class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Ser
 }
 
 class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Long = 0) extends InterruptibleIterator[T](null, delegate) with Runnable {
-	val host = SocketEnv.getIpFromEnvVarOrAbort(if (inEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP")
+	val host = if (inEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP
 	val myport = 40000 + scala.util.Random.nextInt(10000)
 	val identifier = new SgxIteratorProviderIdentifier(host, myport)
 
@@ -108,8 +108,8 @@ case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
 	  new SgxIteratorConsumer(
           SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](
-          SocketEnv.getIpFromEnvVarOrAbort(if (providerIsInEnclave) "SPARK_SGX_ENCLAVE_IP" else "SPARK_SGX_HOST_IP"),
-          SocketEnv.getPortFromEnvVarOrAbort(if (providerIsInEnclave) "SPARK_SGX_ENCLAVE_PORT" else "SPARK_SGX_HOST_PORT"),
+          if (providerIsInEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP,
+          if (providerIsInEnclave) SgxSettings.ENCLAVE_PORT else SgxSettings.HOST_PORT,
           MsgAccessFakeIterator(id)), providerIsInEnclave, key)
 	}
 }

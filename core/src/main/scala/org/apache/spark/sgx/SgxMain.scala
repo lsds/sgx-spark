@@ -22,7 +22,7 @@ import gnu.trove.map.hash.TLongObjectHashMap
 
 class SgxExecuteInside[R] extends Serializable {
   def executeInsideEnclave(): R = {
-    SocketOpenSendRecvClose[R](SocketEnv.getIpFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_IP"), SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"), this)
+    SocketOpenSendRecvClose[R](SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT, this)
   }
 }
 
@@ -102,7 +102,7 @@ class Waiter(compl: ExecutorCompletionService[Unit]) extends Callable[Unit] {
 object SgxMain {
 	def main(args: Array[String]): Unit = {
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
-		val server = new ServerSocket(SocketEnv.getPortFromEnvVarOrAbort("SPARK_SGX_ENCLAVE_PORT"))
+		val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
 		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
 
 		println("Main: Waiting for connections on port " + server.getLocalPort)
