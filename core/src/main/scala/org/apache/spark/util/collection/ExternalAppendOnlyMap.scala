@@ -37,14 +37,12 @@ import org.apache.spark.storage.{BlockId, BlockManager}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalAppendOnlyMap.HashComparator
 
-class MyUpdate[C,K,V](createCombiner: V => C,
-		mergeValue: (C, V) => C,
-    	curEntry: Product2[K, V]) extends Serializable {
-	def update(hadVal: Boolean, oldVal: C) = {
-		println("hadVal=" + hadVal + ", oldVal=" + oldVal + ", curEntry._1=" + curEntry._1 + ", curEntry._2=" + curEntry._2)
-      if (hadVal) mergeValue(oldVal, curEntry._2)
-      else createCombiner(curEntry._2)
-    }
+import org.apache.spark.sgx.SgxSettings
+
+class SgxUpdate[C,K,V](createCombiner: V => C, mergeValue: (C, V) => C, curEntry: Product2[K, V]) extends Serializable {
+  def update(hadVal: Boolean, oldVal: C) = {
+    if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
+  }
 }
 
 
@@ -159,11 +157,9 @@ class ExternalAppendOnlyMap[K, V, C](
     // An update function for the map that we reuse across entries to avoid allocating
     // a new closure each time
     var curEntry: Product2[K, V] = null
-//    val update: (Boolean, C) => C = (hadVal, oldVal) => {
-//    	println("curEntry._2=" + curEntry._2)
-//      if (hadVal) mergeValue(oldVal, curEntry._2)
-//      else createCombiner(curEntry._2)
-//    }
+    val update: (Boolean, C) => C = (hadVal, oldVal) => {
+      if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
+    }
 
     while (entries.hasNext) {
       curEntry = entries.next()
@@ -174,7 +170,10 @@ class ExternalAppendOnlyMap[K, V, C](
       if (maybeSpill(currentMap, estimatedSize)) {
         currentMap = new SizeTrackingAppendOnlyMap[K, C]
       }
-  	  currentMap.changeValue(curEntry._1, new MyUpdate[C,K,V](createCombiner, mergeValue, curEntry).update)
+      if (SgxSettings.SGX_ENABLED)
+      currentMap.changeValue(curEntry._1, new SgxUpdate[C,K,V](createCombiner, mergeValue, curEntry).update)
+      else
+      currentMap.changeValue(curEntry._1, update)
       addElementsRead()
     }
   }
