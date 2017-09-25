@@ -452,10 +452,9 @@ private[deploy] class Worker(
         }
       }(cleanupThreadExecutor)
 
-      cleanupFuture.onFailure {
-        case e: Throwable =>
-          logError("App dir cleanup failed: " + e.getMessage, e)
-      }(cleanupThreadExecutor)
+      cleanupFuture.failed.foreach(e =>
+        logError("App dir cleanup failed: " + e.getMessage, e)
+      )(cleanupThreadExecutor)
 
     case MasterChanged(masterRef, masterWebUiUrl) =>
       logInfo("Master has changed, new master is at " + masterRef.address.toSparkURL)
@@ -624,10 +623,9 @@ private[deploy] class Worker(
           dirList.foreach { dir =>
             Utils.deleteRecursively(new File(dir))
           }
-        }(cleanupThreadExecutor).onFailure {
-          case e: Throwable =>
-            logError(s"Clean up app dir $dirList failed: ${e.getMessage}", e)
-        }(cleanupThreadExecutor)
+        }(cleanupThreadExecutor).failed.foreach(e =>
+          logError(s"Clean up app dir $dirList failed: ${e.getMessage}", e)
+        )(cleanupThreadExecutor)
       }
       shuffleService.applicationRemoved(id)
     }
