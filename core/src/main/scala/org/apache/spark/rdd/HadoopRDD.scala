@@ -44,6 +44,8 @@ import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownH
 import org.apache.spark.sgx.SgxIteratorProvider
 import org.apache.spark.sgx.SgxSettings
 
+import java.util.concurrent.FutureTask
+
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
  */
@@ -310,7 +312,6 @@ class HadoopRDD[K, V](
         }
       }
     }
-
     if (SgxSettings.SGX_ENABLED) {
       // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
       // The corresponding SgxIteratorConsumer lives inside the enclave.

@@ -15,6 +15,7 @@ import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 
 import org.apache.spark.sgx.sockets.Retry
+
 import org.apache.spark.sgx.sockets.SocketEnv
 import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
 import org.apache.spark.sgx.sockets.SocketHelper
@@ -23,9 +24,11 @@ import org.apache.spark.internal.Logging
 
 import gnu.trove.map.hash.TLongObjectHashMap
 
+import org.apache.spark.sgx.sockets.SocketEnv
+import org.apache.spark.sgx.sockets.Retry
+
 class SgxExecuteInside[R] extends Serializable {
   def executeInsideEnclave(): R = {
-//    SocketOpenSendRecvClose[R](SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT, this)
     ClientHandle.sendRecv[R](this)
   }
 }
@@ -114,14 +117,14 @@ class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],Fa
 
 		sh.close()
 	}
+
+	override def toString() = this.getClass.getSimpleName + "(port="+s.getLocalPort+")"
 }
 
-class Waiter(compl: ExecutorCompletionService[Unit]) extends Callable[Unit] {
-	def call(): Unit = {
-		while (true) {
-			val f = compl.take
-		}
-	}
+object Completor extends ExecutorCompletionService[Unit](Executors.newFixedThreadPool(32)) {}
+
+class Waiter() extends Callable[Unit] {
+       def call(): Unit = while (true) Completor.take
 }
 
 object SgxMain extends Logging {
@@ -132,8 +135,7 @@ object SgxMain extends Logging {
 
 		logDebug("Main: Waiting for connections on port " + server.getLocalPort)
 
-		completion.submit(new Waiter(completion))
-
+		Completor.submit(new Waiter())
 		try {
 			while (true) {
 				completion.submit(new SgxMainRunner(server.accept(), fakeIterators))

@@ -36,6 +36,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 		logDebug(s"SgxIteratorProvider now listening on port $port")
 		val sh = new SocketHelper(new ServerSocket(port).accept())
 		logDebug(s"SgxIteratorProvider accepted connection on port $port")
+
 		var running = true
 		while(running) {
 			sh.recvOne() match {
@@ -53,6 +54,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 				case MsgIteratorReqClose =>
 					stop(sh)
 					running = false
+
 				case x: Any => logDebug(s"SgxIteratorProvider($port): Unknown input message provided.")
 			}
 		}
