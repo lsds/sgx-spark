@@ -4,10 +4,13 @@ import org.apache.spark.InterruptibleIterator
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.UUID
+
 import org.apache.spark.sgx.sockets.SocketEnv
 import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
 import org.apache.spark.sgx.sockets.SocketHelper
 import org.apache.spark.sgx.sockets.Retry
+
+import scala.collection.mutable.Queue
 
 import org.apache.spark.internal.Logging
 
@@ -42,14 +45,17 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 			sh.recvOne() match {
 				case MsgIteratorReqHasNext => sh.sendOne(super.hasNext)
 				case MsgIteratorReqNext => {
-				  val n = super.next
-				  val m = if (inEnclave) {
-				    n match {
-				      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
-				      case x: Any => x
-				    }
-				  } else n
-				  sh.sendOne(m)
+				  val q = Queue[Any]()
+				  for (i <- 1 to SgxSettings.PREFETCH if super.hasNext) {
+					  val n = super.next
+					  q.enqueue(if (inEnclave) {
+					    n match {
+					      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
+					      case x: Any => x
+					    }
+					  } else n)
+				  }
+				  sh.sendOne(q)
 				}
 				case MsgIteratorReqClose =>
 					stop(sh)
@@ -71,11 +77,14 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean) extends Iterator[T] with Logging {
 
 	logDebug(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
-	private val sh = new SocketHelper(Retry(10)(new Socket(id.host, id.port)))
+	private val sh = new SocketHelper(Retry(SgxSettings.RETRIES)(new Socket(id.host, id.port)))
 	private var closed = false
 
+	private val objects = Queue[T]()
+
 	override def hasNext: Boolean = {
-		if (closed) false
+		if (objects.length > 0) true
+		else if (closed) false
 		else {
 			val hasNext = sh.sendRecv[Boolean](MsgIteratorReqHasNext)
 			if (!hasNext) close()
@@ -85,16 +94,19 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 
 	override def next: T = {
 		if (closed) throw new NoSuchElementException("Iterator was closed.")
-		else {
-		  val n = sh.sendRecv[Any](MsgIteratorReqNext)
-		  val m = if (providerIsInEnclave) {
-		    n match {
-		      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(SgxSettings.ENCRYPTION_KEY), x._2)
-		      case x: Any => x
-		    }
-		  } else n
-		  m.asInstanceOf[T]
+		else if (objects.length == 0) {
+		  val list = sh.sendRecv[Queue[Any]](MsgIteratorReqNext)
+		  objects ++= list.map { n =>
+			  val m = if (providerIsInEnclave) {
+			    n match {
+			      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(SgxSettings.ENCRYPTION_KEY), x._2)
+			      case x: Any => x
+			    }
+			  } else n
+			  m.asInstanceOf[T]
+		   }
 		}
+		objects.dequeue
 	}
 
 	def close() = {

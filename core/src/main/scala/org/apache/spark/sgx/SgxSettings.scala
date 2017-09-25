@@ -13,6 +13,7 @@ object SgxSettings {
 
 	val RETRIES = 10
 	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("8").toInt
+	val PREFETCH = sys.env.get("PREFETCH").getOrElse("1").toInt
 
 	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt
 }
