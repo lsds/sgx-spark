@@ -113,8 +113,7 @@ object SgxMain extends Logging {
 
 		try {
 			while (true) {
-//				completion.submit(new SgxMainRunner(server.accept(), fakeIterators))
-				new SgxMainRunner(server.accept(), fakeIterators).call()
+				completion.submit(new SgxMainRunner(server.accept(), fakeIterators))
 			}
 		}
 		finally {
