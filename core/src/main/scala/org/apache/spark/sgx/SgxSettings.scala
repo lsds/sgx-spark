@@ -10,4 +10,6 @@ object SgxSettings {
 
 	val HOST_IP = SocketEnv.getIpFromEnvVar("SPARK_SGX_HOST_IP")
 	val HOST_PORT = SocketEnv.getPortFromEnvVar("SPARK_SGX_HOST_PORT")
+
+	val RETRIES = 10
 }

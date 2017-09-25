@@ -108,10 +108,9 @@ case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
 
 	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
-	  new SgxIteratorConsumer(
-          SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](
-          if (providerIsInEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP,
-          if (providerIsInEnclave) SgxSettings.ENCLAVE_PORT else SgxSettings.HOST_PORT,
-          MsgAccessFakeIterator(id)), providerIsInEnclave, key)
+		val iter = if (providerIsInEnclave) ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
+			else SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](SgxSettings.HOST_IP, SgxSettings.HOST_PORT, MsgAccessFakeIterator(id))
+
+		new SgxIteratorConsumer(iter, providerIsInEnclave, key)
 	}
 }

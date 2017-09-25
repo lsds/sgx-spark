@@ -14,6 +14,7 @@ import scala.concurrent.duration.Duration
 
 import scala.reflect.ClassTag
 
+import org.apache.spark.sgx.sockets.Retry
 import org.apache.spark.sgx.sockets.SocketEnv
 import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
 import org.apache.spark.sgx.sockets.SocketHelper
@@ -24,7 +25,8 @@ import gnu.trove.map.hash.TLongObjectHashMap
 
 class SgxExecuteInside[R] extends Serializable {
   def executeInsideEnclave(): R = {
-    SocketOpenSendRecvClose[R](SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT, this)
+//    SocketOpenSendRecvClose[R](SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT, this)
+    ClientHandle.sendRecv[R](this)
   }
 }
 
@@ -74,20 +76,30 @@ class IdentifierManager[T,F](c: Long => F) {
 	}
 }
 
+object ClientHandle {
+	val sh = new SocketHelper(Retry(SgxSettings.RETRIES)(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT)))
+
+	def sendRecv[O](in: Any) = sh.synchronized {
+		sh.sendRecv[O](in)
+	}
+}
+
 class SgxMainRunner(s: Socket, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Callable[Unit] {
 	def call(): Unit = {
 		val sh = new SocketHelper(s)
 
-		sh.sendOne(sh.recvOne() match {
-			case x: SgxFct2[_,_,_] => x.apply()
-			case x: SgxFirstTask[_,_] => fakeIterators.create(x.apply())
-			case x: SgxOtherTask[_,_] => fakeIterators.create(x.apply(fakeIterators.remove(x.it.id)))
+		while(true) {
+			sh.sendOne(sh.recvOne() match {
+				case x: SgxFct2[_,_,_] => x.apply()
+				case x: SgxFirstTask[_,_] => fakeIterators.create(x.apply())
+				case x: SgxOtherTask[_,_] => fakeIterators.create(x.apply(fakeIterators.remove(x.it.id)))
 
-			case x: MsgAccessFakeIterator =>
-				val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true, 3)
-				new Thread(iter).start
-				iter.identifier
-		})
+				case x: MsgAccessFakeIterator =>
+					val iter = new SgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true, 3)
+					new Thread(iter).start
+					iter.identifier
+			})
+		}
 
 		sh.close()
 	}
