@@ -27,6 +27,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 import org.apache.spark.sgx.FakeIterator
+import org.apache.spark.sgx.SgxSettings
 
 /**
  * A task that sends back the output to the driver application.
@@ -86,18 +87,19 @@ private[spark] class ResultTask[T, U](
       threadMXBean.getCurrentThreadCpuTime - deserializeStartCpuTime
     } else 0L
 
-    // Original call
-    // func(context, rdd.iterator(partition, context))
-
-    // SGX: func() corresponds to the Action of the entire Spark Job
-    // and will return the corresponding output. As such, it transfers
-    // the data from the enclave to the outside: if we see a FakeIterator,
-    // then we must turn it into an SgxIteratorConsumer and access the
-    // corresponding in-enclave SgxIteratorProvider.
-    rdd.iterator(partition, context) match {
-      case f: FakeIterator[T] => func(context, f.access(true))
-    	case i: Iterator[T] => func(context, i)
+    if (SgxSettings.SGX_ENABLED) {
+      // SGX: func() corresponds to the Action of the entire Spark Job
+      // and will return the corresponding output. As such, it transfers
+      // the data from the enclave to the outside: if we see a FakeIterator,
+      // then we must turn it into an SgxIteratorConsumer and access the
+      // corresponding in-enclave SgxIteratorProvider.
+      rdd.iterator(partition, context) match {
+        case f: FakeIterator[T] => func(context, f.access(true))
+      	case i: Iterator[T] => func(context, i)
+      }
     }
+    else
+    func(context, rdd.iterator(partition, context))
   }
 
   // This is only callable on the driver side.
