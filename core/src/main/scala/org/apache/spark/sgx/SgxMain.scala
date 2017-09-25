@@ -18,6 +18,8 @@ import org.apache.spark.sgx.sockets.SocketEnv
 import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
 import org.apache.spark.sgx.sockets.SocketHelper
 
+import org.apache.spark.internal.Logging
+
 import gnu.trove.map.hash.TLongObjectHashMap
 
 class SgxExecuteInside[R] extends Serializable {
@@ -99,13 +101,13 @@ class Waiter(compl: ExecutorCompletionService[Unit]) extends Callable[Unit] {
 	}
 }
 
-object SgxMain {
+object SgxMain extends Logging {
 	def main(args: Array[String]): Unit = {
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
 		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
 
-		println("Main: Waiting for connections on port " + server.getLocalPort)
+		logDebug("Main: Waiting for connections on port " + server.getLocalPort)
 
 		completion.submit(new Waiter(completion))
 

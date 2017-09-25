@@ -9,31 +9,33 @@ import org.apache.spark.sgx.sockets.SocketOpenSendRecvClose
 import org.apache.spark.sgx.sockets.SocketHelper
 import org.apache.spark.sgx.sockets.Retry
 
+import org.apache.spark.internal.Logging
+
 private object MsgIteratorReqHasNext extends Serializable {}
 private object MsgIteratorReqNext extends Serializable {}
 private object MsgIteratorReqClose extends Serializable {}
 
-case class MsgAccessFakeIterator(fakeId: Long) extends Serializable {}
+case class MsgAccessFakeIterator(fakeId: Long) extends Serializable with Logging {}
 
 class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Serializable {
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
 }
 
-class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Long = 0) extends InterruptibleIterator[T](null, delegate) with Runnable {
+class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Long = 0) extends InterruptibleIterator[T](null, delegate) with Runnable with Logging {
 	val host = if (inEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP
-	val myport = 40000 + scala.util.Random.nextInt(10000)
-	val identifier = new SgxIteratorProviderIdentifier(host, myport)
+	val port = 40000 + scala.util.Random.nextInt(10000)
+	val identifier = new SgxIteratorProviderIdentifier(host, port)
 
 	/**
 	 * Always throws an UnsupportedOperationException. Access this Iterator via the socket interface.
 	 * Note: We allow calls to hasNext(), since they are, e.g., used by the superclass' toString() method.
 	 */
-	override def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via port $myport.")
+	override def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via port $port.")
 
 	def run = {
-		println(s"SgxIteratorProvider now listening on port $myport")
-		val sh = new SocketHelper(new ServerSocket(myport).accept())
-		println(s"SgxIteratorProvider accepted connection on port $myport")
+		logDebug(s"SgxIteratorProvider now listening on port $port")
+		val sh = new SocketHelper(new ServerSocket(port).accept())
+		logDebug(s"SgxIteratorProvider accepted connection on port $port")
 		var running = true
 		while(running) {
 			sh.recvOne() match {
@@ -51,22 +53,22 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean, key: Lon
 				case MsgIteratorReqClose =>
 					stop(sh)
 					running = false
-				case x: Any => println(s"SgxIteratorProvider($myport): Unknown input message provided.")
+				case x: Any => logDebug(s"SgxIteratorProvider($port): Unknown input message provided.")
 			}
 		}
 	}
 
 	def stop(sh: SocketHelper) = {
-		println(s"Stopping SgxIteratorServer on port $myport")
+		logDebug(s"Stopping SgxIteratorServer on port $port")
 		sh.close()
 	}
 
-	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + myport + ", identifier=" + identifier + ")"
+	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ", identifier=" + identifier + ")"
 }
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean, key: Long = 0) extends Iterator[T] {
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean, key: Long = 0) extends Iterator[T] with Logging {
 
-	println(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
+	logDebug(this.getClass.getSimpleName + " connecting to: " + id.host + " "  + id.port)
 	private val sh = new SocketHelper(Retry(10)(new Socket(id.host, id.port)))
 	private var closed = false
 

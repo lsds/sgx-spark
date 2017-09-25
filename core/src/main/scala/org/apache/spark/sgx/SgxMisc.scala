@@ -2,16 +2,18 @@ package org.apache.spark.sgx
 
 import java.io.{ObjectOutputStream,ByteArrayOutputStream}
 
-object SgxMisc {
+import org.apache.spark.internal.Logging
+
+object SgxMisc extends Logging {
   def isSerializable(a: Any, s:String): Unit = {
 	  val str = "isSerializable("+a.getClass.getName+","+s+")"
       try {
 	 	  new ObjectOutputStream(new ByteArrayOutputStream()).writeObject(a);
-	 	  println(str + " = true")
+	 	  logDebug(str + " = true")
 	  } catch {
 	 	  case t @ (_: Throwable | _: Error) =>
-	 	 	  println(str + " = false")
-	 	 	  println(t.getStackTraceString)
+	 	 	  logDebug(str + " = false")
+	 	 	  logDebug(t.getStackTraceString)
 	  }
   }
 }
