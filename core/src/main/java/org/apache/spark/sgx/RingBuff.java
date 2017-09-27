@@ -4,18 +4,23 @@ import java.io.IOException;
 
 public class RingBuff {
         private long handle;
-
+        
         static{
                 System.loadLibrary("ringbuff");
         }
 
-        public RingBuff(long handle) {
+        public RingBuff(long handle) {        	
                 this.handle = handle;
         }
 
         private native boolean write_msg(long handle, byte[] msg, int len);
         private native byte[] read_msg(long handle);
+        private static native long register_shm(String file);
 
+        public static long registerShm(String file) {
+        	return register_shm(file);
+        }
+        
         public boolean write(Object o) {
         	boolean result = false;
 			try {

@@ -13,7 +13,7 @@ apk add iputils iproute2 unzip libstdc++ gcc musl-dev
 cd /spark/lib
 #gcc -I. -c -fPIC ring_buff.c  -o ring_buff.o
 #gcc ring_buff.o -shared -o libring_buff.s
-gcc -I. -shared -fpic -o libringbuff.so org_apache_spark_sgx_RingBuff.c
+gcc -I. -shared -fpic -o libringbuff.so *.c
 
 
 # unzip ${jhome}/lib/rt.jar -d /tmp/exploded-rt-jar

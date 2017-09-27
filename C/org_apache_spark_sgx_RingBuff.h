@@ -23,6 +23,14 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_RingBuff_write_1msg
 JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_RingBuff_read_1msg
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     org_apache_spark_sgx_RingBuff
+ * Method:    register_shm
+ * Signature: (Ljava/lang/String;)J
+ */
+JNIEXPORT jlong JNICALL Java_org_apache_spark_sgx_RingBuff_register_1shm
+  (JNIEnv *, jclass, jstring);
+
 #ifdef __cplusplus
 }
 #endif
