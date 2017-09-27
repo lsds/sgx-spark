@@ -30,9 +30,6 @@ import org.apache.spark.sgx.sockets.Retry
 import java.lang.reflect.Field;
 import sun.misc.Unsafe;
 
-import com.sun.jna._
-import com.sun.jna.ptr.IntByReference
-
 class SgxExecuteInside[R] extends Serializable {
   def executeInsideEnclave(): R = {
     ClientHandle.sendRecv[R](this)
@@ -135,16 +132,14 @@ class Waiter() extends Callable[Unit] {
 
 object SgxMain extends Logging {
 	def shmem(): Unit = {
-		println(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC"))
-		println(sys.env.get("SGXLKL_SHMEM_ENC_TO_OUT"))
-		val read = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC").getOrElse("0"))
-		val write = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_ENC_TO_OUT").getOrElse("0"))
-		if (read == 0 || write == 0) return
 
-		val rb = new RingBuff(write)
+		val rb = new RingBuff(SgxSettings.SHMEM_ENC_TO_OUT)
 
-		System.out.println("before");
-		System.out.println("written: " + rb.write(new java.lang.Long(3)));
+		System.out.println("written: " + rb.write(new java.lang.Long(1)));
+		System.out.println("written: " + rb.write(new java.lang.Integer(3)));
+		System.out.println("written: " + rb.write(new java.io.IOException("Foobar")));
+		System.out.println("   read: " + rb.read());
+		System.out.println("   read: " + rb.read());
 		System.out.println("   read: " + rb.read());
 	}
 
