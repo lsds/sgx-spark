@@ -215,9 +215,9 @@ private[deploy] class Worker(
     // Attach the worker metrics servlet handler to the web ui after the metrics system is started.
     metricsSystem.getServletHandlers.foreach(webUi.attachHandler)
 
-    println("before registering")
-    val x = RingBuff.registerShm(SgxSettings.SHMEM_FILE);
-    println("after registering: " + x)
+//    println("before registering")
+//    val x = RingBuff.registerShm(SgxSettings.SHMEM_FILE);
+//    println("after registering: " + x)
 //    SgxSpawn()
   }
 

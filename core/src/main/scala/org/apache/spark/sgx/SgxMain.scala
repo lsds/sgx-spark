@@ -144,7 +144,7 @@ object SgxMain extends Logging {
 	}
 
 	def main(args: Array[String]): Unit = {
-		shmem()
+//		shmem()
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
 		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
