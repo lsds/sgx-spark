@@ -38,11 +38,14 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 
 	# Copy enclave jars and files into alpine disk image
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)
+	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/lib
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars
 	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
 	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
 	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
+#	sudo cp    ../ring_buff/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
+	sudo cp    ../C/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
 
 	sudo mkdir -p $(MOUNTPOINT)/opt
 	sudo tar -xf $(JVM) -C $(MOUNTPOINT)/opt
@@ -69,7 +72,7 @@ start-enclave:
 	$(shell ip addr add 10.0.1.254/24 dev tap0)
 	sleep 4
 # ENV vars provide the least amount of memory as figured out on 31/8/2017 with the MyWordCount example on file SgxReadme.md
-	cd ../ LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib SGXLKL_STRACELKL=1 SGXLKL_VERBOSE=1 SGXLKL_TRACE_SYSCALL=0 SGXLKL_TRACE_MMAP=0 SGXLKL_TAP=tap0 SGXLKL_HD=${PWD}/alpine-rootfs.img SGXLKL_KERNEL=0 SGXLKL_VERSION=1 SGXLKL_ESLEEP=1 SGXLKL_SSLEEP=4000 SGXLKL_ESPINS=50000 SGXLKL_SSPINS=500 SGXLKL_STHREADS=8 SGXLKL_ETHREADS=4 SGXLKL_STACK_SIZE=256000 SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2m -XX:ReservedCodeCacheSize=2m -Xms2m -Xmx2m -XX:CompressedClassSpaceSize=2m -XX:MaxMetaspaceSize=12m -XX:+UseCompressedClassPointers -XX:+AssumeMP -Xint -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain
+	cd ../ LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib SGXLKL_STRACELKL=1 SGXLKL_VERBOSE=1 SGXLKL_TRACE_SYSCALL=0 SGXLKL_TRACE_MMAP=0 SGXLKL_TAP=tap0 SGXLKL_HD=${PWD}/alpine-rootfs.img SGXLKL_KERNEL=0 SGXLKL_VERSION=1 SGXLKL_ESLEEP=1 SGXLKL_SSLEEP=4000 SGXLKL_ESPINS=50000 SGXLKL_SSPINS=500 SGXLKL_STHREADS=8 SGXLKL_ETHREADS=4 SGXLKL_STACK_SIZE=256000 SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2m -XX:ReservedCodeCacheSize=2m -Xms2m -Xmx2m -XX:CompressedClassSpaceSize=2m -XX:MaxMetaspaceSize=12m -XX:+UseCompressedClassPointers -XX:+AssumeMP -Xint -cp /home/scala-library/:/spark/lib/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain
 
 start-enclave-nosgx:
 	sleep 4

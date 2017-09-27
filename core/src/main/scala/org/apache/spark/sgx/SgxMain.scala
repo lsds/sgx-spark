@@ -27,6 +27,12 @@ import gnu.trove.map.hash.TLongObjectHashMap
 import org.apache.spark.sgx.sockets.SocketEnv
 import org.apache.spark.sgx.sockets.Retry
 
+import java.lang.reflect.Field;
+import sun.misc.Unsafe;
+
+import com.sun.jna._
+import com.sun.jna.ptr.IntByReference
+
 class SgxExecuteInside[R] extends Serializable {
   def executeInsideEnclave(): R = {
     ClientHandle.sendRecv[R](this)
@@ -128,7 +134,22 @@ class Waiter() extends Callable[Unit] {
 }
 
 object SgxMain extends Logging {
+	def shmem(): Unit = {
+		println(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC"))
+		println(sys.env.get("SGXLKL_SHMEM_ENC_TO_OUT"))
+		val read = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC").getOrElse("0"))
+		val write = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_ENC_TO_OUT").getOrElse("0"))
+		if (read == 0 || write == 0) return
+
+		val rb = new RingBuff(write)
+
+		System.out.println("before");
+		System.out.println("written: " + rb.write(new java.lang.Long(3)));
+		System.out.println("   read: " + rb.read());
+	}
+
 	def main(args: Array[String]): Unit = {
+		shmem()
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
 		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
