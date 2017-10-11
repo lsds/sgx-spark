@@ -2,7 +2,7 @@
 SGX_LKL=/data/fkelbert/sgx-lkl-sim
 
 ALPINE_MAJOR=3.6
-ALPINE_VERSION=3.6.1
+ALPINE_VERSION=3.6.2
 ALPINE_ARCH=x86_64
 
 ALPINE_TAR=alpine-minirootfs.tar.gz
