@@ -45,7 +45,7 @@ Run the enclave side of Spark-SGX as follows:
 
 Finally, submit a Spark job:
 
-`sgx-spark# rm -rf $(pwd)/output; SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://sgx1.doc.ic.ac.uk:7077 --deploy-mode cluster --verbose --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(pwd)/README.md $(pwd)/output
+`sgx-spark# rm -rf $(pwd)/output; SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://sgx1.doc.ic.ac.uk:7077 --deploy-mode cluster --verbose --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(pwd)/README.md $(pwd)/output`
 
 # Running the same Spark installation natively
 
