@@ -25,17 +25,24 @@ specify the prefix flag.
 
 ## Master node
 
-`sgx-spark# SPARK_LOCAL_IP=127.0.0.1 java -cp conf/:assembly/target/scala-2.11/jars/\*:examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar -Xmx1g org.apache.spark.deploy.master.Master --host sgx1.doc.ic.ac.uk --port 7077 --webui-port 8080`
+`sgx-spark# SPARK_LOCAL_IP=127.0.0.1 java -cp conf/:assembly/target/scala-2.11/jars/\*:examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar -Xmx1g org.apache.spark.deploy.master.Master --host kiwi01.doc.res.ic.ac.uk --port 7077 --webui-port 8080`
 
 ## Worker node
 
-`sgx-spark# SGX_ENABLED=true SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 SPARK_SGX_HOST_IP=146.169.2.58 SPARK_LOCAL_IP=127.0.0.1 java -cp conf/:assembly/target/scala-2.11/jars/\* -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://sgx1.doc.ic.ac.uk:7077`
+`sgx-spark# SGX_ENABLED=true SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 SPARK_SGX_HOST_IP=146.179.131.194 SPARK_LOCAL_IP=127.0.0.1 java -cp conf/:assembly/target/scala-2.11/jars/\* -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://kiwi01.doc.res.ic.ac.uk:7077`
 
 ## Enclave
 
 - cd into the `spark-sgx/lkl` directory and edit the `Makefile` to point to your `sgx-lkl` directory (this needs to have already been cloned and compiled
 seperately). 
 - Make the Alpine disk image: `make clean && make alpine-rootfs.img`
+
+As root, prepare the tap device for networking:
+```
+$ openvpn --mktun --dev tap0
+$ ip link set dev tap0 up
+$ ip addr add 10.0.1.254/24 dev tap0
+```
 
 Run the enclave side of Spark-SGX as follows:
 
@@ -45,7 +52,7 @@ Run the enclave side of Spark-SGX as follows:
 
 Finally, submit a Spark job:
 
-`sgx-spark# rm -rf $(pwd)/output; SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://sgx1.doc.ic.ac.uk:7077 --deploy-mode cluster --verbose --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(pwd)/README.md $(pwd)/output
+`sgx-spark# rm -rf $(pwd)/output; SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://kiwi01.doc.res.ic.ac.uk:7077 --deploy-mode cluster --verbose --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(pwd)/README.md $(pwd)/output`
 
 # Running the same Spark installation natively
 
