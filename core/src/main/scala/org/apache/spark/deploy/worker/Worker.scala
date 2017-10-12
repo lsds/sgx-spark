@@ -40,7 +40,7 @@ import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.rpc._
 import org.apache.spark.util.{SparkUncaughtExceptionHandler, ThreadUtils, Utils}
 
-import org.apache.spark.sgx.EnclaveCommunicator
+import org.apache.spark.sgx.OutsideCommunicator
 import org.apache.spark.sgx.RingBuff
 import org.apache.spark.sgx.SgxSettings
 
@@ -217,8 +217,10 @@ private[deploy] class Worker(
 
     if (SgxSettings.SGX_ENABLED) {
     	if (SgxSettings.SGX_USE_SHMEM) {
-		    val x = new EnclaveCommunicator(SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE);
-		    System.out.println("read: " + x.readFromEnclave());
+		    val com = new OutsideCommunicator(SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE);
+		    System.out.println("read: " + com.readFromEnclave());
+		    System.out.println("read: " + com.readFromEnclave());
+		    System.out.println("read: " + com.readFromEnclave());
     	}
 	//    SgxSpawn()
     }
