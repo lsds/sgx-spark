@@ -192,7 +192,7 @@ ring_buff_err_t ring_buff_commit(ring_buff_handle_t handle, void* buff, uint32_t
 		return RING_BUFF_ERR_BAD_ARG;
 	}
 
-	// For commit just modifiy acc_size to signal that data is available to be read.
+	// For commit just modify acc_size to signal that data is available to be read.
 	__atomic_fetch_add(&(obj->acc_size), size, __ATOMIC_RELAXED);
 
 	return RING_BUFF_ERR_OK;
@@ -218,7 +218,6 @@ ring_buff_err_t ring_buff_read(ring_buff_handle_t handle, void** buff, uint32_t 
 {
 	ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
 	ring_buff_err_t err = RING_BUFF_ERR_OK;
-	printf("reading from ring_buff_obj: %p\n", obj);
 
 	if(handle == NULL || buff == NULL || size > obj->size || read == NULL)
 	{
@@ -275,27 +274,23 @@ ring_buff_err_t ring_buff_read(ring_buff_handle_t handle, void** buff, uint32_t 
 
 ring_buff_err_t ring_buff_write_msg(ring_buff_handle_t handle, void* data, uint32_t size) {
 	ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
-	printf("writing to ring_buff_obj: %p\n", obj);
 
 	if(handle == NULL || data == NULL || size == 0 || size + sizeof(uint32_t) > obj->size) {
-		printf("%d\n", obj->size);
 		return RING_BUFF_ERR_BAD_ARG;
 	}
-	printf("a\n");
+
 	// Allocate buffer space for message + message-length
 	uint32_t* sizePointer;
 	ring_buff_err_t err = ring_buff_reserve(handle, (void**) &sizePointer, size + sizeof(uint32_t));
 	if(err != RING_BUFF_ERR_OK)
 		return err;
-	printf("b\n");
+
 	// Write size of message and then its contents
 	*sizePointer = size;
 
 	void* dataPointer = (void*) (sizePointer + 1);
 	memcpy(dataPointer, data, size);
-	printf("c\n");
 	err = ring_buff_commit(handle, sizePointer, size + sizeof(uint32_t));
-	printf("%d\n ", err);
 	return err;
 }
 

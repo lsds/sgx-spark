@@ -218,8 +218,7 @@ private[deploy] class Worker(
     if (SgxSettings.SGX_ENABLED) {
     	if (SgxSettings.SGX_USE_SHMEM) {
 		    val com = new OutsideCommunicator(SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE);
-		    System.out.println("read: " + com.readFromEnclave());
-		    System.out.println("read: " + com.readFromEnclave());
+		    while (true)
 		    System.out.println("read: " + com.readFromEnclave());
     	}
 	//    SgxSpawn()

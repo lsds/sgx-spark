@@ -5,12 +5,12 @@ public class EnclaveCommunicator {
     private RingBuff outToEnc;
     
 	public EnclaveCommunicator(long encToOut, long outToEnc) {
-    	this.encToOut = new RingBuff(encToOut);
-    	this.outToEnc = new RingBuff(outToEnc);
+    	this.encToOut = new RingBuff(encToOut, true);
+    	this.outToEnc = new RingBuff(outToEnc, true);
 	}
 
-	public void writeToOutside(Object o) {
-    	this.encToOut.write(o);
+	public boolean writeToOutside(Object o) {
+    	return this.encToOut.write(o);
 	}
 	
 	public Object readFromOutside() {

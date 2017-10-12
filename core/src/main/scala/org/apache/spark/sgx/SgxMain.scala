@@ -135,8 +135,21 @@ object SgxMain extends Logging {
 
 		val com = new EnclaveCommunicator(SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
 
-		System.out.println("written: " + com.writeToOutside(new java.lang.Long(1)));
-		System.out.println("written: " + com.writeToOutside(new java.lang.Integer(3)));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
+		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
 		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
 	}
 

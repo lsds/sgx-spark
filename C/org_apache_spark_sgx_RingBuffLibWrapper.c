@@ -59,14 +59,33 @@ static void *register_shm(char* path, size_t len)
 JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_write_1msg(JNIEnv *env, jclass cls, jlong handle, jbyteArray data) {
 	jint len = (*env)->GetArrayLength(env, data);
 	char buf[len];
+	int ret;
 	(*env)->GetByteArrayRegion(env, data, 0, len, buf);
-	return ring_buff_write_msg((ring_buff_handle_t) handle, (void*) buf, (uint32_t) len) == RING_BUFF_ERR_OK;
+	printf("B\n");
+
+	if ((ret = ring_buff_write_msg((ring_buff_handle_t) handle, (void*) buf, (uint32_t) len)) != RING_BUFF_ERR_OK) {
+		printf("Error during ring_buff_write_msg()\n");
+		ring_buff_print_err(ret);
+	}
+	printf("C\n");
+
+	return ret == RING_BUFF_ERR_OK;
 }
 
 JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_read_1msg(JNIEnv *env, jclass cls, jlong handle) {
 	void *data;
 	uint32_t len;
-	if (ring_buff_read_msg((ring_buff_handle_t) handle, &data, &len) != RING_BUFF_ERR_OK) {
+	int ret;
+
+	if ((ret = ring_buff_read_msg((ring_buff_handle_t) handle, &data, &len)) != RING_BUFF_ERR_OK) {
+		printf("Error during ring_buff_read_msg()\n");
+		ring_buff_print_err(ret);
+		return (jbyteArray) {0};
+	}
+
+	if ((ret = ring_buff_free((ring_buff_handle_t) handle, data, len)) != RING_BUFF_ERR_OK) {
+		printf("Error during ring_buff_free()\n");
+		ring_buff_print_err(ret);
 		return (jbyteArray) {0};
 	}
 
@@ -100,9 +119,6 @@ JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_init_1
 	// Set the read buffer for the incoming message queue to match our address space (same for write buffer for outgoing message queue)
 	// NOTE: By default, these will both be set to the buffer address of the enclave application, so it only needs to be changed here
 	ring_buff_set_read_buff(enc_to_out_q, enc_to_out_mem);
-	ring_buff_set_write_buff(enc_to_out_q, enc_to_out_mem);
-
-	ring_buff_set_read_buff(out_to_enc_q, out_to_enc_mem);
 	ring_buff_set_write_buff(out_to_enc_q, out_to_enc_mem);
 
 	long res[2];
