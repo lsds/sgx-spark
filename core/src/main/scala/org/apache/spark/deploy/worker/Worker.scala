@@ -40,8 +40,8 @@ import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.rpc._
 import org.apache.spark.util.{SparkUncaughtExceptionHandler, ThreadUtils, Utils}
 
+import org.apache.spark.sgx.EnclaveCommunicator
 import org.apache.spark.sgx.RingBuff
-
 import org.apache.spark.sgx.SgxSettings
 
 private[deploy] class Worker(
@@ -215,10 +215,13 @@ private[deploy] class Worker(
     // Attach the worker metrics servlet handler to the web ui after the metrics system is started.
     metricsSystem.getServletHandlers.foreach(webUi.attachHandler)
 
-//    println("before registering")
-//    val x = RingBuff.registerShm(SgxSettings.SHMEM_FILE);
-//    println("after registering: " + x)
-//    SgxSpawn()
+    if (SgxSettings.SGX_ENABLED) {
+    	if (SgxSettings.SGX_USE_SHMEM) {
+		    val x = new EnclaveCommunicator(SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE);
+		    System.out.println("read: " + x.readFromEnclave());
+    	}
+	//    SgxSpawn()
+    }
   }
 
   /**

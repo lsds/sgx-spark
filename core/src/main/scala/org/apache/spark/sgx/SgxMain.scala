@@ -133,18 +133,19 @@ class Waiter() extends Callable[Unit] {
 object SgxMain extends Logging {
 	def shmem(): Unit = {
 
-		val rb = new RingBuff(SgxSettings.SHMEM_ENC_TO_OUT)
+		val writer = new RingBuff(SgxSettings.SHMEM_ENC_TO_OUT)
+		val reader = new RingBuff(SgxSettings.SHMEM_OUT_TO_ENC)
 
-		System.out.println("written: " + rb.write(new java.lang.Long(1)));
-		System.out.println("written: " + rb.write(new java.lang.Integer(3)));
-		System.out.println("written: " + rb.write(new java.io.IOException("Foobar")));
-		System.out.println("   read: " + rb.read());
-		System.out.println("   read: " + rb.read());
-		System.out.println("   read: " + rb.read());
+//		System.out.println("written: " + rb.write(new java.lang.Long(1)));
+//		System.out.println("written: " + rb.write(new java.lang.Integer(3)));
+		System.out.println("written: " + writer.write(new java.io.IOException("Foobar")));
+//		System.out.println("   read: " + rb.read());
+//		System.out.println("   read: " + rb.read());
+//		System.out.println("   read: " + rb.read());
 	}
 
 	def main(args: Array[String]): Unit = {
-//		shmem()
+		shmem()
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
 		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
