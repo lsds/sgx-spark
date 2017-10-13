@@ -1,6 +1,7 @@
 package org.apache.spark.sgx
 
 import org.apache.spark.InterruptibleIterator
+import org.apache.spark.util.NextIterator
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.UUID
@@ -24,10 +25,12 @@ class SgxIteratorProviderIdentifier(val host: String, val port: Int) extends Ser
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
 }
 
-class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, delegate) with Runnable with Logging {
+class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, null) with Runnable with Logging {
 	val host = if (inEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP
 	val port = 40000 + scala.util.Random.nextInt(10000)
 	val identifier = new SgxIteratorProviderIdentifier(host, port)
+
+	override def hasNext: Boolean = delegate.hasNext
 
 	/**
 	 * Always throws an UnsupportedOperationException. Access this Iterator via the socket interface.
@@ -43,18 +46,29 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 		var running = true
 		while(running) {
 			sh.recvOne() match {
-				case MsgIteratorReqHasNext => sh.sendOne(super.hasNext)
+				case MsgIteratorReqHasNext => sh.sendOne(delegate.hasNext)
 				case MsgIteratorReqNext => {
-				  val q = Queue[Any]()
-				  for (i <- 1 to SgxSettings.PREFETCH if super.hasNext) {
-					  val n = super.next
-					  q.enqueue(if (inEnclave) {
-					    n match {
-					      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
-					      case x: Any => x
-					    }
-					  } else n)
-				  }
+					val q = Queue[T]()
+					if (delegate.isInstanceOf[NextIterator[T]]) {
+						// No Prefetching here. Calling next() multiple times on NextIterator and adding the results to a queue produces weird results (all elements end up being the same :/)
+						q += delegate.next
+					}
+					else {
+						for (_ <- 1 to SgxSettings.PREFETCH) {
+							if (delegate.hasNext) q += delegate.next
+						}
+					}
+//				  for (_ <- 1 to SgxSettings.PREFETCH) {
+//				 	  yield super.next()
+//					  val n = super.next
+//					  q.enqueue(if (inEnclave) {
+//					    n match {
+//					      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
+//					      case x: Any => x
+//					    }
+//					  } else n)
+//					  q.enqueue(n)
+//				  }
 				  sh.sendOne(q)
 				}
 				case MsgIteratorReqClose =>
@@ -80,7 +94,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 	private val sh = new SocketHelper(Retry(SgxSettings.RETRIES)(new Socket(id.host, id.port)))
 	private var closed = false
 
-	private val objects = Queue[T]()
+	private val objects = Queue[Any]()
 
 	override def hasNext: Boolean = {
 		if (objects.length > 0) true
@@ -96,17 +110,18 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 		if (closed) throw new NoSuchElementException("Iterator was closed.")
 		else if (objects.length == 0) {
 		  val list = sh.sendRecv[Queue[Any]](MsgIteratorReqNext)
-		  objects ++= list.map { n =>
-			  val m = if (providerIsInEnclave) {
-			    n match {
-			      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(SgxSettings.ENCRYPTION_KEY), x._2)
-			      case x: Any => x
-			    }
-			  } else n
-			  m.asInstanceOf[T]
-		   }
+		  objects ++= list//.map
+//		  { n =>
+//			  val m = if (providerIsInEnclave) {
+//			    n match {
+//			      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(SgxSettings.ENCRYPTION_KEY), x._2)
+//			      case x: Any => x
+//			    }
+//			  } else n
+//			  n.asInstanceOf[T]
+//		   }
 		}
-		objects.dequeue
+		objects.dequeue.asInstanceOf[T]
 	}
 
 	def close() = {
