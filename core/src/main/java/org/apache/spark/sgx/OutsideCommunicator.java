@@ -11,10 +11,14 @@ public class OutsideCommunicator {
     }
 
 	public boolean writeToEnclave(Object o) {
-    	return this.outToEnc.write(o);
+		synchronized(this) {
+			return this.outToEnc.write(o);
+		}
 	}
 	
 	public Object readFromEnclave() {
-    	return this.encToOut.read();
+		synchronized(this) {
+			return this.encToOut.read();
+		}
 	}
 }

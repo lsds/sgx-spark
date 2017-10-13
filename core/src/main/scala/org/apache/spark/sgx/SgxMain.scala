@@ -84,7 +84,6 @@ class IdentifierManager[T,F](c: Long => F) {
 
 object ClientHandle {
 	private val availableHandles = new LinkedBlockingDeque[SocketHelper]()
-
 	0 to SgxSettings.CONNECTIONS foreach { _ =>
 		availableHandles.add(new SocketHelper(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT)))
 	}
@@ -131,40 +130,18 @@ class Waiter() extends Callable[Unit] {
 }
 
 object SgxMain extends Logging {
-	def shmem(): Unit = {
-
-		val com = new EnclaveCommunicator(SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
-
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-		System.out.println("written: " + com.writeToOutside(new java.io.IOException("Foobar")));
-	}
 
 	def main(args: Array[String]): Unit = {
-		shmem()
+		val com = new EnclaveCommunicator(SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
 		val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
-		val completion = new ExecutorCompletionService[Unit](Executors.newFixedThreadPool(100))
 
 		logDebug("Main: Waiting for connections on port " + server.getLocalPort)
 
 		Completor.submit(new Waiter())
 		try {
 			while (true) {
-				completion.submit(new SgxMainRunner(server.accept(), fakeIterators))
+				Completor.submit(new SgxMainRunner(server.accept(), fakeIterators))
 			}
 		}
 		finally {
