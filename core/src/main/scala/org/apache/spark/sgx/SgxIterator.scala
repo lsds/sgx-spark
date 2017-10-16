@@ -48,28 +48,26 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 			sh.recvOne() match {
 				case MsgIteratorReqHasNext => sh.sendOne(delegate.hasNext)
 				case MsgIteratorReqNext => {
-					val q = Queue[T]()
+					val q = Queue[Any]()
 					if (delegate.isInstanceOf[NextIterator[T]]) {
-						// No Prefetching here. Calling next() multiple times on NextIterator and adding the results to a queue produces weird results (all elements end up being the same :/)
+						// No Prefetching here. Calling next() multiple times on NextIterator and
+						// results in all elements being the same :/)
 						q += delegate.next
 					}
 					else {
 						for (_ <- 1 to SgxSettings.PREFETCH) {
-							if (delegate.hasNext) q += delegate.next
+							if (delegate.hasNext) {
+								val n = delegate.next
+								q.enqueue(if (inEnclave) {
+									n match {
+										case x: scala.Tuple2[String,_] => new scala.Tuple2[String,Any](Encrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
+										case x: Any => x
+									}
+								} else n)
+							}
 						}
 					}
-//				  for (_ <- 1 to SgxSettings.PREFETCH) {
-//				 	  yield super.next()
-//					  val n = super.next
-//					  q.enqueue(if (inEnclave) {
-//					    n match {
-//					      case x: scala.Tuple2[_,_] => new scala.Tuple2[Encrypted[Any],Any](new Encrypted(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
-//					      case x: Any => x
-//					    }
-//					  } else n)
-//					  q.enqueue(n)
-//				  }
-				  sh.sendOne(q)
+					sh.sendOne(q)
 				}
 				case MsgIteratorReqClose =>
 					stop(sh)
@@ -94,7 +92,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 	private val sh = new SocketHelper(Retry(SgxSettings.RETRIES)(new Socket(id.host, id.port)))
 	private var closed = false
 
-	private val objects = Queue[Any]()
+	private val objects = Queue[T]()
 
 	override def hasNext: Boolean = {
 		if (objects.length > 0) true
@@ -109,19 +107,18 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 	override def next: T = {
 		if (closed) throw new NoSuchElementException("Iterator was closed.")
 		else if (objects.length == 0) {
-		  val list = sh.sendRecv[Queue[Any]](MsgIteratorReqNext)
-		  objects ++= list//.map
-//		  { n =>
-//			  val m = if (providerIsInEnclave) {
-//			    n match {
-//			      case x: scala.Tuple2[Encrypted[Any],Any] => new scala.Tuple2[Any,Any](x._1.decrypt(SgxSettings.ENCRYPTION_KEY), x._2)
-//			      case x: Any => x
-//			    }
-//			  } else n
-//			  n.asInstanceOf[T]
-//		   }
+			val list = sh.sendRecv[Queue[Any]](MsgIteratorReqNext)
+			objects ++= list.map {
+					n => val m = if (providerIsInEnclave) {
+						n match {
+							case x: scala.Tuple2[String,Any] => new scala.Tuple2[Any,Any](Decrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
+							case x: Any => x
+						}
+					} else n
+					n.asInstanceOf[T]
+				}
 		}
-		objects.dequeue.asInstanceOf[T]
+		objects.dequeue
 	}
 
 	def close() = {
