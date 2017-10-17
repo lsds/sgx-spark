@@ -2,6 +2,8 @@ package org.apache.spark.sgx
 
 import java.util.concurrent.Callable
 
+import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
+
 class SgxMainRunner(com: SgxCommunicationInterface, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Callable[Unit] {
 	def call(): Unit = {
 		while(true) {
@@ -20,5 +22,5 @@ class SgxMainRunner(com: SgxCommunicationInterface, fakeIterators: IdentifierMan
 		com.close()
 	}
 
-	override def toString() = this.getClass.getSimpleName + "(com=" + com + ")"
+	override def toString() = getClass.getSimpleName + "(com=" + com + ")"
 }

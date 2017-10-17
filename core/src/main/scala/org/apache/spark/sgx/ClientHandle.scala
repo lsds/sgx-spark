@@ -10,7 +10,10 @@ object ClientHandle {
 
 	0 to SgxSettings.CONNECTIONS foreach { _ =>
 		if (SgxSettings.SGX_USE_SHMEM) handles.add(ShmCommunicationManager.get().newShmCommunicator())
-		else handles.add(new SocketHelper(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT)))
+		else {
+			if (SgxSettings.IS_ENCLAVE) handles.add(new SocketHelper(new Socket(SgxSettings.HOST_IP, SgxSettings.HOST_PORT)))
+			else handles.add(new SocketHelper(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT)))
+		}
 	}
 
 	def sendRecv[O](in: Any) = {

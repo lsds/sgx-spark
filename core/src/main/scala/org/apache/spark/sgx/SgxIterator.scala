@@ -17,7 +17,7 @@ import scala.collection.mutable.Queue
 
 import org.apache.spark.internal.Logging
 
-case class MsgAccessFakeIterator(fakeId: Long) extends Serializable with Logging {}
+
 
 class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, null) with Runnable with Logging {
 	val host = if (inEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP
@@ -89,7 +89,7 @@ case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 
 	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
 		val iter = if (providerIsInEnclave) ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
-			else SocketOpenSendRecvClose[SgxIteratorProviderIdentifier](SgxSettings.HOST_IP, SgxSettings.HOST_PORT, MsgAccessFakeIterator(id))
+			else ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
 
 		new SgxIteratorConsumer(iter, providerIsInEnclave)
 	}
