@@ -4,7 +4,6 @@ import java.util.concurrent.Callable
 
 import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
 import org.apache.spark.sgx.iterator.SgxFakeIterator
-import org.apache.spark.sgx.iterator.socket.SgxSocketIteratorProvider
 
 class SgxMainRunner(com: SgxCommunicationInterface, fakeIterators: IdentifierManager[Iterator[Any],SgxFakeIterator[Any]]) extends Callable[Unit] {
 	def call(): Unit = {
@@ -15,7 +14,7 @@ class SgxMainRunner(com: SgxCommunicationInterface, fakeIterators: IdentifierMan
 				case x: SgxOtherTask[_,_] => fakeIterators.create(x.apply(fakeIterators.remove(x.it.id)))
 
 				case x: MsgAccessFakeIterator =>
-					val iter = new SgxSocketIteratorProvider[Any](fakeIterators.get(x.fakeId), true)
+					val iter = SgxFactory.newSgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true)
 					new Thread(iter).start
 					iter.identifier
 			})
