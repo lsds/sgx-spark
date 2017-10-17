@@ -12,7 +12,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * @author Florian Kelbert
  *
  */
-public final class ShmCommunicationManager<V> implements Callable<V> {
+public final class ShmCommunicationManager<T> implements Callable<T> {
 	private RingBuff writeBuff;
 	private RingBuff readBuff;
 
@@ -24,16 +24,42 @@ public final class ShmCommunicationManager<V> implements Callable<V> {
 	private BlockingQueue<ShmCommunicator> accepted = new LinkedBlockingQueue<>();
 	
 	private long inboxCtr = 1;
+	
+	private static ShmCommunicationManager<?> _instance = null;
 
-	public ShmCommunicationManager(String file, int size) {
+	private ShmCommunicationManager(String file, int size) {
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
 		this.readBuff = new RingBuff(handles[0], true);
 		this.writeBuff = new RingBuff(handles[1], true);
 	}
 
-	public ShmCommunicationManager(long writeBuff, long readBuff) {
+	private ShmCommunicationManager(long writeBuff, long readBuff) {
 		this.writeBuff = new RingBuff(writeBuff, true);
 		this.readBuff = new RingBuff(readBuff, true);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T> ShmCommunicationManager<T> create(String file, int size) {
+		if (_instance == null) {
+			_instance = new ShmCommunicationManager<T>(file, size);
+		}
+		return (ShmCommunicationManager<T>) _instance;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff) {
+		if (_instance == null) {
+			_instance = new ShmCommunicationManager<T>(writeBuff, readBuff);
+		}
+		return (ShmCommunicationManager<T>) _instance;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T> ShmCommunicationManager<T> get() {
+		if (_instance == null) {
+			throw new RuntimeException(_instance.getClass().getSimpleName() + " was not instantiated.");
+		}
+		return (ShmCommunicationManager<T>) _instance;
 	}
 
 	public ShmCommunicator newShmCommunicator() {
@@ -81,7 +107,7 @@ public final class ShmCommunicationManager<V> implements Callable<V> {
 	}
 
 	@Override
-	public V call() throws Exception {
+	public T call() throws Exception {
 		ShmMessage msg = null;
 		while (true) {
 			synchronized (lockReadBuff) {

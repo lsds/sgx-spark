@@ -6,12 +6,20 @@ import java.net.Socket
 import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.sgx.SgxCommunicationInterface
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 
 import org.apache.spark.internal.Logging
 
 private object MsgDone {}
 
-class SocketHelper(socket: Socket) extends Logging with SgxCommunicationInterface {
+class SgxSocketIteratorProviderIdentifier(val host: String, val port: Int) extends SgxIteratorProviderIdentifier {
+	def connect(): SgxCommunicationInterface = new SocketHelper(Retry(SgxSettings.RETRIES)(new Socket(host, port)))
+
+	override def toString() = getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
+}
+
+class SocketHelper(socket: Socket) extends SgxCommunicationInterface with Logging {
 	private	val oos = new ObjectOutputStream(socket.getOutputStream())
 	private	val ois = new ObjectInputStream(socket.getInputStream())
 
@@ -54,6 +62,8 @@ class SocketHelper(socket: Socket) extends Logging with SgxCommunicationInterfac
 		ois.close()
 		socket.close()
 	}
+
+	override def toString() = getClass.getSimpleName + "(local=" + socket.getLocalAddress + ":" + socket.getLocalPort + ", remote=" + socket.getRemoteSocketAddress + ":" + socket.getPort + ")"
 }
 
 /**

@@ -218,7 +218,7 @@ private[deploy] class Worker(
 
     if (SgxSettings.SGX_ENABLED) {
     	if (SgxSettings.SGX_USE_SHMEM) {
-		    val mgr = new ShmCommunicationManager[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
+		    val mgr = ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 		    Completor.submit(mgr);
 
 		    val com = mgr.newShmCommunicator()

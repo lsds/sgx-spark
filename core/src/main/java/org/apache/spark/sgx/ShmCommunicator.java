@@ -81,6 +81,6 @@ public class ShmCommunicator implements SgxCommunicationInterface {
 	}
 
 	public String toString() {
-		return this.getClass().getSimpleName() + "(myPort=" + myPort + ", theirPort=" + theirPort + ")";
+		return getClass().getSimpleName() + "(myPort=" + myPort + ", theirPort=" + theirPort + ")";
 	}
 }
