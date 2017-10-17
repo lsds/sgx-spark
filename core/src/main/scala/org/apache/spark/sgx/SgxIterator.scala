@@ -17,8 +17,6 @@ import scala.collection.mutable.Queue
 
 import org.apache.spark.internal.Logging
 
-
-
 class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, null) with Runnable with Logging {
 	val host = if (inEnclave) SgxSettings.ENCLAVE_IP else SgxSettings.HOST_IP
 	val port = 40000 + scala.util.Random.nextInt(10000)
@@ -78,19 +76,4 @@ class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends 
 	}
 
 	override def toString() = this.getClass.getSimpleName + "(host=" + host + ", port=" + port + ", identifier=" + identifier + ")"
-}
-
-
-
-case class FakeIterator[T](id: Long) extends Iterator[T] with Serializable {
-	override def hasNext: Boolean =  throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
-	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
-	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
-
-	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
-		val iter = if (providerIsInEnclave) ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
-			else ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
-
-		new SgxIteratorConsumer(iter, providerIsInEnclave)
-	}
 }

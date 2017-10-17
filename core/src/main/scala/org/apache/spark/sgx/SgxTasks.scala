@@ -8,6 +8,7 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
+import org.apache.spark.sgx.iterator.FakeIterator
 
 class SgxExecuteInside[R] extends Serializable {
 	def executeInsideEnclave(): R = {

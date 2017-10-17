@@ -33,7 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.serializer._
 import org.apache.spark.storage.{BlockId, DiskBlockObjectWriter}
 
-import org.apache.spark.sgx.FakeIterator
+import org.apache.spark.sgx.iterator.FakeIterator
 import org.apache.spark.sgx.SgxSettings
 
 /**

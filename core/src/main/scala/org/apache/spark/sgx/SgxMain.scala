@@ -7,6 +7,7 @@ import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCom
 import org.apache.spark.internal.Logging
 
 import org.apache.spark.sgx.sockets.SocketHelper
+import org.apache.spark.sgx.iterator.FakeIterator
 
 object Completor extends ExecutorCompletionService[Unit](Executors.newFixedThreadPool(32)) {}
 

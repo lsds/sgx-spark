@@ -24,7 +24,7 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.sgx.SgxIteratorProvider
 import org.apache.spark.sgx.SgxFirstTask
 import org.apache.spark.sgx.SgxOtherTask
-import org.apache.spark.sgx.FakeIterator
+import org.apache.spark.sgx.iterator.FakeIterator
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.

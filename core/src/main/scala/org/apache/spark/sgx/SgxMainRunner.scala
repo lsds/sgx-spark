@@ -3,6 +3,7 @@ package org.apache.spark.sgx
 import java.util.concurrent.Callable
 
 import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
+import org.apache.spark.sgx.iterator.FakeIterator
 
 class SgxMainRunner(com: SgxCommunicationInterface, fakeIterators: IdentifierManager[Iterator[Any],FakeIterator[Any]]) extends Callable[Unit] {
 	def call(): Unit = {
