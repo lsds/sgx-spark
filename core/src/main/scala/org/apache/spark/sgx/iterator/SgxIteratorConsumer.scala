@@ -8,10 +8,6 @@ import org.apache.spark.sgx.Decrypt
 import org.apache.spark.sgx.SgxCommunicationInterface
 import org.apache.spark.sgx.SgxSettings
 
-trait SgxIteratorProviderIdentifier extends Serializable {
-	def connect(): SgxCommunicationInterface
-}
-
 class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean) extends Iterator[T] with Logging {
 
 	logDebug(this.getClass.getSimpleName + " connecting to: " + id)

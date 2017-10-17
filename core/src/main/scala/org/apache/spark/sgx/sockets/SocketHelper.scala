@@ -7,17 +7,10 @@ import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.sgx.SgxCommunicationInterface
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 
 import org.apache.spark.internal.Logging
 
 private object MsgDone {}
-
-class SgxSocketIteratorProviderIdentifier(val host: String, val port: Int) extends SgxIteratorProviderIdentifier {
-	def connect(): SgxCommunicationInterface = new SocketHelper(Retry(SgxSettings.RETRIES)(new Socket(host, port)))
-
-	override def toString() = getClass.getSimpleName + "(host=" + host + ", port=" + port + ")"
-}
 
 class SocketHelper(socket: Socket) extends SgxCommunicationInterface with Logging {
 	private	val oos = new ObjectOutputStream(socket.getOutputStream())
@@ -80,18 +73,18 @@ object Retry {
 	}
 }
 
-/**
- * All in one go:
- * (1) Open connection
- * (2) Send object
- * (3) Receive answer
- * (4) Close connection
- */
-object SocketOpenSendRecvClose {
-	def apply[O](host: String, port: Int, in: Any): O = {
-		val sh = new SocketHelper(Retry(10)(new Socket(host, port)))
-		val res = sh.sendRecv[O](in)
-		sh.close()
-		res
-	}
-}
+///**
+// * All in one go:
+// * (1) Open connection
+// * (2) Send object
+// * (3) Receive answer
+// * (4) Close connection
+// */
+//object SocketOpenSendRecvClose {
+//	def apply[O](host: String, port: Int, in: Any): O = {
+//		val sh = new SocketHelper(Retry(10)(new Socket(host, port)))
+//		val res = sh.sendRecv[O](in)
+//		sh.close()
+//		res
+//	}
+//}

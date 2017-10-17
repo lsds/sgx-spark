@@ -1,0 +1,70 @@
+package org.apache.spark.sgx.iterator
+
+import scala.collection.mutable.Queue
+
+import org.apache.spark.InterruptibleIterator
+import org.apache.spark.internal.Logging
+import org.apache.spark.util.NextIterator
+import org.apache.spark.annotation.DeveloperApi
+import org.apache.spark.sgx.Encrypt
+import org.apache.spark.sgx.SgxCommunicationInterface
+import org.apache.spark.sgx.SgxSettings
+
+abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, null) with Runnable with Logging {
+
+	protected def do_accept: SgxCommunicationInterface
+
+	val identifier: SgxIteratorProviderIdentifier
+
+	override final def hasNext: Boolean = delegate.hasNext
+
+	/**
+	 * Always throws an UnsupportedOperationException. Access this Iterator via the message interface.
+	 * Note: We allow calls to hasNext(), since they are, e.g., used by the superclass' toString() method.
+	 */
+	override final def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via messages.")
+
+	def run = {
+		logDebug(this + " now waiting for connections")
+		val com = do_accept
+		logDebug(this + " got connection: " + com)
+
+		var running = true
+		while (running) {
+			com.recvOne() match {
+				case MsgIteratorReqHasNext => com.sendOne(delegate.hasNext)
+				case MsgIteratorReqNext => {
+					val q = Queue[Any]()
+					if (delegate.isInstanceOf[NextIterator[T]]) {
+						// No Prefetching here. Calling next() multiple times on NextIterator and
+						// results in all elements being the same :/)
+						q += delegate.next
+					} else {
+						for (_ <- 1 to SgxSettings.PREFETCH) {
+							if (delegate.hasNext) {
+								val n = delegate.next
+								q.enqueue(if (inEnclave) {
+									n match {
+										case x: scala.Tuple2[String, _] => new scala.Tuple2[String, Any](Encrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
+										case x: Any => x
+									}
+								} else n)
+							}
+						}
+					}
+					com.sendOne(q)
+				}
+				case MsgIteratorReqClose =>
+					stop(com)
+					running = false
+
+				case x: Any => logDebug(this + ": Unknown input message provided.")
+			}
+		}
+	}
+
+	def stop(com: SgxCommunicationInterface) = {
+		logDebug("Stopping " + this)
+		com.close()
+	}
+}

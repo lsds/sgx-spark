@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
-import org.apache.spark.sgx.iterator.FakeIterator
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 class SgxExecuteInside[R] extends Serializable {
 	def executeInsideEnclave(): R = {
@@ -29,7 +29,7 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag](
 case class SgxOtherTask[U, T](
 	f: (Int, Iterator[T]) => Iterator[U],
 	partIndex: Int,
-	it: FakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
+	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
 	def apply(realit: Iterator[Any]): Iterator[U] = Await.result(Future { f(partIndex, realit.asInstanceOf[Iterator[T]]) }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(f=" + f + ", partIndex=" + partIndex + ", it=" + it + ")"

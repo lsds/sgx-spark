@@ -33,7 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.serializer._
 import org.apache.spark.storage.{BlockId, DiskBlockObjectWriter}
 
-import org.apache.spark.sgx.iterator.FakeIterator
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxSettings
 
 /**
@@ -186,7 +186,7 @@ private[spark] class ExternalSorter[K, V, C](
     val shouldCombine = aggregator.isDefined
 
     val records = if (SgxSettings.SGX_ENABLED) records2 match {
-      case f: FakeIterator[Product2[K, V]] => f.access(true)
+      case f: SgxFakeIterator[Product2[K, V]] => f.access(true)
       case i: Iterator[Product2[K, V]] => i
     } else records2
 

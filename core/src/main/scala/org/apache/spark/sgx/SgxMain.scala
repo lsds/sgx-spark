@@ -7,7 +7,7 @@ import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCom
 import org.apache.spark.internal.Logging
 
 import org.apache.spark.sgx.sockets.SocketHelper
-import org.apache.spark.sgx.iterator.FakeIterator
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 object Completor extends ExecutorCompletionService[Unit](Executors.newFixedThreadPool(32)) {}
 
@@ -18,7 +18,7 @@ class Waiter() extends Callable[Unit] {
 object SgxMain extends Logging {
 
 	def main(args: Array[String]): Unit = {
-		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
+		val fakeIterators = new IdentifierManager[Iterator[Any],SgxFakeIterator[Any]](SgxFakeIterator(_))
 		Completor.submit(new Waiter())
 
 		if (SgxSettings.SGX_USE_SHMEM) {
@@ -40,3 +40,4 @@ object SgxMain extends Logging {
 		}
 	}
 }
+

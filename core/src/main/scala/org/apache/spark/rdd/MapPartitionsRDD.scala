@@ -21,10 +21,10 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.{Partition, TaskContext}
 
-import org.apache.spark.sgx.SgxIteratorProvider
+import org.apache.spark.sgx.iterator.socket.SgxSocketIteratorProvider
 import org.apache.spark.sgx.SgxFirstTask
 import org.apache.spark.sgx.SgxOtherTask
-import org.apache.spark.sgx.iterator.FakeIterator
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
@@ -56,8 +56,8 @@ private[spark] class MapPartitionsRDDSgx[U: ClassTag, T: ClassTag](
 
 	override def compute(split: Partition, context: TaskContext): Iterator[U] = {
 		firstParent[T].iterator(split, context) match {
-			case x: SgxIteratorProvider[T] => new SgxFirstTask(f, split.index, x.identifier).executeInsideEnclave()
-			case x: FakeIterator[T] => new SgxOtherTask(f, split.index, x).executeInsideEnclave()
+			case x: SgxSocketIteratorProvider[T] => new SgxFirstTask(f, split.index, x.identifier).executeInsideEnclave()
+			case x: SgxFakeIterator[T] => new SgxOtherTask(f, split.index, x).executeInsideEnclave()
 			case x: Iterator[T] => f(split.index, firstParent[T].iterator(split, context))
 		}
 	}

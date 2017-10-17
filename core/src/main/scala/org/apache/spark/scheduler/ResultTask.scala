@@ -26,7 +26,7 @@ import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
-import org.apache.spark.sgx.iterator.FakeIterator
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxSettings
 
 /**
@@ -94,7 +94,7 @@ private[spark] class ResultTask[T, U](
       // then we must turn it into an SgxIteratorConsumer and access the
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
-        case f: FakeIterator[T] => func(context, f.access(true))
+        case f: SgxFakeIterator[T] => func(context, f.access(true))
       	case i: Iterator[T] => func(context, i)
       }
     }
