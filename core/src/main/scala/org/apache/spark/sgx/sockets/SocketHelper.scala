@@ -5,11 +5,13 @@ import java.io.ObjectOutputStream
 import java.net.Socket
 import scala.collection.mutable.ListBuffer
 
+import org.apache.spark.sgx.SgxCommunicationInterface
+
 import org.apache.spark.internal.Logging
 
 private object MsgDone {}
 
-class SocketHelper(socket: Socket) extends Logging {
+class SocketHelper(socket: Socket) extends Logging with SgxCommunicationInterface {
 	private	val oos = new ObjectOutputStream(socket.getOutputStream())
 	private	val ois = new ObjectInputStream(socket.getInputStream())
 
@@ -20,7 +22,7 @@ class SocketHelper(socket: Socket) extends Logging {
 		oos.flush()
 	}
 
-	def recvOne(): Any = {
+	def recvOne(): AnyRef = {
 		ois.readObject()
 	}
 
@@ -29,23 +31,23 @@ class SocketHelper(socket: Socket) extends Logging {
 		recvOne.asInstanceOf[O]
 	}
 
-	def sendMany(it: Iterator[Any]): Unit = {
-		it.foreach {
-			x => sendOne(x)
-		}
-		sendOne(MsgDone)
-	}
-
-	def recvMany(): Iterator[Any] = {
-		var list = new ListBuffer[Any]()
-		while(recvOne() match {
-			case MsgDone => false
-			case x: Any =>
-				list += x
-				true
-		}){}
-		list.iterator
-	}
+//	def sendMany(it: Iterator[Any]): Unit = {
+//		it.foreach {
+//			x => sendOne(x)
+//		}
+//		sendOne(MsgDone)
+//	}
+//
+//	def recvMany(): Iterator[Any] = {
+//		var list = new ListBuffer[Any]()
+//		while(recvOne() match {
+//			case MsgDone => false
+//			case x: Any =>
+//				list += x
+//				true
+//		}){}
+//		list.iterator
+//	}
 
 	def close() = {
 		oos.close()

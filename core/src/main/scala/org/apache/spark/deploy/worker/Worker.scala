@@ -40,8 +40,9 @@ import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.rpc._
 import org.apache.spark.util.{SparkUncaughtExceptionHandler, ThreadUtils, Utils}
 
-import org.apache.spark.sgx.OutsideCommunicator
+import org.apache.spark.sgx.{ShmCommunicationManager,ShmCommunicator}
 import org.apache.spark.sgx.RingBuff
+import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxSettings
 
 private[deploy] class Worker(
@@ -217,9 +218,14 @@ private[deploy] class Worker(
 
     if (SgxSettings.SGX_ENABLED) {
     	if (SgxSettings.SGX_USE_SHMEM) {
-		    val com = new OutsideCommunicator(SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE);
-//		    while (true)
-//		    System.out.println("read: " + com.readFromEnclave());
+		    val mgr = new ShmCommunicationManager[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
+		    Completor.submit(mgr);
+
+		    val com = mgr.newShmCommunicator()
+		    com.sendOne("Hello world")
+		    while (true) {
+
+		    }
     	}
 	//    SgxSpawn()
     }

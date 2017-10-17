@@ -61,13 +61,11 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_write_1m
 	char buf[len];
 	int ret;
 	(*env)->GetByteArrayRegion(env, data, 0, len, buf);
-	printf("B\n");
 
 	if ((ret = ring_buff_write_msg((ring_buff_handle_t) handle, (void*) buf, (uint32_t) len)) != RING_BUFF_ERR_OK) {
 		printf("Error during ring_buff_write_msg()\n");
 		ring_buff_print_err(ret);
 	}
-	printf("C\n");
 
 	return ret == RING_BUFF_ERR_OK;
 }
@@ -75,12 +73,13 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_write_1m
 JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_read_1msg(JNIEnv *env, jclass cls, jlong handle) {
 	void *data;
 	uint32_t len;
-	int ret;
+	int ret = RING_BUFF_ERR_GENERAL;
 
-	if ((ret = ring_buff_read_msg((ring_buff_handle_t) handle, &data, &len)) != RING_BUFF_ERR_OK) {
-		printf("Error during ring_buff_read_msg()\n");
-		ring_buff_print_err(ret);
-		return (jbyteArray) {0};
+
+	while ((ret = ring_buff_read_msg((ring_buff_handle_t) handle, &data, &len)) != RING_BUFF_ERR_OK) {
+//		printf("Error during ring_buff_read_msg()\n");
+//		ring_buff_print_err(ret);
+		usleep(10);
 	}
 
 	if ((ret = ring_buff_free((ring_buff_handle_t) handle, data, len)) != RING_BUFF_ERR_OK) {

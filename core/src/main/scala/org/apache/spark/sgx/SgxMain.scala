@@ -132,20 +132,30 @@ class Waiter() extends Callable[Unit] {
 object SgxMain extends Logging {
 
 	def main(args: Array[String]): Unit = {
-		val com = new EnclaveCommunicator(SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
 		val fakeIterators = new IdentifierManager[Iterator[Any],FakeIterator[Any]](FakeIterator(_))
-		val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
-
-		logDebug("Main: Waiting for connections on port " + server.getLocalPort)
-
 		Completor.submit(new Waiter())
-		try {
-			while (true) {
-				Completor.submit(new SgxMainRunner(server.accept(), fakeIterators))
+
+		if (SgxSettings.SGX_USE_SHMEM) {
+			val mgr = new ShmCommunicationManager[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
+			Completor.submit(mgr);
+
+			val c = mgr.accept()
+			println("Received: " + c.recvOne());
+
+//			while (true) Completor.submit(new SgxMainRunner(com.accept(), fakeIterators))
+		}
+		else {
+			val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
+			logDebug("Main: Waiting for connections on port " + server.getLocalPort)
+
+			try {
+				while (true) Completor.submit(new SgxMainRunner(server.accept(), fakeIterators))
+			}
+			finally {
+				server.close()
 			}
 		}
-		finally {
-			server.close()
-		}
+
+
 	}
 }
