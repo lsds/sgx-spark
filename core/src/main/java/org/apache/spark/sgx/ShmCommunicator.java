@@ -36,9 +36,7 @@ public class ShmCommunicator implements SgxCommunicationInterface {
 		if (this.theirPort == null) {
 			this.theirPort = theirPort;
 		} else {
-			RuntimeException e = new RuntimeException(this + " was already connected to " + theirPort);
-			System.out.println(e);
-			throw e;
+			throw new RuntimeException(this + " was already connected to " + theirPort);
 		}
 		return this;
 	}
@@ -53,31 +51,21 @@ public class ShmCommunicator implements SgxCommunicationInterface {
 
 	private void write(ShmMessage msg) {
 		ShmCommunicationManager.get().write(msg);
-		System.out.println("Sending E");
 	}
 
 	private void write(Object o) {
 		ShmCommunicationManager.get().write(o, theirPort);
-		System.out.println("Sending D");
 	}
 
 	private Object read() {
-		System.out.println("waiting 2");
 		Object result = null;
-		System.out.println("waiting 3");
 		do {
 			try {
-				System.out.println("waiting 4");
 				result = inbox.take();
-				System.out.println(this + " taken from inbox: " + result);
 			} catch (InterruptedException e) {
-				System.out.println("waiting 5");
 				e.printStackTrace();
-				System.out.println("waiting 6");
 			}
-			System.out.println("waiting 7");
 		} while (result == null);
-		System.out.println("waiting 8");
 
 		return result;
 	}
@@ -85,13 +73,10 @@ public class ShmCommunicator implements SgxCommunicationInterface {
 	@Override
 	public void sendOne(Object o) {
 		write(o);
-		System.out.println("Sending F");
 	}
 
 	@Override
 	public Object recvOne() {
-//		return ((ShmMessage) read()).getMsg();
-		System.out.println("waiting 1");
 		return read();
 	}
 

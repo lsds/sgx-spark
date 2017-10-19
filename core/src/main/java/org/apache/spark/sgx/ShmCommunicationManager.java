@@ -45,7 +45,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public static <T> ShmCommunicationManager<T> create(String file, int size) {
 		synchronized(lockInstance) {
 			if (_instance == null) {
-				System.out.println(ManagementFactory.getRuntimeMXBean().getName());
 				_instance = new ShmCommunicationManager<T>(file, size);
 			}
 		}
@@ -56,7 +55,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff) {
 		synchronized(lockInstance) {
 			if (_instance == null) {
-				System.out.println(ManagementFactory.getRuntimeMXBean().getName());
 				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff);
 			}
 		}
@@ -66,9 +64,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	@SuppressWarnings("unchecked")
 	public static <T> ShmCommunicationManager<T> get() {
 		if (_instance == null) {
-			RuntimeException e = new RuntimeException("ShmCommunicationManager was not instantiated.");
-			System.out.println(e);
-			throw e;
+			throw new RuntimeException("ShmCommunicationManager was not instantiated.");
 		}
 		return (ShmCommunicationManager<T>) _instance;
 	}
@@ -112,7 +108,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	}
 
 	void write(ShmMessage m) {
-		System.out.println("Sending: " + m);
 		synchronized (lockWriteBuff) {
 			writeBuff.write(m);
 		}
@@ -126,13 +121,9 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public T call() throws Exception {
 		ShmMessage msg = null;
 		while (true) {
-			System.out.println(this + " waiting 1");
 			synchronized (lockReadBuff) {
-				System.out.println(this + " waiting 2");
 				msg = ((ShmMessage) readBuff.read());
 			}
-			
-			System.out.println("Receiving: " + msg + " for port " + msg.getPort());
 
 			if (msg.getPort() == 0) {
 				switch (msg.getType()) {
