@@ -217,16 +217,6 @@ private[deploy] class Worker(
     metricsSystem.getServletHandlers.foreach(webUi.attachHandler)
 
     if (SgxSettings.SGX_ENABLED) {
-    	if (SgxSettings.SGX_USE_SHMEM) {
-		    val mgr = ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
-		    Completor.submit(mgr);
-
-		    val com = mgr.newShmCommunicator()
-		    com.sendOne("Hello world")
-		    while (true) {
-
-		    }
-    	}
 	//    SgxSpawn()
     }
   }

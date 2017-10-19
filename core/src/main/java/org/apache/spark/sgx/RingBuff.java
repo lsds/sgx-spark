@@ -33,13 +33,23 @@ class RingBuff {
 
 		do {
 			try {
+				System.out.println(this + " waiting 1");
 				obj = Serialization.deserialize(RingBuffLibWrapper.read_msg(handle));
+				System.out.println(this + " waiting 2");
 			} catch (ClassNotFoundException | IOException e) {
+				System.out.println(this + " waiting 3");
 				e.printStackTrace();
 				exception = true;
+				System.out.println(this + " waiting 4");
 			}
+			System.out.println(this + " waiting 5");
 		} while (obj == null && !exception && blocking);
-
+		System.out.println(this + " waiting 6");
 		return obj;
+	}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName();
 	}
 }

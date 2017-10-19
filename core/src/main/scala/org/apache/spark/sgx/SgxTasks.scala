@@ -6,12 +6,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
-class SgxExecuteInside[R] extends Serializable {
+class SgxExecuteInside[R] extends Serializable with Logging {
 	def executeInsideEnclave(): R = {
+		logDebug(this + ".executeInsideEnclave()");
 		ClientHandle.sendRecv[R](this)
 	}
 }

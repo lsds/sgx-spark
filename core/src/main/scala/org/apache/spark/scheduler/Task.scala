@@ -27,6 +27,10 @@ import org.apache.spark.memory.{MemoryMode, TaskMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.util._
 
+import org.apache.spark.sgx.ShmCommunicationManager
+import org.apache.spark.sgx.Completor
+import org.apache.spark.sgx.SgxSettings
+
 /**
  * A unit of execution. We have two kinds of Task's in Spark:
  *
@@ -105,6 +109,10 @@ private[spark] abstract class Task[T](
       Option(attemptNumber)).setCurrentContext()
 
     try {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.SGX_USE_SHMEM) {
+        val mgr = ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
+        Completor.submit(mgr);
+      }
       runTask(context)
     } catch {
       case e: Throwable =>

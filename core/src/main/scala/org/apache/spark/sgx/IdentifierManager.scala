@@ -6,9 +6,9 @@ class IdentifierManager[T,F](c: Long => F) {
 	private val identifiers = new TLongObjectHashMap[T]()
 
 	def create(obj: T): F = this.synchronized {
-		val uuid = scala.util.Random.nextLong
-		identifiers.put(uuid, obj)
-		c(uuid)
+		val id = scala.util.Random.nextLong
+		identifiers.put(id, obj)
+		c(id)
 	}
 
 	def get(id: Long): T = this.synchronized {

@@ -21,8 +21,23 @@ public interface SgxCommunicationInterface {
 	 */
 	public <T> T sendRecv(Object o);
 	
-	/**
-	 * Close this communication interface.
-	 */
+//	def sendMany(it: Iterator[Any]): Unit = {
+//	it.foreach {
+//		x => sendOne(x)
+//	}
+//	sendOne(MsgDone)
+//}
+//
+//def recvMany(): Iterator[Any] = {
+//	var list = new ListBuffer[Any]()
+//	while(recvOne() match {
+//		case MsgDone => false
+//		case x: Any =>
+//			list += x
+//			true
+//	}){}
+//	list.iterator
+//}	
+	
 	void close();
 }

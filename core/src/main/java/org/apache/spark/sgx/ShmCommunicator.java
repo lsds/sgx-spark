@@ -3,56 +3,81 @@ package org.apache.spark.sgx;
 import java.util.concurrent.BlockingQueue;
 
 public class ShmCommunicator implements SgxCommunicationInterface {
-	private long myPort;
-	private long theirPort;
-	private ShmCommunicationManager<?> manager;
-	private BlockingQueue<Object> inbox;
+	private final Long myPort;
+	private Long theirPort;
+	private final BlockingQueue<Object> inbox;
 
-	ShmCommunicator(long myPort, long theirPort, BlockingQueue<Object> inbox, ShmCommunicationManager<?> manager) {
+	ShmCommunicator(long myPort, long theirPort, BlockingQueue<Object> inbox) {
 		this.myPort = myPort;
 		this.theirPort = theirPort;
 		this.inbox = inbox;
-		this.manager = manager;
 	}
 
-	ShmCommunicator(long myPort, BlockingQueue<Object> inbox, ShmCommunicationManager<?> manager) {
+	ShmCommunicator(long myPort, BlockingQueue<Object> inbox, boolean doConnect) {
 		this.myPort = myPort;
 		this.inbox = inbox;
-		this.manager = manager;
 
-		write(new ShmMessage(EShmMessageType.NEW_CONNECTION, myPort, 0));
-
-		Object reply;
-		try {
-			reply = inbox.take();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
+		if (doConnect) {
+			write(new ShmMessage(EShmMessageType.NEW_CONNECTION, myPort, 0L));
+	
+			Object reply;
+			try {
+				reply = inbox.take();
+			} catch (InterruptedException e) {
+				System.out.println(e);
+				throw new RuntimeException(e);
+			}
+	
+			this.theirPort = (long) reply;
 		}
-
-		this.theirPort = (int) reply;
+	}
+	
+	public ShmCommunicator connect(long theirPort) {
+		if (this.theirPort == null) {
+			this.theirPort = theirPort;
+		} else {
+			RuntimeException e = new RuntimeException(this + " was already connected to " + theirPort);
+			System.out.println(e);
+			throw e;
+		}
+		return this;
 	}
 
 	public long getMyPort() {
 		return myPort;
 	}
 
-	private boolean write(ShmMessage msg) {
-		return manager.write(msg);
+	public long getTheirPort() {
+		return theirPort;
 	}
 
-	private boolean write(Object o) {
-		return manager.write(o, theirPort);
+	private void write(ShmMessage msg) {
+		ShmCommunicationManager.get().write(msg);
+		System.out.println("Sending E");
+	}
+
+	private void write(Object o) {
+		ShmCommunicationManager.get().write(o, theirPort);
+		System.out.println("Sending D");
 	}
 
 	private Object read() {
+		System.out.println("waiting 2");
 		Object result = null;
+		System.out.println("waiting 3");
 		do {
 			try {
+				System.out.println("waiting 4");
 				result = inbox.take();
+				System.out.println(this + " taken from inbox: " + result);
 			} catch (InterruptedException e) {
+				System.out.println("waiting 5");
 				e.printStackTrace();
+				System.out.println("waiting 6");
 			}
+			System.out.println("waiting 7");
 		} while (result == null);
+		System.out.println("waiting 8");
 
 		return result;
 	}
@@ -60,11 +85,14 @@ public class ShmCommunicator implements SgxCommunicationInterface {
 	@Override
 	public void sendOne(Object o) {
 		write(o);
+		System.out.println("Sending F");
 	}
 
 	@Override
 	public Object recvOne() {
-		return ((ShmMessage) read()).getMsg();
+//		return ((ShmMessage) read()).getMsg();
+		System.out.println("waiting 1");
+		return read();
 	}
 
 	@Override
@@ -77,7 +105,7 @@ public class ShmCommunicator implements SgxCommunicationInterface {
 	@Override
 	public void close() {
 		inbox.clear();
-		manager.close(this);
+		ShmCommunicationManager.get().close(this);
 	}
 
 	public String toString() {

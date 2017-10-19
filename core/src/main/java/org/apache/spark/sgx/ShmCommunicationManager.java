@@ -6,6 +6,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import java.lang.management.ManagementFactory;
+
 /**
  * This class is to be used by the enclave to communicate with the outside.
  * 
@@ -19,6 +21,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	private final Object lockWriteBuff = new Object();
 	private final Object lockReadBuff = new Object();
 	private final Object lockInboxes = new Object();
+	private final static Object lockInstance = new Object();
 
 	private Map<Long, BlockingQueue<Object>> inboxes = new HashMap<>();
 	private BlockingQueue<ShmCommunicator> accepted = new LinkedBlockingQueue<>();
@@ -40,16 +43,22 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	
 	@SuppressWarnings("unchecked")
 	public static <T> ShmCommunicationManager<T> create(String file, int size) {
-		if (_instance == null) {
-			_instance = new ShmCommunicationManager<T>(file, size);
+		synchronized(lockInstance) {
+			if (_instance == null) {
+				System.out.println(ManagementFactory.getRuntimeMXBean().getName());
+				_instance = new ShmCommunicationManager<T>(file, size);
+			}
 		}
 		return (ShmCommunicationManager<T>) _instance;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff) {
-		if (_instance == null) {
-			_instance = new ShmCommunicationManager<T>(writeBuff, readBuff);
+		synchronized(lockInstance) {
+			if (_instance == null) {
+				System.out.println(ManagementFactory.getRuntimeMXBean().getName());
+				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff);
+			}
 		}
 		return (ShmCommunicationManager<T>) _instance;
 	}
@@ -57,12 +66,18 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	@SuppressWarnings("unchecked")
 	public static <T> ShmCommunicationManager<T> get() {
 		if (_instance == null) {
-			throw new RuntimeException(_instance.getClass().getSimpleName() + " was not instantiated.");
+			RuntimeException e = new RuntimeException("ShmCommunicationManager was not instantiated.");
+			System.out.println(e);
+			throw e;
 		}
 		return (ShmCommunicationManager<T>) _instance;
 	}
 
 	public ShmCommunicator newShmCommunicator() {
+		return newShmCommunicator(true);
+	}
+
+	public ShmCommunicator newShmCommunicator(boolean doConnect) {
 		BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 		long myport;
 		synchronized (lockInboxes) {
@@ -70,7 +85,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			inboxes.put(myport, inbox);
 		}
 
-		return new ShmCommunicator(myport, inbox, this);
+		return new ShmCommunicator(myport, inbox, doConnect);
 	}
 
 	public ShmCommunicator accept() {
@@ -92,13 +107,14 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param o the object to write
 	 * @return whether the write was successful
 	 */
-	boolean write(Object o, long theirPort) {
-		return write(new ShmMessage(EShmMessageType.REGULAR, o, theirPort));
+	void write(Object o, long theirPort) {
+		write(new ShmMessage(EShmMessageType.REGULAR, o, theirPort));
 	}
 
-	boolean write(ShmMessage m) {
+	void write(ShmMessage m) {
+		System.out.println("Sending: " + m);
 		synchronized (lockWriteBuff) {
-			return writeBuff.write(m);
+			writeBuff.write(m);
 		}
 	}
 	
@@ -110,9 +126,13 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public T call() throws Exception {
 		ShmMessage msg = null;
 		while (true) {
+			System.out.println(this + " waiting 1");
 			synchronized (lockReadBuff) {
+				System.out.println(this + " waiting 2");
 				msg = ((ShmMessage) readBuff.read());
 			}
+			
+			System.out.println("Receiving: " + msg + " for port " + msg.getPort());
 
 			if (msg.getPort() == 0) {
 				switch (msg.getType()) {
@@ -123,14 +143,8 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 						myport = inboxCtr++;
 						inboxes.put(myport, inbox);
 					}
-					accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox, this));
-					write(new ShmMessage(EShmMessageType.ACCEPTED_CONNECTION, myport, (int) msg.getMsg()));
-					break;
-
-				case CLOSE_CONNECTION:
-					break;
-
-				case REGULAR:
+					accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox));
+					write(new ShmMessage(EShmMessageType.ACCEPTED_CONNECTION, myport, (long) msg.getMsg()));
 					break;
 
 				default:
@@ -139,10 +153,15 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			} else {
 				BlockingQueue<Object> inbox;
 				synchronized (lockInboxes) {
-					inbox = inboxes.get(msg.getPort());
+					inbox = inboxes.get((long) msg.getPort());
 				}
 				inbox.add(msg.getMsg());
 			}
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName();
 	}
 }

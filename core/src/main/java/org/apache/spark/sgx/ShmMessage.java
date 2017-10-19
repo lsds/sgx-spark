@@ -5,9 +5,9 @@ import java.io.Serializable;
 class ShmMessage implements Serializable {
 	private static final long serialVersionUID = 7329847091123L;
 	
-	private EShmMessageType type;
-	private Object msg;
-	private long port;
+	private final EShmMessageType type;
+	private final Object msg;
+	private final long port;
 	
 	ShmMessage(EShmMessageType type, Object msg, long port) {
 		this.type = type;
