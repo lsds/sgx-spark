@@ -1,6 +1,8 @@
 package org.apache.spark.sgx
 
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
+import org.apache.spark.sgx.shm.SgxShmFactory
+import org.apache.spark.sgx.sockets.SgxSocketFactory
 
 trait SgxFactory {
 	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T]

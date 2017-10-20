@@ -1,11 +1,13 @@
-package org.apache.spark.sgx
+package org.apache.spark.sgx.sockets
 
 import java.net.ServerSocket
 import java.net.Socket
 
+import org.apache.spark.sgx.SgxCommunicator
+import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.socket.SgxSocketIteratorProvider
-import org.apache.spark.sgx.sockets.SocketCommunicator
 
 object SgxSocketFactory extends SgxFactory {
 
