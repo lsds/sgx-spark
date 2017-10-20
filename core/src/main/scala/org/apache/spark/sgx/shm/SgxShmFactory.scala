@@ -8,7 +8,8 @@ import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.shm.SgxShmIteratorProvider
 
 object SgxShmFactory extends SgxFactory {
-	val mgr = ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
+	val mgr = if (SgxSettings.IS_ENCLAVE) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
+			else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 	Completor.submit(mgr);
 
 	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T] = {

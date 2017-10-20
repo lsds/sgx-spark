@@ -28,6 +28,7 @@ import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.util._
 
 import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxSettings
 
 /**
  * A unit of execution. We have two kinds of Task's in Spark:
@@ -107,7 +108,7 @@ private[spark] abstract class Task[T](
       Option(attemptNumber)).setCurrentContext()
 
     try {
-      SgxFactory.get // just init
+      if (SgxSettings.SGX_ENABLED) SgxFactory.get // init
       runTask(context)
     } catch {
       case e: Throwable =>
