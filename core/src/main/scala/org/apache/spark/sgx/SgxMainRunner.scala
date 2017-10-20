@@ -15,9 +15,7 @@ class SgxMainRunner(com: SgxCommunicator, fakeIterators: IdentifierManager[Itera
 				case x: SgxOtherTask[_,_] => fakeIterators.create(x.apply(fakeIterators.remove(x.it.id)))
 
 				case x: MsgAccessFakeIterator =>
-					val iter = SgxFactory.get.newSgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true)
-					new Thread(iter).start
-					iter.identifier
+					SgxFactory.get.newSgxIteratorProvider[Any](fakeIterators.get(x.fakeId), true).identifier
 			})
 		}
 

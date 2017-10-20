@@ -12,7 +12,9 @@ object SgxShmFactory extends SgxFactory {
 	Completor.submit(mgr);
 
 	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T] = {
-		new SgxShmIteratorProvider[T](delegate, inEnclave)
+		val iter = new SgxShmIteratorProvider[T](delegate, inEnclave)
+		Completor.submit(iter)
+		iter
 	}
 
 	def newSgxCommunicationInterface(): SgxCommunicator = {

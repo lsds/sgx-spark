@@ -1,17 +1,17 @@
 package org.apache.spark.sgx.iterator
 
+import java.util.concurrent.Callable
+
 import scala.collection.mutable.Queue
 
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.NextIterator
-import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 
-abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, null) with Runnable with Logging {
-
+abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, null) with Callable[Unit] with Logging {
 	protected def do_accept: SgxCommunicator
 
 	val identifier: SgxIteratorProviderIdentifier
@@ -24,7 +24,7 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 	 */
 	override final def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via messages.")
 
-	def run = {
+	def call(): Unit = {
 		logDebug(this + " now waiting for connections")
 		val com = do_accept
 		logDebug(this + " got connection: " + com)

@@ -3,6 +3,7 @@ package org.apache.spark.sgx.sockets
 import java.net.ServerSocket
 import java.net.Socket
 
+import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxSettings
@@ -14,7 +15,9 @@ object SgxSocketFactory extends SgxFactory {
 	val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
 
 	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T] = {
-		new SgxSocketIteratorProvider[T](delegate, inEnclave);
+		val iter = new SgxSocketIteratorProvider[T](delegate, inEnclave)
+		Completor.submit(iter)
+		iter
 	}
 
 	def newSgxCommunicationInterface(): SgxCommunicator = {
