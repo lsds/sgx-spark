@@ -7,7 +7,7 @@ import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCom
 import org.apache.spark.internal.Logging
 
 import org.apache.spark.sgx.shm.ShmCommunicationManager
-import org.apache.spark.sgx.sockets.SocketHelper
+import org.apache.spark.sgx.sockets.SocketCommunicator
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 object Completor extends ExecutorCompletionService[Unit](Executors.newFixedThreadPool(32)) {}
@@ -33,7 +33,7 @@ object SgxMain extends Logging {
 			logDebug("Main: Waiting for connections on port " + server.getLocalPort)
 
 			try {
-				while (true) Completor.submit(new SgxMainRunner(new SocketHelper(server.accept()), fakeIterators))
+				while (true) Completor.submit(new SgxMainRunner(new SocketCommunicator(server.accept()), fakeIterators))
 			}
 			finally {
 				server.close()

@@ -7,12 +7,12 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.util.NextIterator
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sgx.Encrypt
-import org.apache.spark.sgx.SgxCommunicationInterface
+import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 
 abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends InterruptibleIterator[T](null, null) with Runnable with Logging {
 
-	protected def do_accept: SgxCommunicationInterface
+	protected def do_accept: SgxCommunicator
 
 	val identifier: SgxIteratorProviderIdentifier
 
@@ -63,7 +63,7 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 		}
 	}
 
-	def stop(com: SgxCommunicationInterface) = {
+	def stop(com: SgxCommunicator) = {
 		logDebug("Stopping " + this)
 		com.close()
 	}

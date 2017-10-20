@@ -3,7 +3,7 @@ package org.apache.spark.sgx
 import java.util.concurrent.LinkedBlockingDeque
 
 object ClientHandle {
-	private val handles = new LinkedBlockingDeque[SgxCommunicationInterface]()
+	private val handles = new LinkedBlockingDeque[SgxCommunicator]()
 
 	0 to SgxSettings.CONNECTIONS foreach { _ => handles.add(SgxFactory.newSgxCommunicationInterface()) }
 

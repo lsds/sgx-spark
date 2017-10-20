@@ -6,7 +6,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
-class SgxMainRunner(com: SgxCommunicationInterface, fakeIterators: IdentifierManager[Iterator[Any],SgxFakeIterator[Any]]) extends Callable[Unit] with Logging {
+class SgxMainRunner(com: SgxCommunicator, fakeIterators: IdentifierManager[Iterator[Any],SgxFakeIterator[Any]]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
 		while(true) {
 			logDebug(this + " waiting for message")

@@ -3,31 +3,13 @@ package org.apache.spark.sgx.sockets
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.net.Socket
-import scala.collection.mutable.ListBuffer
 
-import org.apache.spark.sgx.SgxCommunicationInterface
+import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 
-import org.apache.spark.internal.Logging
-
-private object MsgDone {}
-
-class SocketHelper(socket: Socket) extends SgxCommunicationInterface with Logging {
+class SocketCommunicator(socket: Socket) extends SgxCommunicator {
 	private	val oos = new ObjectOutputStream(socket.getOutputStream())
 	private	val ois = new ObjectInputStream(socket.getInputStream())
-
-	def sendOne(obj: Any) = {
-		write(obj)
-	}
-
-	def recvOne(): AnyRef = {
-		read()
-	}
-
-	def sendRecv[O](in: Any): O = {
-		sendOne(in)
-		recvOne.asInstanceOf[O]
-	}
 
 	def close() = {
 		oos.close()
@@ -61,19 +43,3 @@ object Retry {
 		}
 	}
 }
-
-///**
-// * All in one go:
-// * (1) Open connection
-// * (2) Send object
-// * (3) Receive answer
-// * (4) Close connection
-// */
-//object SocketOpenSendRecvClose {
-//	def apply[O](host: String, port: Int, in: Any): O = {
-//		val sh = new SocketHelper(Retry(10)(new Socket(host, port)))
-//		val res = sh.sendRecv[O](in)
-//		sh.close()
-//		res
-//	}
-//}

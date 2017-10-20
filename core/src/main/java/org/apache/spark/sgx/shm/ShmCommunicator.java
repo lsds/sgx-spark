@@ -2,9 +2,9 @@ package org.apache.spark.sgx.shm;
 
 import java.util.concurrent.BlockingQueue;
 
-import org.apache.spark.sgx.SgxCommunicationInterface;
+import org.apache.spark.sgx.SgxCommunicator;
 
-public class ShmCommunicator extends SgxCommunicationInterface {
+public class ShmCommunicator extends SgxCommunicator {
 	private final Long myPort;
 	private Long theirPort;
 	private final BlockingQueue<Object> inbox;
@@ -70,23 +70,6 @@ public class ShmCommunicator extends SgxCommunicationInterface {
 		} while (result == null);
 
 		return result;
-	}
-
-	@Override
-	public void sendOne(Object o) {
-		write(o);
-	}
-
-	@Override
-	public Object recvOne() {
-		return read();
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T> T sendRecv(Object o) {
-		sendOne(o);
-		return (T) recvOne();
 	}
 
 	@Override

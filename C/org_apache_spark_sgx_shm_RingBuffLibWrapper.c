@@ -62,9 +62,10 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_writ
 	int ret;
 	(*env)->GetByteArrayRegion(env, data, 0, len, buf);
 
-	if ((ret = ring_buff_write_msg((ring_buff_handle_t) handle, (void*) buf, (uint32_t) len)) != RING_BUFF_ERR_OK) {
-		printf("Error during ring_buff_write_msg()\n");
-		ring_buff_print_err(ret);
+	while ((ret = ring_buff_write_msg((ring_buff_handle_t) handle, (void*) buf, (uint32_t) len)) != RING_BUFF_ERR_OK) {
+//		printf("Error during ring_buff_write_msg()\n");
+//		ring_buff_print_err(ret);
+		usleep(10);
 	}
 
 	return ret == RING_BUFF_ERR_OK;

@@ -6,7 +6,7 @@ import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.shm.SgxShmIteratorProvider
 import org.apache.spark.sgx.iterator.socket.SgxSocketIteratorProvider
 import org.apache.spark.sgx.shm.ShmCommunicationManager
-import org.apache.spark.sgx.sockets.SocketHelper
+import org.apache.spark.sgx.sockets.SocketCommunicator
 
 object SgxFactory {
 	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T] = {
@@ -14,11 +14,11 @@ object SgxFactory {
 		else new SgxSocketIteratorProvider[T](delegate, inEnclave);
 	}
 
-	def newSgxCommunicationInterface(): SgxCommunicationInterface = {
+	def newSgxCommunicationInterface(): SgxCommunicator = {
 		if (SgxSettings.SGX_USE_SHMEM) ShmCommunicationManager.get().newShmCommunicator()
 		else {
-			if (SgxSettings.IS_ENCLAVE) new SocketHelper(new Socket(SgxSettings.HOST_IP, SgxSettings.HOST_PORT))
-			else new SocketHelper(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT))
+			if (SgxSettings.IS_ENCLAVE) new SocketCommunicator(new Socket(SgxSettings.HOST_IP, SgxSettings.HOST_PORT))
+			else new SocketCommunicator(new Socket(SgxSettings.ENCLAVE_IP, SgxSettings.ENCLAVE_PORT))
 		}
 	}
 }
