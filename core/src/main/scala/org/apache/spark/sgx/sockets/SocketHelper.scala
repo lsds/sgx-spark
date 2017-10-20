@@ -39,7 +39,7 @@ class SocketHelper(socket: Socket) extends SgxCommunicationInterface with Loggin
 		ois.readObject()
 	}
 
-	def write(o: Any): Unit = {
+	def write(o: Any) = {
 		oos.reset()
 		oos.writeObject(o)
 		oos.flush()

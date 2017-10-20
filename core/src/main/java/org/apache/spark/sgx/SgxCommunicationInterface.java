@@ -1,29 +1,29 @@
 package org.apache.spark.sgx;
 
-public interface SgxCommunicationInterface {
+public abstract class SgxCommunicationInterface {
 	
 	/**
 	 * Send one object.
 	 * @param o the object to send
 	 */
-	public void sendOne(Object o);
+	public abstract void sendOne(Object o);
 	
 	/**
 	 * Receive one object.
 	 * @return the received object
 	 */
-	public Object recvOne();
+	public abstract Object recvOne();
 	
 	/**
 	 * Send one object and wait for the result of type T.
 	 * @param o the object to send
 	 * @return the result object of type T
 	 */
-	public <T> T sendRecv(Object o);
+	public abstract <T> T sendRecv(Object o);
 	
-	void close();
+	public abstract void close();
 	
-	Object read();
+	public abstract Object read();
 	
-	void write(Object o);
+	public abstract void write(Object o);
 }

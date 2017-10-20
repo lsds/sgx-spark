@@ -4,7 +4,7 @@ import java.util.concurrent.BlockingQueue;
 
 import org.apache.spark.sgx.SgxCommunicationInterface;
 
-public class ShmCommunicator implements SgxCommunicationInterface {
+public class ShmCommunicator extends SgxCommunicationInterface {
 	private final Long myPort;
 	private Long theirPort;
 	private final BlockingQueue<Object> inbox;
