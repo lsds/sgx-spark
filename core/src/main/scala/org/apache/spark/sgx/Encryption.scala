@@ -2,12 +2,11 @@ package org.apache.spark.sgx
 
 import java.util.Base64
 
-object Encrypt {
-
   /*
    * TODO: Encryption/Decryption are dummy operations.
    */
 
+object Encrypt {
   def apply(plain: String, key: Long = 0): String = {
     val v = if (key <= 0) plain
     else {
