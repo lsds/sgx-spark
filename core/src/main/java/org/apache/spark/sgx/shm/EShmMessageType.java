@@ -1,4 +1,4 @@
-package org.apache.spark.sgx;
+package org.apache.spark.sgx.shm;
 
 public enum EShmMessageType {
 	NEW_CONNECTION,

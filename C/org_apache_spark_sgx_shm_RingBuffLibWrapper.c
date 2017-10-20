@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
-#include "org_apache_spark_sgx_RingBuffLibWrapper.h"
+#include "org_apache_spark_sgx_shm_RingBuffLibWrapper.h"
 #include "ring_buff.h"
 
 static void *register_shm(char* path, size_t len)
@@ -56,7 +56,7 @@ static void *register_shm(char* path, size_t len)
 	return addr;
 }
 
-JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_write_1msg(JNIEnv *env, jclass cls, jlong handle, jbyteArray data) {
+JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_write_1msg(JNIEnv *env, jclass cls, jlong handle, jbyteArray data) {
 	jint len = (*env)->GetArrayLength(env, data);
 	char buf[len];
 	int ret;
@@ -70,7 +70,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_write_1m
 	return ret == RING_BUFF_ERR_OK;
 }
 
-JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_read_1msg(JNIEnv *env, jclass cls, jlong handle) {
+JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_read_1msg(JNIEnv *env, jclass cls, jlong handle) {
 	void *data;
 	uint32_t len;
 	int ret = RING_BUFF_ERR_GENERAL;
@@ -97,7 +97,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_read_1
 	return result;
 }
 
-JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jint size) {
+JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jint size) {
 	char* shm_file = (char *) (*env)->GetStringUTFChars(env, file, 0);
 	void* shm_addr = register_shm(shm_file, ring_buff_struct_size() * 2);
 

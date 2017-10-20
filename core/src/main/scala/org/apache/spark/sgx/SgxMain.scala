@@ -6,6 +6,7 @@ import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCom
 
 import org.apache.spark.internal.Logging
 
+import org.apache.spark.sgx.shm.ShmCommunicationManager
 import org.apache.spark.sgx.sockets.SocketHelper
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 

@@ -5,6 +5,7 @@ import java.net.Socket
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.shm.SgxShmIteratorProvider
 import org.apache.spark.sgx.iterator.socket.SgxSocketIteratorProvider
+import org.apache.spark.sgx.shm.ShmCommunicationManager
 import org.apache.spark.sgx.sockets.SocketHelper
 
 object SgxFactory {

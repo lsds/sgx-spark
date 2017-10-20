@@ -1,6 +1,8 @@
-package org.apache.spark.sgx;
+package org.apache.spark.sgx.shm;
 
 import java.util.concurrent.BlockingQueue;
+
+import org.apache.spark.sgx.SgxCommunicationInterface;
 
 public class ShmCommunicator implements SgxCommunicationInterface {
 	private final Long myPort;
@@ -53,11 +55,11 @@ public class ShmCommunicator implements SgxCommunicationInterface {
 		ShmCommunicationManager.get().write(msg);
 	}
 
-	private void write(Object o) {
+	public void write(Object o) {
 		ShmCommunicationManager.get().write(o, theirPort);
 	}
 
-	private Object read() {
+	public Object read() {
 		Object result = null;
 		do {
 			try {

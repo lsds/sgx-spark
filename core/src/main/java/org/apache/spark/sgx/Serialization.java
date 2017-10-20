@@ -7,7 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.ClassNotFoundException;
 
-class Serialization {
+public class Serialization {
 	public static byte[] serialize(Object o) throws IOException {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		ObjectOutputStream oos = new ObjectOutputStream(stream);

@@ -27,9 +27,9 @@ import org.apache.spark.memory.{MemoryMode, TaskMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.util._
 
-import org.apache.spark.sgx.ShmCommunicationManager
 import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 /**
  * A unit of execution. We have two kinds of Task's in Spark:

@@ -3,9 +3,9 @@ package org.apache.spark.sgx.iterator.shm
 import java.net.ServerSocket
 
 import org.apache.spark.sgx.SgxFactory
-import org.apache.spark.sgx.ShmCommunicationManager
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
+import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 class SgxShmIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends SgxIteratorProvider[T](delegate, inEnclave) {
 

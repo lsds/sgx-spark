@@ -1,12 +1,10 @@
-package org.apache.spark.sgx;
+package org.apache.spark.sgx.shm;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import java.lang.management.ManagementFactory;
 
 /**
  * This class is to be used by the enclave to communicate with the outside.
@@ -144,7 +142,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			} else {
 				BlockingQueue<Object> inbox;
 				synchronized (lockInboxes) {
-					inbox = inboxes.get((long) msg.getPort());
+					inbox = inboxes.get(msg.getPort());
 				}
 				inbox.add(msg.getMsg());
 			}

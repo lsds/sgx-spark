@@ -40,9 +40,6 @@ import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.rpc._
 import org.apache.spark.util.{SparkUncaughtExceptionHandler, ThreadUtils, Utils}
 
-import org.apache.spark.sgx.{ShmCommunicationManager,ShmCommunicator}
-import org.apache.spark.sgx.RingBuff
-import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxSettings
 
 private[deploy] class Worker(

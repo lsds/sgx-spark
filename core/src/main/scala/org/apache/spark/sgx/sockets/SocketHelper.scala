@@ -17,14 +17,11 @@ class SocketHelper(socket: Socket) extends SgxCommunicationInterface with Loggin
 	private	val ois = new ObjectInputStream(socket.getInputStream())
 
 	def sendOne(obj: Any) = {
-		logDebug("Sending: " + obj + "("+obj.getClass().getSimpleName+") to " + socket.getInetAddress + ":" + socket.getPort)
-		oos.reset()
-		oos.writeObject(obj)
-		oos.flush()
+		write(obj)
 	}
 
 	def recvOne(): AnyRef = {
-		ois.readObject()
+		read()
 	}
 
 	def sendRecv[O](in: Any): O = {
@@ -32,28 +29,20 @@ class SocketHelper(socket: Socket) extends SgxCommunicationInterface with Loggin
 		recvOne.asInstanceOf[O]
 	}
 
-//	def sendMany(it: Iterator[Any]): Unit = {
-//		it.foreach {
-//			x => sendOne(x)
-//		}
-//		sendOne(MsgDone)
-//	}
-//
-//	def recvMany(): Iterator[Any] = {
-//		var list = new ListBuffer[Any]()
-//		while(recvOne() match {
-//			case MsgDone => false
-//			case x: Any =>
-//				list += x
-//				true
-//		}){}
-//		list.iterator
-//	}
-
 	def close() = {
 		oos.close()
 		ois.close()
 		socket.close()
+	}
+
+	def read(): AnyRef = {
+		ois.readObject()
+	}
+
+	def write(o: Any): Unit = {
+		oos.reset()
+		oos.writeObject(o)
+		oos.flush()
 	}
 
 	override def toString() = getClass.getSimpleName + "(local=" + socket.getLocalAddress + ":" + socket.getLocalPort + ", remote=" + socket.getRemoteSocketAddress + ":" + socket.getPort + ")"
