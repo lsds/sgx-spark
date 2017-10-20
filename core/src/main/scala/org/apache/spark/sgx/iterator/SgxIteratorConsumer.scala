@@ -5,7 +5,7 @@ import scala.collection.mutable.Queue
 import org.apache.spark.internal.Logging
 
 import org.apache.spark.sgx.Decrypt
-import org.apache.spark.sgx.SgxCommunicationInterface
+import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 
 class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean) extends Iterator[T] with Logging {
