@@ -16,7 +16,7 @@
  */
 
 package org.apache.spark.deploy.worker
-import java.lang.management.ManagementFactory;
+
 import java.io.File
 
 import org.apache.commons.lang3.StringUtils
@@ -33,7 +33,6 @@ import org.apache.spark.util.{ChildFirstURLClassLoader, MutableURLClassLoader, U
  */
 object DriverWrapper extends Logging {
   def main(args: Array[String]) {
-	  System.out.println("DriverWrapper: " + ManagementFactory.getRuntimeMXBean().getName());
     args.toList match {
       /*
        * IMPORTANT: Spark 1.3 provides a stable application submission gateway that is both
