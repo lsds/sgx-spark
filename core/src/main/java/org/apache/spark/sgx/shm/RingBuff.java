@@ -1,7 +1,5 @@
 package org.apache.spark.sgx.shm;
 
-import java.io.IOException;
-
 import org.apache.spark.sgx.Serialization;
 
 class RingBuff {
@@ -20,7 +18,7 @@ class RingBuff {
 		do {
 			try {
 				success = RingBuffLibWrapper.write_msg(handle, Serialization.serialize(o));
-			} catch (IOException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 				exception = true;
 			}
@@ -36,7 +34,7 @@ class RingBuff {
 		do {
 			try {
 				obj = Serialization.deserialize(RingBuffLibWrapper.read_msg(handle));
-			} catch (ClassNotFoundException | IOException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 				exception = true;
 			}

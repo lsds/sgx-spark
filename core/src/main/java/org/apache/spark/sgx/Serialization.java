@@ -5,9 +5,21 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.lang.ClassNotFoundException;
+
+import org.nustaq.serialization.FSTConfiguration;
 
 public class Serialization {
+	
+	public static byte[] serialize(Object o) throws Exception {
+		return FSTSerialization.serialize(o);
+	}
+	
+	public static Object deserialize(byte[] bytes) throws Exception {
+		return FSTSerialization.deserialize(bytes);
+	}
+}
+
+class DefaultSerialization {
 	public static byte[] serialize(Object o) throws IOException {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		ObjectOutputStream oos = new ObjectOutputStream(stream);
@@ -21,5 +33,17 @@ public class Serialization {
 		Object value = ois.readObject();
 		ois.close();
 		return value;
+	}
+}
+
+class FSTSerialization {
+	private static FSTConfiguration conf = FSTConfiguration.createDefaultConfiguration();
+	
+	public static byte[] serialize(Object o) {
+		return conf.asByteArray(o);
+	}
+
+	public static Object deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
+		return conf.asObject(bytes);
 	}
 }
