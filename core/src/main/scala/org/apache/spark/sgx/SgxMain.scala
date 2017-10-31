@@ -1,6 +1,6 @@
 package org.apache.spark.sgx
 
-import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCompletionService}
+import java.util.concurrent.{Executors, Callable, ExecutorCompletionService}
 
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
