@@ -1,7 +1,6 @@
 package org.apache.spark.sgx.iterator
 
-object MsgIteratorReqHasNext extends Serializable {}
-object MsgIteratorReqNext extends Serializable {}
+case class MsgIteratorReqNextN(num: Int) extends Serializable {}
 object MsgIteratorReqClose extends Serializable {}
 
 case class MsgAccessFakeIterator(fakeId: Long) extends Serializable {}

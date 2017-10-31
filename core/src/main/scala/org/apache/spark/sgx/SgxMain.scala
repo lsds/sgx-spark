@@ -4,7 +4,7 @@ import java.util.concurrent.{Executors, CompletionService, Callable, ExecutorCom
 
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
-object Completor extends ExecutorCompletionService[Unit](Executors.newFixedThreadPool(32)) {}
+object Completor extends ExecutorCompletionService[Unit](Executors.newCachedThreadPool()) {}
 
 class Waiter() extends Callable[Unit] {
        def call(): Unit = while (true) Completor.take

@@ -32,15 +32,14 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 		var running = true
 		while (running) {
 			com.recvOne() match {
-				case MsgIteratorReqHasNext => com.sendOne(delegate.hasNext)
-				case MsgIteratorReqNext => {
+				case num: MsgIteratorReqNextN => {
 					val q = Queue[Any]()
 					if (delegate.isInstanceOf[NextIterator[T]]) {
 						// No Prefetching here. Calling next() multiple times on NextIterator and
 						// results in all elements being the same :/)
-						q += delegate.next
+						if (delegate.hasNext) q += delegate.next
 					} else {
-						for (_ <- 1 to SgxSettings.PREFETCH) {
+						for (_ <- 1 to num.num) {
 							if (delegate.hasNext) {
 								val n = delegate.next
 								q.enqueue(if (inEnclave) {
@@ -64,7 +63,9 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 	}
 
 	def stop(com: SgxCommunicator) = {
-		logDebug("Stopping " + this)
+		logDebug(this + ": Stopping ")
 		com.close()
 	}
+
+	override def toString() = getClass.getSimpleName + "(identifier=" + identifier + ")"
 }

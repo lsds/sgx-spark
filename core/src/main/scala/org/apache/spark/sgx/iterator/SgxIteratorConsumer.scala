@@ -20,16 +20,21 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 		if (objects.length > 0) true
 		else if (closed) false
 		else {
-			val hasNext = com.sendRecv[Boolean](MsgIteratorReqHasNext)
-			if (!hasNext) close()
-			hasNext
+			get_next(SgxSettings.PREFETCH)
+			objects.length > 0
 		}
 	}
 
 	override def next: T = {
-		if (closed) throw new NoSuchElementException("Iterator was closed.")
-		else if (objects.length == 0) {
-			val list = com.sendRecv[Queue[Any]](MsgIteratorReqNext)
+		// This assumes that a next object exist. The caller needs to ensure
+		// this by preceeding this call with a call to hasNext()
+//		if (objects.length == 0) get_next(SgxSettings.PREFETCH)
+		objects.dequeue
+	}
+
+	private def get_next(num: Int): Unit = {
+			val list = com.sendRecv[Queue[Any]](new MsgIteratorReqNextN(num))
+			if (list.length == 0) close()
 			objects ++= list.map {
 					n => val m = if (providerIsInEnclave) {
 						n match {
@@ -39,8 +44,6 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 					} else n
 					n.asInstanceOf[T]
 				}
-		}
-		objects.dequeue
 	}
 
 	def close() = {
@@ -48,4 +51,8 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 		com.sendOne(MsgIteratorReqClose)
 		com.close()
 	}
+
+	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
 }
+
+//class SgxIteratorConsumerRunner[T]
