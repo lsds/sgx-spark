@@ -1,71 +1,85 @@
 package org.apache.spark.sgx.iterator
 
-import java.util.concurrent.{Executors, Callable, ExecutorCompletionService}
+import java.util.concurrent.{Executors, Callable, ExecutorCompletionService, Future}
+import java.util.concurrent.{BlockingQueue, LinkedBlockingQueue}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.Queue
 
 import org.apache.spark.internal.Logging
-
+import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.Decrypt
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEnclave: Boolean) extends Iterator[T] with Logging {
+class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
+	def call(): Unit = {
+		val num = SgxSettings.PREFETCH - consumer.objects.size
+		logDebug(this + " call(), num=" + num)
+		if (num > 0) {
+			val list = consumer.com.sendRecv[Queue[Any]](new MsgIteratorReqNextN(num))
+			logDebug(this + " call(), list.size=" + list.size)
+			if (list.size == 0) {
+				consumer.close
+			} else consumer.objects.addAll((list.map {
+				n => val m = if (consumer.providerIsInEnclave) {
+					n match {
+						case x: scala.Tuple2[String,Any] => new scala.Tuple2[Any,Any](Decrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
+						case x: Any => x
+					}
+				} else n
+				n.asInstanceOf[T]
+			}).asJava)
+		}
+		logDebug(this + " call(), done: objects.size=" + consumer.objects.size)
+		consumer.Lock.synchronized {
+			consumer.fillingFuture = null
+		}
+	}
 
-	logDebug(this.getClass.getSimpleName + " connecting to: " + id)
-	private val com = id.connect()
+	override def toString() = getClass.getSimpleName + "(consumer=" + consumer + ")"
+}
+
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, val providerIsInEnclave: Boolean) extends Iterator[T] with Logging {
+
+	logDebug(this + " connecting to: " + id)
+
 	private var closed = false
+	object Lock
 
-	private val objects = Queue[T]()
+	val com = id.connect()
+	val objects = new LinkedBlockingQueue[T]()
+	var fillingFuture : Future[Unit] = null
 
-	val completor = new ExecutorCompletionService[Queue[T]](Executors.newCachedThreadPool()) {}
-
-	var filling = false
+	fill()
 
 	override def hasNext: Boolean = {
+		logDebug(this + " hasNext(), objects.size=" + objects.size())
 		fill()
-		if (objects.length > 0) true
+		if (objects.size > 0) true
 		else if (closed) false
 		else {
-			objects.length > 0
+			if (fillingFuture != null) fillingFuture.get
+			objects.size > 0
 		}
 	}
 
 	override def next: T = {
-		fill()
 		// This assumes that a next object exist. The caller needs to ensure
 		// this by preceeding this call with a call to hasNext()
-		objects.dequeue
+		val n = objects.take
+		logDebug(this + " next(), n=" + n)
+		fill()
+		n
 	}
 
-	def fill(): Unit = synchronized {
-		if (closed) return
-
-		if (objects.length > 0) {
-			if (!filling) {
-				if (objects.length < SgxSettings.PREFETCH / 2) {
-					completor.submit(new Filler(com, SgxSettings.PREFETCH - objects.length))
-					filling = true
-				}
-			} else {
-				val future = completor.poll()
-				if (future != null) {
-					val list = future.get
-					if (list.length == 0) close()
-					else objects ++= list
-					filling = false
-				}
+	def fill(): Unit = {
+		Lock.synchronized {
+			logDebug(this + " fill(), closed=" + closed + ", objects.size=" + objects.size)
+			if (closed || fillingFuture != null || objects.size > SgxSettings.PREFETCH / 2) return
+			else {
+				fillingFuture = Completor.submit(new Filler(this))
 			}
-		}
-		else {
-			if (!filling) {
-				completor.submit(new Filler(com, SgxSettings.PREFETCH - objects.length))
-				filling = true
-			}
-			val list = completor.take().get
-			if (list.length == 0) close()
-			else objects ++= list
-			filling = false
 		}
 	}
 
@@ -76,21 +90,4 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, providerIsInEncl
 	}
 
 	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
-
-	class Filler[T](com: SgxCommunicator, num: Int) extends Callable[Queue[T]] {
-		def call(): Queue[T] = {
-			val list = com.sendRecv[Queue[Any]](new MsgIteratorReqNextN(num))
-			list.map {
-				n => val m = if (providerIsInEnclave) {
-					n match {
-						case x: scala.Tuple2[String,Any] => new scala.Tuple2[Any,Any](Decrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
-						case x: Any => x
-					}
-				} else n
-				n.asInstanceOf[T]
-			}
-		}
-
-		override def toString() = getClass.getSimpleName + "(com=" + com + ", num=" + num + ")"
-	}
 }
