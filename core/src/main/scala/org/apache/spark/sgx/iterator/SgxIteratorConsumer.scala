@@ -15,10 +15,10 @@ import org.apache.spark.sgx.SgxSettings
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
 		val num = SgxSettings.PREFETCH - consumer.objects.size
-		logDebug(this + " call(), num=" + num)
+//		logDebug(this + " call(), num=" + num)
 		if (num > 0) {
 			val list = consumer.com.sendRecv[Queue[Any]](new MsgIteratorReqNextN(num))
-			logDebug(this + " call(), list.size=" + list.size)
+//			logDebug(this + " call(), list.size=" + list.size)
 			if (list.size == 0) {
 				consumer.close
 			} else consumer.objects.addAll((list.map {
@@ -31,7 +31,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 				n.asInstanceOf[T]
 			}).asJava)
 		}
-		logDebug(this + " call(), done: objects.size=" + consumer.objects.size)
+//		logDebug(this + " call(), done: objects.size=" + consumer.objects.size)
 		consumer.Lock.synchronized {
 			consumer.fillingFuture = null
 		}
@@ -54,7 +54,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, val providerIsIn
 	fill()
 
 	override def hasNext: Boolean = {
-		logDebug(this + " hasNext(), objects.size=" + objects.size())
+//		logDebug(this + " hasNext(), objects.size=" + objects.size())
 		fill()
 		if (objects.size > 0) true
 		else if (closed) false
@@ -68,14 +68,14 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, val providerIsIn
 		// This assumes that a next object exist. The caller needs to ensure
 		// this by preceeding this call with a call to hasNext()
 		val n = objects.take
-		logDebug(this + " next(), n=" + n)
+//		logDebug(this + " next(), n=" + n)
 		fill()
 		n
 	}
 
 	def fill(): Unit = {
 		Lock.synchronized {
-			logDebug(this + " fill(), closed=" + closed + ", objects.size=" + objects.size)
+//			logDebug(this + " fill(), closed=" + closed + ", objects.size=" + objects.size)
 			if (closed || fillingFuture != null || objects.size > SgxSettings.PREFETCH / 2) return
 			else {
 				fillingFuture = Completor.submit(new Filler(this))

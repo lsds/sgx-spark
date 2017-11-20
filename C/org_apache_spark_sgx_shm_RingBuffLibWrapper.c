@@ -12,6 +12,8 @@
 #include "org_apache_spark_sgx_shm_RingBuffLibWrapper.h"
 #include "ring_buff.h"
 
+#define USLEEP 16
+
 static void *register_shm(char* path, size_t len)
 {
 	if (path == NULL || strlen(path) == 0)
@@ -79,6 +81,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_re
 	while ((ret = ring_buff_read_msg((ring_buff_handle_t) handle, &data, &len)) != RING_BUFF_ERR_OK) {
 //		printf("Error during ring_buff_read_msg()\n");
 //		ring_buff_print_err(ret);
+//		usleep(USLEEP);
 	}
 
 	if ((ret = ring_buff_free((ring_buff_handle_t) handle, data, len)) != RING_BUFF_ERR_OK) {

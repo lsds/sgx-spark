@@ -35,12 +35,9 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 				case num: MsgIteratorReqNextN => {
 					val q = Queue[Any]()
 					if (delegate.isInstanceOf[NextIterator[T]]) {
-						logDebug(this + "Providing ONE (" + delegate.getClass.getSimpleName + ")")
+//						logDebug(this + "Providing ONE (" + delegate.getClass.getSimpleName + ")")
 						// No Prefetching here. Calling next() multiple times on NextIterator and
 						// results in all elements being the same :/)
-						if (delegate.hasNext) q += delegate.next
-						if (delegate.hasNext) q += delegate.next
-						if (delegate.hasNext) q += delegate.next
 						if (delegate.hasNext) q += delegate.next
 					} else {
 						for (_ <- 1 to num.num) {
@@ -54,7 +51,7 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 								} else n)
 							}
 						}
-						logDebug(this + "Providing " + q.size)
+//						logDebug(this + "Providing " + q.size)
 					}
 					logDebug("Sending: " + q)
 					com.sendOne(q)
