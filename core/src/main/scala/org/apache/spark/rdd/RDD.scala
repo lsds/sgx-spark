@@ -284,11 +284,11 @@ abstract class RDD[T: ClassTag](
    * subclasses of RDD.
    */
   final def iterator(split: Partition, context: TaskContext): Iterator[T] = {
-    if (storageLevel != StorageLevel.NONE) {
-      getOrCompute(split, context)
-    } else {
+//    if (storageLevel != StorageLevel.NONE) {
+//      getOrCompute(split, context)
+//    } else {
       computeOrReadCheckpoint(split, context)
-    }
+//    }
   }
 
   /**
@@ -895,7 +895,7 @@ abstract class RDD[T: ClassTag](
    */
   def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)] = withScope {
     zipPartitions(other, preservesPartitioning = false) { (thisIter, otherIter) =>
-      new Iterator[(T, U)] {
+      new Iterator[(T, U)] with Serializable {
         def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
           case (true, true) => true
           case (false, false) => false
@@ -916,6 +916,9 @@ abstract class RDD[T: ClassTag](
   def zipPartitions[B: ClassTag, V: ClassTag]
       (rdd2: RDD[B], preservesPartitioning: Boolean)
       (f: (Iterator[T], Iterator[B]) => Iterator[V]): RDD[V] = withScope {
+	if (SgxSettings.SGX_ENABLED)
+	new ZippedPartitionsRDD2Sgx(sc, sc.clean(f), this, rdd2, preservesPartitioning)
+	else
     new ZippedPartitionsRDD2(sc, sc.clean(f), this, rdd2, preservesPartitioning)
   }
 

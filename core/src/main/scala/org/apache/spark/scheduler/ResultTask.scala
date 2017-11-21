@@ -25,6 +25,7 @@ import java.util.Properties
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import org.apache.spark.internal.Logging
 
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxSettings
@@ -66,7 +67,7 @@ private[spark] class ResultTask[T, U](
     appAttemptId: Option[String] = None)
   extends Task[U](stageId, stageAttemptId, partition.index, localProperties, serializedTaskMetrics,
     jobId, appId, appAttemptId)
-  with Serializable {
+  with Serializable with Logging {
 
   @transient private[this] val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
@@ -94,7 +95,10 @@ private[spark] class ResultTask[T, U](
       // then we must turn it into an SgxIteratorConsumer and access the
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
-        case f: SgxFakeIterator[T] => func(context, f.access(true))
+        case f: SgxFakeIterator[T] => {
+        	logDebug("Accessing SgxFakeIterator")
+        	func(context, f.access(true))
+        }
       	case i: Iterator[T] => func(context, i)
       }
     }

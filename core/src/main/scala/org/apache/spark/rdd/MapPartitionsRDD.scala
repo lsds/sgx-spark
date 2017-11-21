@@ -61,4 +61,9 @@ private[spark] class MapPartitionsRDDSgx[U: ClassTag, T: ClassTag](
 			case x: Iterator[T] => f(split.index, firstParent[T].iterator(split, context))
 		}
 	}
+
+	override def clearDependencies() {
+		super.clearDependencies()
+		_prev = null
+	}
 }

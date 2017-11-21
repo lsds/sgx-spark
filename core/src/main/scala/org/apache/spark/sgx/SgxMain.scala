@@ -11,12 +11,12 @@ class Waiter() extends Callable[Unit] {
 }
 
 object SgxMain {
+	val fakeIterators = new IdentifierManager[Iterator[Any],SgxFakeIterator[Any]](SgxFakeIterator(_))
 
 	def main(args: Array[String]): Unit = {
-		val fakeIterators = new IdentifierManager[Iterator[Any],SgxFakeIterator[Any]](SgxFakeIterator(_))
 		Completor.submit(new Waiter())
 
-		while (true) Completor.submit(new SgxMainRunner(SgxFactory.get.acceptCommunicator(), fakeIterators))
+		while (true) Completor.submit(new SgxMainRunner(SgxFactory.get.acceptCommunicator()))
 	}
 }
 

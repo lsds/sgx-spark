@@ -8,7 +8,7 @@ case class SgxFakeIterator[T](id: Long) extends Iterator[T] with Serializable {
 
 	override def next: T = throw new RuntimeException("A FakeIterator is just a placeholder and not supposed to be used.")
 
-	def access(providerIsInEnclave: Boolean, key: Long = 0): Iterator[T] = {
+	def access(providerIsInEnclave: Boolean): Iterator[T] = {
 		val iter = if (providerIsInEnclave) ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
 			else ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
 

@@ -33,7 +33,7 @@ object KMeansExample {
 
     // $example on$
     // Load and parse the data
-    val data = sc.textFile("data/mllib/kmeans_data.txt")
+    val data = sc.textFile(args(0))
     val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache()
 
     // Cluster the data into two classes using KMeans
@@ -46,8 +46,8 @@ object KMeansExample {
     println("Within Set Sum of Squared Errors = " + WSSSE)
 
     // Save and load model
-    clusters.save(sc, "target/org/apache/spark/KMeansExample/KMeansModel")
-    val sameModel = KMeansModel.load(sc, "target/org/apache/spark/KMeansExample/KMeansModel")
+    clusters.save(sc, args(1))
+    // val sameModel = KMeansModel.load(sc, "target/org/apache/spark/KMeansExample/KMeansModel")
     // $example off$
 
     sc.stop()

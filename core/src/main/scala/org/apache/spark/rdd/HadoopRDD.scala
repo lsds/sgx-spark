@@ -326,6 +326,7 @@ class HadoopRDD[K, V](
     if (SgxSettings.SGX_ENABLED) {
       // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
       // The corresponding SgxIteratorConsumer lives inside the enclave.
+      logDebug("Creating SgxIteratorProvider for " + iter)
       SgxFactory.get.newSgxIteratorProvider[(K,V)](iter, false)
     }
     else
