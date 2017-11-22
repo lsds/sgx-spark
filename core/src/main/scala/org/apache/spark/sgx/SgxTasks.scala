@@ -6,6 +6,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
+import org.apache.spark.util.random.RandomSampler
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
@@ -33,7 +35,7 @@ case class SgxOtherTask[U, T](
 	partIndex: Int,
 	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
-	def apply(): Iterator[U] = Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove(it.id).asInstanceOf[Iterator[T]]) }, Duration.Inf)
+	def apply(): Iterator[U] = Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", it=" + it + ")"
 }
 
@@ -46,17 +48,25 @@ case class SgxFct2[A, B, Z](
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
-case class SgxFct2Iterators[A, B, Z](
+case class SgxComputeTaskZippedPartitionsRDD2[A, B, Z](
 	fct: (Iterator[A], Iterator[B]) => Iterator[Z],
 	a: SgxFakeIterator[A],
 	b: SgxFakeIterator[B]) extends SgxExecuteInside[Iterator[Z]] {
 
-//	def apply(): Z = Await.result(Future { fct(a, b) }, Duration.Inf)
-	def apply(): Iterator[Z] = {
-		logDebug("Executing " + this)
-		val r = fct(SgxMain.fakeIterators.remove(a.id).asInstanceOf[Iterator[A]],SgxMain.fakeIterators.remove(b.id).asInstanceOf[Iterator[B]])
-		logDebug(" result = " + r)
-		r
-	}
+	def apply(): Iterator[Z] = Await.result( Future {
+	  fct(SgxMain.fakeIterators.remove[Iterator[A]](a.id), SgxMain.fakeIterators.remove[Iterator[B]](b.id))
+	}, Duration.Inf)
+
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
+}
+
+case class SgxComputeTaskPartitionwiseSampledRDD[T, U](
+	sampler: RandomSampler[T, U],
+	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
+
+	def apply(): Iterator[U] = Await.result( Future {
+	  sampler.sample(SgxMain.fakeIterators.remove[Iterator[T]](it.id))
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(sampler=" + sampler + ", it=" + it + ")"
 }

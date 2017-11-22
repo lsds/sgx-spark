@@ -25,6 +25,10 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.util.Utils
 import org.apache.spark.util.random.RandomSampler
 
+import org.apache.spark.sgx.SgxComputeTaskPartitionwiseSampledRDD
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.iterator.SgxFakeIterator
+
 private[spark]
 class PartitionwiseSampledRDDPartition(val prev: Partition, val seed: Long)
   extends Partition with Serializable {
@@ -66,5 +70,28 @@ private[spark] class PartitionwiseSampledRDD[T: ClassTag, U: ClassTag](
     val thisSampler = sampler.clone
     thisSampler.setSeed(split.seed)
     thisSampler.sample(firstParent[T].iterator(split.prev, context))
+  }
+}
+
+private[spark] class PartitionwiseSampledRDDSgx[T: ClassTag, U: ClassTag](
+    prev: RDD[T],
+    sampler: RandomSampler[T, U],
+    preservesPartitioning: Boolean,
+    @transient private val seed: Long = Utils.random.nextLong)
+  extends PartitionwiseSampledRDD[T,U](prev, sampler, preservesPartitioning, seed) {
+
+  override def compute(splitIn: Partition, context: TaskContext): Iterator[U] = {
+	logDebug("XXXXX PartitionwiseSampledRDDSgx.compute()")
+    val split = splitIn.asInstanceOf[PartitionwiseSampledRDDPartition]
+    val it = firstParent[T].iterator(split.prev, context)
+    val thisSampler = sampler.clone
+    thisSampler.setSeed(split.seed)
+
+    val x = it match {
+    	case x: SgxFakeIterator[T] => new SgxComputeTaskPartitionwiseSampledRDD(thisSampler, x).executeInsideEnclave()
+    	case x: Iterator[T] => thisSampler.sample(x)
+    }
+	logDebug("XXXXX PartitionwiseSampledRDDSgx.compute() returns " + x)
+	x
   }
 }

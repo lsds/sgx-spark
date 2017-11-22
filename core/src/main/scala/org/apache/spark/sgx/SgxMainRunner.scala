@@ -15,7 +15,8 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 				case x: SgxFct2[_,_,_] => x.apply()
 				case x: SgxFirstTask[_,_] => SgxMain.fakeIterators.create(x.apply())
 				case x: SgxOtherTask[_,_] => SgxMain.fakeIterators.create(x.apply())
-				case x: SgxFct2Iterators[_,_,_] => SgxMain.fakeIterators.create(x.apply())
+				case x: SgxComputeTaskZippedPartitionsRDD2[_,_,_] => SgxMain.fakeIterators.create(x.apply())
+				case x: SgxComputeTaskPartitionwiseSampledRDD[_,_] => SgxMain.fakeIterators.create(x.apply())
 
 				case x: MsgAccessFakeIterator =>
 					SgxFactory.get.newSgxIteratorProvider[Any](SgxMain.fakeIterators.get(x.fakeId), true).identifier

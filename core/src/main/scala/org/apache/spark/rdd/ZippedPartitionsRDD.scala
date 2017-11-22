@@ -24,7 +24,7 @@ import scala.reflect.ClassTag
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.util.Utils
 
-import org.apache.spark.sgx.SgxFct2Iterators
+import org.apache.spark.sgx.SgxComputeTaskZippedPartitionsRDD2
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 private[spark] class ZippedPartitionsPartition(
@@ -109,23 +109,17 @@ private[spark] class ZippedPartitionsRDD2Sgx[A: ClassTag, B: ClassTag, V: ClassT
   extends ZippedPartitionsRDD2[A,B,V](sc, _f, _rdd1, _rdd2, preservesPartitioning) {
 
   override def compute(s: Partition, context: TaskContext): Iterator[V] = {
+	logDebug("XXXXX ZippedPartitionsRDD2Sgx.compute()")
 	val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
 
-  	val it1 = _rdd1.iterator(partitions(0), context) match {
-	  case x: SgxFakeIterator[B] => logDebug("rdd1.iterator = SgxFakeIterator"); x
-	  case x: Iterator[B] => x
-  	}
+  	val it1 = _rdd1.iterator(partitions(0), context)
+    val it2 = _rdd2.iterator(partitions(1), context)
 
-    val it2 = _rdd2.iterator(partitions(1), context) match {
-	  case x: SgxFakeIterator[B] => logDebug("rdd2.iterator = SgxFakeIterator"); x
-	  case x: Iterator[B] => x
-  	}
-
-    logDebug("ZippedPartitionsRDD2Sgx.compute(rdd1="+rdd1+", rdd2="+rdd2+", it1="+it1.getClass.getSimpleName+", it2="+it2.getClass.getSimpleName+")")
-
-    if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
-      new SgxFct2Iterators(_f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
+    val x = if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
+      new SgxComputeTaskZippedPartitionsRDD2(_f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
     else _f(it1, it2)
+    logDebug("XXXXX ZippedPartitionsRDD2Sgx.compute() returns " + x)
+    x
   }
 
   override def clearDependencies() {

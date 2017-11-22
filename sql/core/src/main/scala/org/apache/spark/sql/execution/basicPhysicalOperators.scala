@@ -21,7 +21,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
 import org.apache.spark.{InterruptibleIterator, Partition, SparkContext, TaskContext}
-import org.apache.spark.rdd.{EmptyRDD, PartitionwiseSampledRDD, RDD}
+import org.apache.spark.rdd.{EmptyRDD, PartitionwiseSampledRDD, PartitionwiseSampledRDDSgx, RDD}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode, ExpressionCanonicalizer}
@@ -30,6 +30,8 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.util.ThreadUtils
 import org.apache.spark.util.random.{BernoulliCellSampler, PoissonSampler}
+
+import org.apache.spark.sgx.SgxSettings
 
 /** Physical plan for Project. */
 case class ProjectExec(projectList: Seq[NamedExpression], child: SparkPlan)
@@ -257,6 +259,13 @@ case class SampleExec(
     if (withReplacement) {
       // Disable gap sampling since the gap sampling method buffers two rows internally,
       // requiring us to copy the row, which is more expensive than the random number generator.
+      if (SgxSettings.SGX_ENABLED) 
+      new PartitionwiseSampledRDDSgx[InternalRow, InternalRow](
+        child.execute(),
+        new PoissonSampler[InternalRow](upperBound - lowerBound, useGapSamplingIfPossible = false),
+        preservesPartitioning = true,
+        seed)
+      else
       new PartitionwiseSampledRDD[InternalRow, InternalRow](
         child.execute(),
         new PoissonSampler[InternalRow](upperBound - lowerBound, useGapSamplingIfPossible = false),

@@ -47,6 +47,7 @@ import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, Poi
   SamplingUtils}
 
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
  * A Resilient Distributed Dataset (RDD), the basic abstraction in Spark. Represents an immutable,
@@ -320,9 +321,12 @@ abstract class RDD[T: ClassTag](
    */
   private[spark] def computeOrReadCheckpoint(split: Partition, context: TaskContext): Iterator[T] =
   {
+	logDebug("XXXXX computeOrReadCheckpoint()")
     if (isCheckpointedAndMaterialized) {
+      logDebug("XXXXX if")
       firstParent[T].iterator(split, context)
     } else {
+      logDebug("XXXXX else")
       compute(split, context)
     }
   }
@@ -506,8 +510,14 @@ abstract class RDD[T: ClassTag](
     withScope {
       require(fraction >= 0.0, "Negative fraction value: " + fraction)
       if (withReplacement) {
+    	if (SgxSettings.SGX_ENABLED)
+        new PartitionwiseSampledRDDSgx[T, T](this, new PoissonSampler[T](fraction), true, seed)
+        else
         new PartitionwiseSampledRDD[T, T](this, new PoissonSampler[T](fraction), true, seed)
       } else {
+    	if (SgxSettings.SGX_ENABLED)
+        new PartitionwiseSampledRDDSgx[T, T](this, new BernoulliSampler[T](fraction), true, seed)
+        else
         new PartitionwiseSampledRDD[T, T](this, new BernoulliSampler[T](fraction), true, seed)
       }
     }
@@ -978,7 +988,13 @@ abstract class RDD[T: ClassTag](
    * all the data is loaded into the driver's memory.
    */
   def collect(): Array[T] = withScope {
-    val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
+    val results = sc.runJob(this, (iter: Iterator[T]) => {
+      logDebug("TOARRAY A1: ("+iter.getClass.getSimpleName+")")
+      logDebug("TOARRAY A2: " + iter.isInstanceOf[SgxFakeIterator[T]])
+      logDebug("TOARRAY A3: " + iter.isInstanceOf[InterruptibleIterator[Any]])
+      logDebug("TOARRAY A5: " + iter.hasNext)
+      iter.toArray
+    })
     Array.concat(results: _*)
   }
 

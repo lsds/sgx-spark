@@ -28,6 +28,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.internal.Logging
 
 import org.apache.spark.sgx.iterator.SgxFakeIterator
+import org.apache.spark.sgx.iterator.SgxFakeIteratorException
 import org.apache.spark.sgx.SgxSettings
 
 /**
@@ -94,12 +95,16 @@ private[spark] class ResultTask[T, U](
       // the data from the enclave to the outside: if we see a FakeIterator,
       // then we must turn it into an SgxIteratorConsumer and access the
       // corresponding in-enclave SgxIteratorProvider.
+      logDebug("XXXXX Calling into .iterator()")
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] => {
-        	logDebug("Accessing SgxFakeIterator")
-        	func(context, f.access(true))
+          logDebug("Accessing SgxFakeIterator")
+          func(context, f.access(true))
         }
-      	case i: Iterator[T] => func(context, i)
+      	case i: Iterator[T] => {
+      		logDebug("func(): " + func.getClass.getName)
+          func(context, i)
+      	}
       }
     }
     else

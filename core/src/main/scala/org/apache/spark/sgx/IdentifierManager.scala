@@ -15,7 +15,7 @@ class IdentifierManager[T,F](c: Long => F) {
 		identifiers.get(id)
 	}
 
-	def remove(id: Long): T = this.synchronized {
-		identifiers.remove(id)
+	def remove[X](id: Long): X = this.synchronized {
+		identifiers.remove(id).asInstanceOf[X]
 	}
 }
