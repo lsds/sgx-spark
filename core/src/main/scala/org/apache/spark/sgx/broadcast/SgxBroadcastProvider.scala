@@ -2,26 +2,22 @@ package org.apache.spark.sgx.broadcast
 
 import java.util.concurrent.Callable
 
-import scala.collection.mutable.HashMap
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxCommunicator
 
-abstract class SgxBroadcastProvider(broadcasts: HashMap[Long, Any]) extends Callable[Unit] with Logging {
-	protected def do_accept: SgxCommunicator
+abstract class SgxBroadcastProvider() extends Callable[Unit] with Logging {
+	val com: SgxCommunicator
 
 	def call(): Unit = {
-		logDebug(this + " now waiting for connections")
-		val com = do_accept
-		logDebug(this + " got connection: " + com)
+		logDebug(this + " now running with " + com)
 
 		var running = true
 		while (running) {
 			com.recvOne() match {
 				case req: MsgBroadcastGetValue =>
 					logDebug("Request for: " + req.id)
-					val q = broadcasts.get(req.id)
+					val q = SgxBroadcastOutside.get(req.id)
 					logDebug("Sending: " + q)
 					com.sendOne(q)
 

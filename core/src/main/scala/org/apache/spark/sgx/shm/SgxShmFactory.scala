@@ -9,8 +9,6 @@ import org.apache.spark.sgx.broadcast.shm.SgxShmBroadcastProvider
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.shm.SgxShmIteratorProvider
 
-import scala.collection.mutable.HashMap
-
 object SgxShmFactory extends SgxFactory {
 	val mgr = if (SgxSettings.IS_ENCLAVE) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
 			else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
@@ -22,8 +20,8 @@ object SgxShmFactory extends SgxFactory {
 		iter
 	}
 
-	def runSgxBroadcastProvider(broadcasts: HashMap[Long, Any]): Unit = {
-		Completor.submit(new SgxShmBroadcastProvider(broadcasts))
+	def runSgxBroadcastProvider(): Unit = {
+		Completor.submit(new SgxShmBroadcastProvider())
 	}
 
 	def newSgxCommunicationInterface(): SgxCommunicator = {

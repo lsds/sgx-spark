@@ -11,13 +11,13 @@ object SgxBroadcastEnclave extends Logging {
 	private var com: SgxCommunicator = null
 
 	def init(_com: SgxCommunicator): Unit = {
+		logDebug("init")
+		if (com != null) return
 		com = _com
 	}
 
-	def value[T](id: Long): T = {
-		logDebug("value("+id+")")
-		if (com == null) throw new IllegalStateException(this + " has not been initialized")
-		val x = com.sendRecv[T](new MsgBroadcastValue(id))
+	def value(id: Long): Any = {
+		val x = com.sendRecv(new MsgBroadcastGetValue(id))
 		logDebug("value("+id+") = " + x)
 		x
 	}

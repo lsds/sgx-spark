@@ -22,8 +22,9 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 				case x: SgxComputeTaskPartitionwiseSampledRDD[_,_] => x.apply()
 				case x: SgxBroadcastProviderIdentifier =>
 					logDebug("Accessing broadcast provider " + x)
-					SgxBroadcastEnclave.init(x.connect())
-					null
+					x.connect()
+					logDebug("Done Accessing broadcast provider " + x)
+					true
 
 				case x: MsgAccessFakeIterator =>
 					logDebug("Accessing Fake iterator " + x.fakeId)

@@ -1,17 +1,16 @@
 package org.apache.spark.sgx.broadcast.shm
 
+import org.apache.spark.sgx.ClientHandle
 import org.apache.spark.sgx.broadcast.SgxBroadcastProvider
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
-import scala.collection.mutable.HashMap
+class SgxShmBroadcastProvider() extends SgxBroadcastProvider() {
 
-class SgxShmBroadcastProvider(broadcasts: HashMap[Long, Any]) extends SgxBroadcastProvider(broadcasts) {
+	private val _com = ShmCommunicationManager.get().newShmCommunicator(false)
 
-	val com = ShmCommunicationManager.get().newShmCommunicator(false)
+	ClientHandle.sendRecv[Boolean](new SgxShmBroadcastProviderIdentifier(_com.getMyPort))
 
-	com.sendOne(new SgxShmBroadcastProviderIdentifier(com.getMyPort))
-
-	override def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
+	val com = _com.connect(_com.recvOne.asInstanceOf[Long])
 
 	override def toString() = this.getClass.getSimpleName + "(com=" + com + ")"
 }

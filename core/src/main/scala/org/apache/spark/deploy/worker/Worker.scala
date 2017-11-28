@@ -40,8 +40,6 @@ import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.rpc._
 import org.apache.spark.util.{SparkUncaughtExceptionHandler, ThreadUtils, Utils}
 
-import org.apache.spark.sgx.SgxSettings
-
 private[deploy] class Worker(
     override val rpcEnv: RpcEnv,
     webUiPort: Int,
@@ -212,10 +210,6 @@ private[deploy] class Worker(
     metricsSystem.start()
     // Attach the worker metrics servlet handler to the web ui after the metrics system is started.
     metricsSystem.getServletHandlers.foreach(webUi.attachHandler)
-
-    if (SgxSettings.SGX_ENABLED) {
-	//    SgxSpawn()
-    }
   }
 
   /**

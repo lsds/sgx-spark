@@ -1,6 +1,7 @@
 package org.apache.spark.sgx.broadcast.shm
 
 import org.apache.spark.sgx.SgxCommunicator
+import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
 import org.apache.spark.sgx.broadcast.SgxBroadcastProviderIdentifier
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
@@ -11,6 +12,7 @@ class SgxShmBroadcastProviderIdentifier(myPort: Long) extends SgxBroadcastProvid
 		val con = ShmCommunicationManager.get().newShmCommunicator(false)
 		con.connect(myPort)
 		con.sendOne(con.getMyPort)
+		SgxBroadcastEnclave.init(con)
 		con
 	}
 

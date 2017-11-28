@@ -108,7 +108,10 @@ private[spark] abstract class Task[T](
       Option(attemptNumber)).setCurrentContext()
 
     try {
-      if (SgxSettings.SGX_ENABLED) SgxFactory.get // init
+      if (SgxSettings.SGX_ENABLED) {
+    	  // init SGX
+    	  SgxFactory.get.runSgxBroadcastProvider()
+      }
       runTask(context)
     } catch {
       case e: Throwable =>

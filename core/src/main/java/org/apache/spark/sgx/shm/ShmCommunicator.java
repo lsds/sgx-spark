@@ -56,6 +56,9 @@ public class ShmCommunicator extends SgxCommunicator {
 	}
 
 	public void write(Object o) {
+		System.err.println("o="+o);
+		System.err.println("theirPort="+theirPort);
+		System.err.println("ShmCommunicationManager.get()="+ShmCommunicationManager.get());
 		ShmCommunicationManager.get().write(o, theirPort);
 	}
 

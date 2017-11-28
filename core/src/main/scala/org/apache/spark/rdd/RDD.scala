@@ -321,12 +321,9 @@ abstract class RDD[T: ClassTag](
    */
   private[spark] def computeOrReadCheckpoint(split: Partition, context: TaskContext): Iterator[T] =
   {
-	logDebug("XXXXX computeOrReadCheckpoint()")
     if (isCheckpointedAndMaterialized) {
-      logDebug("XXXXX if")
       firstParent[T].iterator(split, context)
     } else {
-      logDebug("XXXXX else")
       compute(split, context)
     }
   }

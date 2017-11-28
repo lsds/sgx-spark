@@ -3,8 +3,6 @@ package org.apache.spark.sgx.sockets
 import java.net.ServerSocket
 import java.net.Socket
 
-import scala.collection.mutable.HashMap
-
 import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxFactory
@@ -23,7 +21,7 @@ object SgxSocketFactory extends SgxFactory {
 		iter
 	}
 
-	def runSgxBroadcastProvider(broadcasts: HashMap[Long, Any]): Unit = {
+	def runSgxBroadcastProvider(): Unit = {
 		throw new UnsupportedOperationException("SgxBroadcastProvider not implemented for socket communucation")
 	}
 

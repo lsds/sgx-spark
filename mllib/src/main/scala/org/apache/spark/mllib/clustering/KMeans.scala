@@ -362,15 +362,13 @@ class KMeans private (
     // and new centers are computed in each iteration.
     var step = 0
     val bcNewCentersList = ArrayBuffer[Broadcast[_]]()
-	logDebug("AAA Driver: initKMeansParallel start")
     while (step < initializationSteps) {
       val bcNewCenters = data.context.broadcast(newCenters)
       bcNewCentersList += bcNewCenters
       val preCosts = costs
-      logDebug("AAA Driver: initKMeansParallel loop: centers=" + centers.toArray.mkString("[", ",", "]") + ", seed=" + seed + ", sample="+sample.mkString("[",",","]") + ", newCenters=" + newCenters.toArray.mkString("[", ",", "]") + ", data=" + data.getClass.getSimpleName + ", context=" + data.context)
       costs = data.zip(preCosts).map { case (point, cost) => {
-        logDebug("AAA Worker: bcNewCenters.id=" + bcNewCenters.id)
-        logDebug("AAA Worker: " + bcNewCenters.value)
+        logDebug("AAAAA: bcNewCenters.id=" + bcNewCenters.id + " ("+bcNewCenters.getClass.getSimpleName+")")
+        logDebug("AAAAA: " + bcNewCenters.value)
         math.min(KMeans.pointCost(bcNewCenters.value, point), cost)}
       }.persist(StorageLevel.MEMORY_AND_DISK)
       val sumCosts = costs.sum()
@@ -386,7 +384,6 @@ class KMeans private (
       centers ++= newCenters
       step += 1
     }
-	logDebug("AAA Driver: initKMeansParallel end")
 
     costs.unpersist(blocking = false)
     bcNewCentersList.foreach(_.destroy(false))

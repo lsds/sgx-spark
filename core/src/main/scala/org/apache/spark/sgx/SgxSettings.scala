@@ -8,6 +8,7 @@ object SgxSettings extends Logging {
 	val SGX_ENABLED = sys.env.get("SGX_ENABLED").getOrElse("false").toBoolean
 
 	val IS_ENCLAVE = sys.env.get("IS_ENCLAVE").getOrElse("false").toBoolean
+	val IS_EXECUTOR = SGX_ENABLED && sys.env.get("IS_EXECUTOR").getOrElse("false").toBoolean
 
 	val ENCLAVE_IP = SocketEnv.getIpFromEnvVar("SPARK_SGX_ENCLAVE_IP")
 	val ENCLAVE_PORT = SocketEnv.getPortFromEnvVar("SPARK_SGX_ENCLAVE_PORT")
