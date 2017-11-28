@@ -26,7 +26,11 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	id: SgxIteratorProviderIdentifier)
 	extends SgxExecuteInside[Iterator[U]] {
 
-	def apply(): Iterator[U] = Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id, false)) }, Duration.Inf)
+	def apply(): Iterator[U] = {
+		val x = SgxMain.fakeIterators.create(Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id, false)) }, Duration.Inf))
+		logDebug("SgxFirstTask in: "+id+", out: " + x.id)
+		x.asInstanceOf[Iterator[U]]
+	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", id=" + id + ")"
 }
 
@@ -35,7 +39,11 @@ case class SgxOtherTask[U, T](
 	partIndex: Int,
 	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
-	def apply(): Iterator[U] = Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
+	def apply(): Iterator[U] = {
+		val x = SgxMain.fakeIterators.create(Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf))
+		logDebug("SgxOtherTask in: "+it.id+", out: " + x.id)
+		x.asInstanceOf[Iterator[U]]
+	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", it=" + it + ")"
 }
 
@@ -44,7 +52,11 @@ case class SgxFct2[A, B, Z](
 	a: A,
 	b: B) extends SgxExecuteInside[Z] {
 
-	def apply(): Z = Await.result(Future { fct(a, b) }, Duration.Inf)
+	def apply(): Z = {
+		val x = Await.result(Future { fct(a, b) }, Duration.Inf)
+		logDebug("SgxFct2 in: ("+a+", "+b+"), out: " + x)
+		x
+	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
@@ -53,9 +65,13 @@ case class SgxComputeTaskZippedPartitionsRDD2[A, B, Z](
 	a: SgxFakeIterator[A],
 	b: SgxFakeIterator[B]) extends SgxExecuteInside[Iterator[Z]] {
 
-	def apply(): Iterator[Z] = Await.result( Future {
-	  fct(SgxMain.fakeIterators.remove[Iterator[A]](a.id), SgxMain.fakeIterators.remove[Iterator[B]](b.id))
-	}, Duration.Inf)
+	def apply(): Iterator[Z] = {
+		val x = SgxMain.fakeIterators.create(Await.result( Future {
+		  fct(SgxMain.fakeIterators.remove[Iterator[A]](a.id), SgxMain.fakeIterators.remove[Iterator[B]](b.id))
+		}, Duration.Inf))
+		logDebug("TaskZippedPartitionsRDD2 in: ("+a.id+", "+b.id+"), out: " + x.id)
+		x.asInstanceOf[Iterator[Z]]
+	}
 
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
@@ -64,9 +80,13 @@ case class SgxComputeTaskPartitionwiseSampledRDD[T, U](
 	sampler: RandomSampler[T, U],
 	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
-	def apply(): Iterator[U] = Await.result( Future {
-	  sampler.sample(SgxMain.fakeIterators.remove[Iterator[T]](it.id))
-	}, Duration.Inf)
+	def apply(): Iterator[U] = {
+		val x = SgxMain.fakeIterators.create(Await.result( Future {
+		  sampler.sample(SgxMain.fakeIterators.remove[Iterator[T]](it.id))
+		}, Duration.Inf))
+		logDebug("PartitionwiseSampledRDD in: "+it.id+", out: " + x.id)
+		x.asInstanceOf[Iterator[U]]
+	}
 
 	override def toString = this.getClass.getSimpleName + "(sampler=" + sampler + ", it=" + it + ")"
 }

@@ -1,7 +1,5 @@
 package org.apache.spark.sgx.iterator.shm
 
-import java.net.ServerSocket
-
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier

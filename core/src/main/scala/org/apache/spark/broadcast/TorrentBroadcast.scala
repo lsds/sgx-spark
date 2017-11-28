@@ -33,6 +33,9 @@ import org.apache.spark.storage._
 import org.apache.spark.util.Utils
 import org.apache.spark.util.io.{ChunkedByteBuffer, ChunkedByteBufferOutputStream}
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.broadcast.SgxBroadcastOutside
+
 /**
  * A BitTorrent-like implementation of [[org.apache.spark.broadcast.Broadcast]].
  *
@@ -187,6 +190,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
    */
   override protected def doUnpersist(blocking: Boolean) {
     TorrentBroadcast.unpersist(id, removeFromDriver = false, blocking)
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) SgxBroadcastOutside.remove(id)
   }
 
   /**
@@ -221,6 +225,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
           val startTimeMs = System.currentTimeMillis()
           val blocks = readBlocks()
           logInfo("Reading broadcast variable " + id + " took" + Utils.getUsedTimeMs(startTimeMs))
+          if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) SgxBroadcastOutside.put(id, this)
 
           try {
             val obj = TorrentBroadcast.unBlockifyObject[T](

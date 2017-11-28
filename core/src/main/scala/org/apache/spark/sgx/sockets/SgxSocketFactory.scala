@@ -3,10 +3,13 @@ package org.apache.spark.sgx.sockets
 import java.net.ServerSocket
 import java.net.Socket
 
+import scala.collection.mutable.HashMap
+
 import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.broadcast.SgxBroadcastProvider
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.socket.SgxSocketIteratorProvider
 
@@ -18,6 +21,10 @@ object SgxSocketFactory extends SgxFactory {
 		val iter = new SgxSocketIteratorProvider[T](delegate, inEnclave)
 		Completor.submit(iter)
 		iter
+	}
+
+	def runSgxBroadcastProvider(broadcasts: HashMap[Long, Any]): Unit = {
+		throw new UnsupportedOperationException("SgxBroadcastProvider not implemented for socket communucation")
 	}
 
 	def newSgxCommunicationInterface(): SgxCommunicator = {

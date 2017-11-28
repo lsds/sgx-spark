@@ -212,7 +212,6 @@ class KMeans private (
   private[spark] def run(
       data: RDD[Vector],
       instr: Option[Instrumentation[NewKMeans]]): KMeansModel = {
-
     if (data.getStorageLevel == StorageLevel.NONE) {
       logWarning("The input data is not directly cached, which may hurt performance if its"
         + " parent RDDs are also uncached.")
@@ -241,7 +240,6 @@ class KMeans private (
   private def runAlgorithm(
       data: RDD[VectorWithNorm],
       instr: Option[Instrumentation[NewKMeans]]): KMeansModel = {
-
     val sc = data.sparkContext
 
     val initStartTime = System.nanoTime()
@@ -364,12 +362,16 @@ class KMeans private (
     // and new centers are computed in each iteration.
     var step = 0
     val bcNewCentersList = ArrayBuffer[Broadcast[_]]()
+	logDebug("AAA Driver: initKMeansParallel start")
     while (step < initializationSteps) {
       val bcNewCenters = data.context.broadcast(newCenters)
       bcNewCentersList += bcNewCenters
       val preCosts = costs
-      costs = data.zip(preCosts).map { case (point, cost) =>
-        math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
+      logDebug("AAA Driver: initKMeansParallel loop: centers=" + centers.toArray.mkString("[", ",", "]") + ", seed=" + seed + ", sample="+sample.mkString("[",",","]") + ", newCenters=" + newCenters.toArray.mkString("[", ",", "]") + ", data=" + data.getClass.getSimpleName + ", context=" + data.context)
+      costs = data.zip(preCosts).map { case (point, cost) => {
+        logDebug("AAA Worker: bcNewCenters.id=" + bcNewCenters.id)
+        logDebug("AAA Worker: " + bcNewCenters.value)
+        math.min(KMeans.pointCost(bcNewCenters.value, point), cost)}
       }.persist(StorageLevel.MEMORY_AND_DISK)
       val sumCosts = costs.sum()
 
@@ -384,6 +386,7 @@ class KMeans private (
       centers ++= newCenters
       step += 1
     }
+	logDebug("AAA Driver: initKMeansParallel end")
 
     costs.unpersist(blocking = false)
     bcNewCentersList.foreach(_.destroy(false))
@@ -412,7 +415,7 @@ class KMeans private (
  * Top-level methods for calling K-means clustering.
  */
 @Since("0.8.0")
-object KMeans {
+object KMeans extends Logging {
 
   // Initialization mode names
   @Since("0.8.0")
@@ -613,4 +616,6 @@ class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable 
 
   /** Converts the vector to a dense vector. */
   def toDense: VectorWithNorm = new VectorWithNorm(Vectors.dense(vector.toArray), norm)
+
+  override def toString() = this.getClass.getSimpleName + "("+norm+","+vector.toArray.deep.mkString("[", ",", "]")+")"
 }

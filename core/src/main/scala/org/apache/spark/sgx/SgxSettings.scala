@@ -5,7 +5,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.sockets.SocketEnv
 
 object SgxSettings extends Logging {
-	val SGX_ENABLED = sys.env.get("SGX_ENABLED").getOrElse("true").toBoolean
+	val SGX_ENABLED = sys.env.get("SGX_ENABLED").getOrElse("false").toBoolean
 
 	val IS_ENCLAVE = sys.env.get("IS_ENCLAVE").getOrElse("false").toBoolean
 

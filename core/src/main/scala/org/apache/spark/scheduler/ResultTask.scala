@@ -27,9 +27,8 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.internal.Logging
 
-import org.apache.spark.sgx.iterator.SgxFakeIterator
-import org.apache.spark.sgx.iterator.SgxFakeIteratorException
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
  * A task that sends back the output to the driver application.
@@ -95,20 +94,29 @@ private[spark] class ResultTask[T, U](
       // the data from the enclave to the outside: if we see a FakeIterator,
       // then we must turn it into an SgxIteratorConsumer and access the
       // corresponding in-enclave SgxIteratorProvider.
-      logDebug("XXXXX Calling into .iterator()")
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] => {
-          logDebug("Accessing SgxFakeIterator")
-          func(context, f.access(true))
+          logDebug("Accessing SgxFakeIterator " + f.id)
+//          func(context, f.access(true))
+          val (x1,x2) = f.access(true).duplicate
+          x1.forall(p => { logDebug("Accessing value " + p); true } )
+      logDebug("Accessing value =====================")
+          func(context, x2)
         }
       	case i: Iterator[T] => {
-      		logDebug("func(): " + func.getClass.getName)
-          func(context, i)
+      	  val (i1,i2) = i.duplicate
+      	  i1.forall(p => { logDebug("Accessing value " + p); true } )
+      logDebug("Accessing value =====================")
+          func(context, i2)
       	}
       }
     }
-    else
-    func(context, rdd.iterator(partition, context))
+    else {
+      val (i1,i2) = rdd.iterator(partition, context).duplicate
+      i1.forall(p => { logDebug("Accessing value " + p); true } )
+      logDebug("Accessing value =====================")
+      func(context, i2)
+    }
   }
 
   // This is only callable on the driver side.

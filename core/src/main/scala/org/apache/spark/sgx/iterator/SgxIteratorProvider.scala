@@ -27,7 +27,7 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 	def call(): Unit = {
 		logDebug(this + " now waiting for connections")
 		val com = do_accept
-		logDebug(this + " got connection: " + com)
+		logDebug(this + " got connection: " + com + " and provides " + identifier)
 
 		var running = true
 		while (running) {
@@ -40,9 +40,12 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 						// results in all elements being the same :/)
 						if (delegate.hasNext) q += delegate.next
 					} else {
+						logDebug("Iterating from 1 to " + num.num + " over delegate " + delegate + " ("+delegate.getClass.getSimpleName+")")
 						for (_ <- 1 to num.num) {
 							if (delegate.hasNext) {
+								logDebug("Trying to get next element from " + delegate + " ("+delegate.getClass.getSimpleName+")")
 								val n = delegate.next
+								logDebug("  next: " + n)
 								q.enqueue(if (inEnclave) {
 									n match {
 										case x: scala.Tuple2[String, _] => new scala.Tuple2[String, Any](Encrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
