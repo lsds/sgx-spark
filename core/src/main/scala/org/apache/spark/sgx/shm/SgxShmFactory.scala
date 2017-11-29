@@ -14,6 +14,8 @@ object SgxShmFactory extends SgxFactory {
 			else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 	Completor.submit(mgr);
 
+	private var startedBroadcastProvider = false
+
 	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T] = {
 		val iter = new SgxShmIteratorProvider[T](delegate, inEnclave)
 		Completor.submit(iter)
@@ -21,7 +23,12 @@ object SgxShmFactory extends SgxFactory {
 	}
 
 	def runSgxBroadcastProvider(): Unit = {
-		Completor.submit(new SgxShmBroadcastProvider())
+		synchronized {
+			if (!startedBroadcastProvider) {
+				Completor.submit(new SgxShmBroadcastProvider())
+				startedBroadcastProvider = true
+			}
+		}
 	}
 
 	def newSgxCommunicationInterface(): SgxCommunicator = {
