@@ -16,8 +16,8 @@ object SgxShmFactory extends SgxFactory {
 
 	private var startedBroadcastProvider = false
 
-	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T] = {
-		val iter = new SgxShmIteratorProvider[T](delegate, inEnclave)
+	def newSgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProvider[T] = {
+		val iter = new SgxShmIteratorProvider[T](delegate, doEncrypt)
 		Completor.submit(iter)
 		iter
 	}

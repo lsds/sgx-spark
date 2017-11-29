@@ -39,7 +39,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 	override def toString() = getClass.getSimpleName + "(consumer=" + consumer + ")"
 }
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier, val providerIsInEnclave: Boolean) extends Iterator[T] with Logging {
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator[T] with Logging {
 
 	logDebug(this + " connecting to: " + id)
 

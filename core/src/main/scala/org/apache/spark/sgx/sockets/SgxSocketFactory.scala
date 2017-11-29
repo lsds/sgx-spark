@@ -15,8 +15,8 @@ object SgxSocketFactory extends SgxFactory {
 
 	val server = new ServerSocket(SgxSettings.ENCLAVE_PORT)
 
-	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T] = {
-		val iter = new SgxSocketIteratorProvider[T](delegate, inEnclave)
+	def newSgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProvider[T] = {
+		val iter = new SgxSocketIteratorProvider[T](delegate, doEncrypt)
 		Completor.submit(iter)
 		iter
 	}

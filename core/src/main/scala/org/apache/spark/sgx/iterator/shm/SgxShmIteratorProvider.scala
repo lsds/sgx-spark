@@ -5,7 +5,7 @@ import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
-class SgxShmIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean) extends SgxIteratorProvider[T](delegate, inEnclave) {
+class SgxShmIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProvider[T](delegate, doEncrypt) {
 
 	val com = ShmCommunicationManager.get().newShmCommunicator(false)
 

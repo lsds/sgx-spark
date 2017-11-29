@@ -7,7 +7,7 @@ import org.apache.spark.sgx.shm.SgxShmFactory
 import org.apache.spark.sgx.sockets.SgxSocketFactory
 
 trait SgxFactory {
-	def newSgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean): SgxIteratorProvider[T]
+	def newSgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProvider[T]
 
 	def runSgxBroadcastProvider(): Unit
 

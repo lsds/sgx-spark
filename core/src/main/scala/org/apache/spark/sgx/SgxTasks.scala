@@ -27,7 +27,7 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	extends SgxExecuteInside[Iterator[U]] {
 
 	def apply(): Iterator[U] = {
-		val x = SgxMain.fakeIterators.create(Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id, false)) }, Duration.Inf))
+		val x = SgxMain.fakeIterators.create(Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id)) }, Duration.Inf))
 		logDebug("SgxFirstTask in: "+id+", out: " + x.id)
 		x.asInstanceOf[Iterator[U]]
 	}
