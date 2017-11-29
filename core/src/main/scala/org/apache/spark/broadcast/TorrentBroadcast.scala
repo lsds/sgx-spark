@@ -60,8 +60,6 @@ import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
 private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   extends Broadcast[T](id) with Logging with Serializable {
 
-	logDebug("create, id=" + id)
-
   /**
    * Value of the broadcast object on executors. This is reconstructed by [[readBroadcastBlock]],
    * which builds this value by reading blocks from the driver and/or other executors.
@@ -99,10 +97,12 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
 
   override protected def getValue() = {
     logDebug("getValue("+this+")")
-    if (SgxSettings.IS_ENCLAVE) {
+    val x = if (SgxSettings.IS_ENCLAVE) {
 	  SgxBroadcastEnclave.value(this)
     } else
     _value
+    logDebug("getValue("+this+") = " + x)
+    x
   }
 
   private def calcChecksum(block: ByteBuffer): Int = {

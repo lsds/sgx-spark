@@ -45,16 +45,15 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], inEnclave: Boolean)
 							if (delegate.hasNext) {
 								logDebug("Trying to get next element from " + delegate + " ("+delegate.getClass.getSimpleName+")")
 								val n = delegate.next
-								logDebug("  next: " + n)
-								q.enqueue(if (inEnclave) {
-									n match {
-										case x: scala.Tuple2[String, _] => new scala.Tuple2[String, Any](Encrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
-										case x: Any => x
-									}
-								} else n)
+//								q.enqueue(if (inEnclave) {
+//									n match {
+//										case x: scala.Tuple2[String, _] => new scala.Tuple2[String, Any](Encrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
+//										case x: Any => x
+//									}
+//								} else n)
+								q += n
 							}
 						}
-//						logDebug(this + "Providing " + q.size)
 					}
 					logDebug("Sending: " + q)
 					com.sendOne(q)
