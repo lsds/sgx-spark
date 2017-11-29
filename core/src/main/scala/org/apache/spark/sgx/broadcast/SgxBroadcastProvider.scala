@@ -2,7 +2,9 @@ package org.apache.spark.sgx.broadcast
 
 import java.util.concurrent.Callable
 
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
+
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxCommunicator
 
@@ -15,11 +17,11 @@ abstract class SgxBroadcastProvider() extends Callable[Unit] with Logging {
 		var running = true
 		while (running) {
 			com.recvOne() match {
-				case req: MsgBroadcastGetValue =>
-					logDebug("Request for: " + req.id)
-					val q = SgxBroadcastOutside.get(req.id)
-					logDebug("Sending: " + q)
-					com.sendOne(q)
+				case req: MsgBroadcastGet[_] =>
+					logDebug("Request for: " + req.bc)
+					req.bc.value
+					logDebug("Sending: " + req.bc.value)
+					com.sendOne(req.bc.value)
 
 				case MsgBroadcastReqClose =>
 					stop(com)

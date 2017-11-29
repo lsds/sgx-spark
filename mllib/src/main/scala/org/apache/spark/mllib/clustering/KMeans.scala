@@ -367,8 +367,6 @@ class KMeans private (
       bcNewCentersList += bcNewCenters
       val preCosts = costs
       costs = data.zip(preCosts).map { case (point, cost) => {
-        logDebug("AAAAA: bcNewCenters.id=" + bcNewCenters.id + " ("+bcNewCenters.getClass.getSimpleName+")")
-        logDebug("AAAAA: " + bcNewCenters.value)
         math.min(KMeans.pointCost(bcNewCenters.value, point), cost)}
       }.persist(StorageLevel.MEMORY_AND_DISK)
       val sumCosts = costs.sum()

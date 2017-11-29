@@ -35,7 +35,6 @@ import org.apache.spark.util.io.{ChunkedByteBuffer, ChunkedByteBufferOutputStrea
 
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
-import org.apache.spark.sgx.broadcast.SgxBroadcastOutside
 
 /**
  * A BitTorrent-like implementation of [[org.apache.spark.broadcast.Broadcast]].
@@ -99,9 +98,9 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   private var checksums: Array[Int] = _
 
   override protected def getValue() = {
+    logDebug("getValue("+this+")")
     if (SgxSettings.IS_ENCLAVE) {
-      logDebug("getValue("+id+") (inside enclave)")
-	  SgxBroadcastEnclave.value(id).asInstanceOf[TorrentBroadcast[T]]._value
+	  SgxBroadcastEnclave.value(this)
     } else
     _value
   }
@@ -231,9 +230,6 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
           val startTimeMs = System.currentTimeMillis()
           val blocks = readBlocks()
           logInfo("Reading broadcast variable " + id + " took" + Utils.getUsedTimeMs(startTimeMs))
-          if (SgxSettings.IS_EXECUTOR) {
-        	SgxBroadcastOutside.put(id, this)
-          }
 
           try {
             val obj = TorrentBroadcast.unBlockifyObject[T](
@@ -317,8 +313,5 @@ private object TorrentBroadcast extends Logging {
   def unpersist(id: Long, removeFromDriver: Boolean, blocking: Boolean): Unit = {
     logDebug(s"Unpersisting TorrentBroadcast $id")
     SparkEnv.get.blockManager.master.removeBroadcast(id, removeFromDriver, blocking)
-    if (SgxSettings.IS_EXECUTOR) {
-      SgxBroadcastOutside.remove(id)
-    }
   }
 }

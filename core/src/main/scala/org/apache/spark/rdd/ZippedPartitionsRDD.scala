@@ -109,7 +109,6 @@ private[spark] class ZippedPartitionsRDD2Sgx[A: ClassTag, B: ClassTag, V: ClassT
   extends ZippedPartitionsRDD2[A,B,V](sc, _f, _rdd1, _rdd2, preservesPartitioning) {
 
   override def compute(s: Partition, context: TaskContext): Iterator[V] = {
-	logDebug("XXXXX ZippedPartitionsRDD2Sgx.compute()")
 	val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
 
   	val it1 = _rdd1.iterator(partitions(0), context)
@@ -118,7 +117,6 @@ private[spark] class ZippedPartitionsRDD2Sgx[A: ClassTag, B: ClassTag, V: ClassT
     val x = if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
       new SgxComputeTaskZippedPartitionsRDD2(_f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
     else _f(it1, it2)
-    logDebug("XXXXX ZippedPartitionsRDD2Sgx.compute() returns " + x)
     x
   }
 

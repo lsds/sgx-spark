@@ -23,7 +23,6 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 				case x: SgxBroadcastProviderIdentifier =>
 					logDebug("Accessing broadcast provider " + x)
 					x.connect()
-					logDebug("Done Accessing broadcast provider " + x)
 					true
 
 				case x: MsgAccessFakeIterator =>

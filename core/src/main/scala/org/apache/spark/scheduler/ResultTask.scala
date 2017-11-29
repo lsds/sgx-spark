@@ -96,17 +96,14 @@ private[spark] class ResultTask[T, U](
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] => {
-          logDebug("Accessing SgxFakeIterator " + f.id)
 //          func(context, f.access(true))
           val (x1,x2) = f.access(true).duplicate
           x1.forall(p => { logDebug("Accessing value " + p); true } )
-      logDebug("Accessing value =====================")
           func(context, x2)
         }
       	case i: Iterator[T] => {
       	  val (i1,i2) = i.duplicate
       	  i1.forall(p => { logDebug("Accessing value " + p); true } )
-      logDebug("Accessing value =====================")
           func(context, i2)
       	}
       }
@@ -114,7 +111,6 @@ private[spark] class ResultTask[T, U](
     else {
       val (i1,i2) = rdd.iterator(partition, context).duplicate
       i1.forall(p => { logDebug("Accessing value " + p); true } )
-      logDebug("Accessing value =====================")
       func(context, i2)
     }
   }
