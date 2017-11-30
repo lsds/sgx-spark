@@ -8,7 +8,7 @@ import scala.collection.mutable.Queue
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.Completor
-import org.apache.spark.sgx.Decrypt
+import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 
@@ -16,20 +16,11 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 	def call(): Unit = {
 		val num = SgxSettings.PREFETCH - consumer.objects.size
 		if (num > 0) {
-			val list = consumer.com.sendRecv[Queue[T]](new MsgIteratorReqNextN(num))
+			val list = consumer.com.sendRecv[Queue[Encrypted]](new MsgIteratorReqNextN(num))
 			if (list.size == 0) {
 				consumer.close
 			}
-			else consumer.objects.addAll(list.asJava)
-//			else consumer.objects.addAll((list.map {
-//				n => val m = if (consumer.providerIsInEnclave) {
-//					n match {
-//						case x: scala.Tuple2[String,Any] => new scala.Tuple2[Any,Any](Decrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
-//						case x: Any => x
-//					}
-//				} else n
-//				n.asInstanceOf[T]
-//			}).asJava)
+			else consumer.objects.addAll((list.map { n => n.decrypt.asInstanceOf[T] }).asJava)
 		}
 		consumer.Lock.synchronized {
 			consumer.fillingFuture = null

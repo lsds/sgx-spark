@@ -8,6 +8,7 @@ import org.apache.spark.InterruptibleIterator
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.NextIterator
 import org.apache.spark.sgx.Encrypt
+import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 
@@ -33,30 +34,22 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean)
 		while (running) {
 			com.recvOne() match {
 				case num: MsgIteratorReqNextN => {
-					val q = Queue[Any]()
-					if (delegate.isInstanceOf[NextIterator[T]]) {
-//						logDebug(this + "Providing ONE (" + delegate.getClass.getSimpleName + ")")
+					val q = Queue[T]()
+					if (delegate.isInstanceOf[NextIterator[T]] && delegate.hasNext) {
 						// No Prefetching here. Calling next() multiple times on NextIterator and
 						// results in all elements being the same :/)
-						if (delegate.hasNext) q += delegate.next
+						q += delegate.next
 					} else {
 						logDebug("Iterating from 1 to " + num.num + " over delegate " + delegate + " ("+delegate.getClass.getSimpleName+")")
 						for (_ <- 1 to num.num) {
 							if (delegate.hasNext) {
-								logDebug("Trying to get next element from " + delegate + " ("+delegate.getClass.getSimpleName+")")
-								val n = delegate.next
-//								q.enqueue(if (inEnclave) {
-//									n match {
-//										case x: scala.Tuple2[String, _] => new scala.Tuple2[String, Any](Encrypt(x._1, SgxSettings.ENCRYPTION_KEY), x._2)
-//										case x: Any => x
-//									}
-//								} else n)
-								q += n
+								q += delegate.next
 							}
 						}
 					}
-					logDebug("Sending: " + q)
-					com.sendOne(q)
+					val qe = if (doEncrypt) q.map { n => Encrypt(n) } else q
+					logDebug("Sending: " + qe)
+					com.sendOne(qe)
 				}
 				case MsgIteratorReqClose =>
 					stop(com)

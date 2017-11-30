@@ -1,27 +1,29 @@
 package org.apache.spark.sgx
 
 import java.util.Base64
+import org.apache.spark.internal.Logging
 
   /*
    * TODO: Encryption/Decryption are dummy operations.
    */
 
-object Encrypt {
-  def apply(plain: String, key: Long = 0): String = {
-    val v = if (key <= 0) plain
-    else {
-      plain match {
-        case _:String => ("x" * key.toInt) + plain + ("x" * key.toInt);
-        case _:Any => plain
-      }
-    }
-    Base64.getEncoder.encodeToString(Serialization.serialize(v))
-  }
+trait Encrypted extends Serializable {
+	def decrypt: Any
 }
 
-object Decrypt {
-	def apply(enc: String, key: Long = 0): String = {
-	    val v = if (key <= 0) enc else enc.substring(key.toInt, enc.length()-key.toInt)
-    	Serialization.deserialize(Base64.getDecoder.decode(v)).asInstanceOf[String]
+private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted with Logging {
+	def decrypt = dec(cipher)
+}
+
+object Encrypt extends Logging {
+	def apply(plain: Any): Encrypted = Base64StringEncrypt(plain)
+}
+
+private object Base64StringEncrypt extends Logging {
+	def apply(plain: Any): Encrypted = {
+		new EncryptedObj[String](
+			Base64.getEncoder.encodeToString(Serialization.serialize(plain)),
+			(x: String) => Serialization.deserialize(Base64.getDecoder.decode(x))
+			)
 	}
 }

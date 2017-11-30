@@ -11,11 +11,11 @@ import org.nustaq.serialization.FSTConfiguration;
 public class Serialization {
 	
 	public static byte[] serialize(Object o) throws Exception {
-		return FSTSerialization.serialize(o);
+		return DefaultSerialization.serialize(o);
 	}
 	
 	public static Object deserialize(byte[] bytes) throws Exception {
-		return FSTSerialization.deserialize(bytes);
+		return DefaultSerialization.deserialize(bytes);
 	}
 }
 
