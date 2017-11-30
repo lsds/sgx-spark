@@ -32,6 +32,9 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
 import org.apache.spark.util.random.XORShiftRandom
 
+import org.apache.spark.sgx.{Encrypt, Encryptable, Encrypted}
+import org.apache.spark.sgx.SgxSettings
+
 /**
  * K-means clustering with a k-means++ like initialization mode
  * (the k-means|| algorithm by Bahmani et al).
@@ -352,6 +355,7 @@ class KMeans private (
     val sample = data.takeSample(false, 1, seed)
     // Could be empty if data is empty; fail with a better message early:
     require(sample.nonEmpty, s"No samples available from $data")
+    logDebug("available samples: " + sample)
 
     val centers = ArrayBuffer[VectorWithNorm]()
     var newCenters = Seq(sample.head.toDense)
@@ -597,13 +601,15 @@ object KMeans extends Logging {
   }
 }
 
+
+
 /**
  * A vector with its norm for fast distance computation.
  *
  * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDistance]]
  */
 private[clustering]
-class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable {
+class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable with Encryptable with Logging {
 
   def this(vector: Vector) = this(vector, Vectors.norm(vector, 2.0))
 
@@ -612,5 +618,19 @@ class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable 
   /** Converts the vector to a dense vector. */
   def toDense: VectorWithNorm = new VectorWithNorm(Vectors.dense(vector.toArray), norm)
 
+  def encrypt = new VectorWithNormSgx(Encrypt(vector), Encrypt(norm))
+
   override def toString() = this.getClass.getSimpleName + "("+norm+","+vector.toArray.deep.mkString("[", ",", "]")+")"
+}
+
+
+private[clustering]
+class VectorWithNormSgx(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
+
+  override def toDense: VectorWithNorm = new VectorWithNorm(Vectors.dense(_vector.decrypt.asInstanceOf[Vector].toArray), _norm.decrypt.asInstanceOf[Double])
+
+  def decrypt = new VectorWithNorm(_vector.decrypt.asInstanceOf[Vector], _norm.decrypt.asInstanceOf[Double])
+
+  /** Must override, as superclass uses provided null value. */
+  override def toString() = this.getClass.getSimpleName
 }

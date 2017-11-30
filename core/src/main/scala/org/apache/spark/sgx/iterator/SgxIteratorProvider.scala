@@ -26,7 +26,6 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean)
 	override final def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via messages.")
 
 	def call(): Unit = {
-		logDebug(this + " now waiting for connections")
 		val com = do_accept
 		logDebug(this + " got connection: " + com + " and provides " + identifier)
 
