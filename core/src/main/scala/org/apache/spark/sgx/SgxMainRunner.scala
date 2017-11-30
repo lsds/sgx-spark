@@ -14,6 +14,7 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 		while(true) {
 			val recv = com.recvOne()
 			logDebug("Received: " + recv)
+
 			val result = recv match {
 				case x: SgxFct2[_,_,_] => x.apply()
 				case x: SgxFirstTask[_,_] => x.apply()

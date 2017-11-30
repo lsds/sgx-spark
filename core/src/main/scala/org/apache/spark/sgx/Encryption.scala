@@ -1,7 +1,6 @@
 package org.apache.spark.sgx
 
 import java.util.Base64
-import org.apache.spark.internal.Logging
 
   /*
    * TODO: Encryption/Decryption are dummy operations.
@@ -11,15 +10,15 @@ trait Encrypted extends Serializable {
 	def decrypt: Any
 }
 
-private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted with Logging {
+private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted {
 	def decrypt = dec(cipher)
 }
 
-object Encrypt extends Logging {
+object Encrypt {
 	def apply(plain: Any): Encrypted = Base64StringEncrypt(plain)
 }
 
-private object Base64StringEncrypt extends Logging {
+private object Base64StringEncrypt {
 	def apply(plain: Any): Encrypted = {
 		new EncryptedObj[String](
 			Base64.getEncoder.encodeToString(Serialization.serialize(plain)),

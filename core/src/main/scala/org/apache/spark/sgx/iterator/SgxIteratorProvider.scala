@@ -40,15 +40,12 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean)
 						// results in all elements being the same :/)
 						q += delegate.next
 					} else {
-						logDebug("Iterating from 1 to " + num.num + " over delegate " + delegate + " ("+delegate.getClass.getSimpleName+")")
-						for (_ <- 1 to num.num) {
-							if (delegate.hasNext) {
-								q += delegate.next
-							}
+						for (_ <- 1 to num.num if delegate.hasNext) {
+							q += delegate.next
 						}
 					}
 					val qe = if (doEncrypt) q.map { n => Encrypt(n) } else q
-					logDebug("Sending: " + qe)
+					logDebug("Sending: " + q + " (" + qe + ")")
 					com.sendOne(qe)
 				}
 				case MsgIteratorReqClose =>
