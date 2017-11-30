@@ -986,11 +986,9 @@ abstract class RDD[T: ClassTag](
    */
   def collect(): Array[T] = withScope {
     val results = sc.runJob(this, (iter: Iterator[T]) => {
-      logDebug("TOARRAY A1: ("+iter.getClass.getSimpleName+")")
-      logDebug("TOARRAY A2: " + iter.isInstanceOf[SgxFakeIterator[T]])
-      logDebug("TOARRAY A3: " + iter.isInstanceOf[InterruptibleIterator[Any]])
-      logDebug("TOARRAY A5: " + iter.hasNext)
-      iter.toArray
+    	val (x,y) = iter.duplicate
+    	x.foreach(f => logDebug("collect: " + f.getClass().getSimpleName + " (" + f + ")"))
+      y.toArray
     })
     Array.concat(results: _*)
   }

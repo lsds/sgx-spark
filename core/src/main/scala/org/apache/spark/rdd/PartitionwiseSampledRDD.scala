@@ -81,17 +81,14 @@ private[spark] class PartitionwiseSampledRDDSgx[T: ClassTag, U: ClassTag](
   extends PartitionwiseSampledRDD[T,U](prev, sampler, preservesPartitioning, seed) {
 
   override def compute(splitIn: Partition, context: TaskContext): Iterator[U] = {
-	logDebug("XXXXX PartitionwiseSampledRDDSgx.compute()")
     val split = splitIn.asInstanceOf[PartitionwiseSampledRDDPartition]
     val it = firstParent[T].iterator(split.prev, context)
     val thisSampler = sampler.clone
     thisSampler.setSeed(split.seed)
 
-    val x = it match {
+    it match {
     	case x: SgxFakeIterator[T] => new SgxComputeTaskPartitionwiseSampledRDD(thisSampler, x).executeInsideEnclave()
     	case x: Iterator[T] => thisSampler.sample(x)
     }
-	logDebug("XXXXX PartitionwiseSampledRDDSgx.compute() returns " + x)
-	x
   }
 }

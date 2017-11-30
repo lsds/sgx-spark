@@ -17,14 +17,17 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 		val num = SgxSettings.PREFETCH - consumer.objects.size
 		if (num > 0) {
 			val list = consumer.com.sendRecv[Queue[Encrypted]](new MsgIteratorReqNextN(num))
-			logDebug("Consumer decrypted: " + list.map { n => n.decrypt.asInstanceOf[T] })
 			if (list.size == 0) {
 				consumer.close
 			}
 			else consumer.objects.addAll({
 //				if (SgxSettings.IS_ENCLAVE)
 					(list.map { n => n.decrypt.asInstanceOf[T] }).asJava
-//				else list.asJava
+//				else {
+//					if (consumer.objects.size() > 0)
+//						logDebug("Expected type: " + consumer.objects.peek.getClass.getSimpleName)
+//					(list.map { n => n.asInstanceOf[T] }).asJava
+//				}
 			})
 		}
 		consumer.Lock.synchronized {
@@ -68,8 +71,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator
 
 	def fill(): Unit = {
 		Lock.synchronized {
-			if (closed || fillingFuture != null || objects.size > SgxSettings.PREFETCH / 2) return
-			else {
+			if (!closed && fillingFuture == null && objects.size <= SgxSettings.PREFETCH / 2) {
 				fillingFuture = Completor.submit(new Filler(this))
 			}
 		}
