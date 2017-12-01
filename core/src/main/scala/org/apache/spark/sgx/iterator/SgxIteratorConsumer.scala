@@ -28,7 +28,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 				}
 			})
 			if (!SgxSettings.IS_ENCLAVE) {
-				logDebug("Data available outside: " + list.map { n => n.decrypt.asInstanceOf[T] })
+				logDebug("Data available outside: " + list.map { n => n.decrypt.asInstanceOf[T] } + " " + list.map { n => n.decrypt.getClass.getSimpleName })
 			}
 		}
 		consumer.Lock.synchronized {

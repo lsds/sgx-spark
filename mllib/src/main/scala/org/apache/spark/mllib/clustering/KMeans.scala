@@ -618,16 +618,16 @@ class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable 
   /** Converts the vector to a dense vector. */
   def toDense: VectorWithNorm = new VectorWithNorm(Vectors.dense(vector.toArray), norm)
 
-  def encrypt = new VectorWithNormSgx(Encrypt(vector), Encrypt(norm))
+  def encrypt = new SgxVectorWithNorm(Encrypt(vector), Encrypt(norm))
 
   override def toString() = this.getClass.getSimpleName + "("+norm+","+vector.toArray.deep.mkString("[", ",", "]")+")"
 }
 
 
 private[clustering]
-class VectorWithNormSgx(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
+class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
 
-  override def toDense: VectorWithNorm = new VectorWithNorm(Vectors.dense(_vector.decrypt.asInstanceOf[Vector].toArray), _norm.decrypt.asInstanceOf[Double])
+  override def toDense = new VectorWithNorm(Vectors.dense(_vector.decrypt.asInstanceOf[Vector].toArray), _norm.decrypt.asInstanceOf[Double])
 
   def decrypt = new VectorWithNorm(_vector.decrypt.asInstanceOf[Vector], _norm.decrypt.asInstanceOf[Double])
 

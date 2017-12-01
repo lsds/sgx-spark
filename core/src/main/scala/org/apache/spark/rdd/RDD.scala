@@ -46,6 +46,8 @@ import org.apache.spark.util.collection.{OpenHashMap, Utils => collectionUtils}
 import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, PoissonSampler,
   SamplingUtils}
 
+import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
@@ -1138,7 +1140,15 @@ abstract class RDD[T: ClassTag](
     // Clone the zero value since we will also be serializing it as part of tasks
     var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
     val cleanOp = sc.clean(op)
-    val foldPartition = (iter: Iterator[T]) => iter.fold(zeroValue)(cleanOp)
+    val foldPartition = (iter: Iterator[T]) =>
+    	if (SgxSettings.SGX_ENABLED) {
+    		logDebug("Creating SgxIteratorProvider for "  + this)
+    		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
+    		new SgxFold(zeroValue, cleanOp, id).executeInsideEnclave()
+    	}
+    	else
+    	iter.fold(zeroValue)(cleanOp)
+    	
     val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
     sc.runJob(this, foldPartition, mergeResult)
     jobResult
