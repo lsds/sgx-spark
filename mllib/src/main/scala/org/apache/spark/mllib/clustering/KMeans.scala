@@ -34,6 +34,7 @@ import org.apache.spark.util.random.XORShiftRandom
 
 import org.apache.spark.sgx.{Encrypt, Encryptable, Encrypted}
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.mllib.clustering.sgx.SgxTaskVectorsToDense
 
 /**
  * K-means clustering with a k-means++ like initialization mode
@@ -606,7 +607,7 @@ object KMeans extends Logging {
 /**
  * A vector with its norm for fast distance computation.
  *
- * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDistance]]
+ * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDisdtance]]
  */
 private[clustering]
 class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable with Encryptable with Logging {
@@ -627,9 +628,15 @@ class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable 
 private[clustering]
 class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
 
-  override def toDense = new VectorWithNorm(Vectors.dense(_vector.decrypt.asInstanceOf[Vector].toArray), _norm.decrypt.asInstanceOf[Double])
+  override def toDense = {
+	if (SgxSettings.IS_ENCLAVE) decrypt[VectorWithNorm].toDense
+	else new SgxTaskVectorsToDense(this).executeInsideEnclave
+  }
 
-  def decrypt = new VectorWithNorm(_vector.decrypt.asInstanceOf[Vector], _norm.decrypt.asInstanceOf[Double])
+  def decrypt[U]: U = {
+	if (SgxSettings.IS_ENCLAVE) new VectorWithNorm(_vector.decrypt[Vector], _norm.decrypt[Double]).asInstanceOf[U]
+	else throw new RuntimeException("Must not decrypt outside of enclave")
+  }
 
   /** Must override, as superclass uses provided null value. */
   override def toString() = this.getClass.getSimpleName

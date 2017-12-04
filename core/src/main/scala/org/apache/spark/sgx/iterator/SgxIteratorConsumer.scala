@@ -22,14 +22,11 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 			}
 			else consumer.objects.addAll({
 				if (SgxSettings.IS_ENCLAVE)
-					(list.map { n => n.decrypt.asInstanceOf[T] }).asJava
+					(list.map { n => n.decrypt[T] }).asJava
 				else {
 					(list.map { n => n.asInstanceOf[T] }).asJava
 				}
 			})
-			if (!SgxSettings.IS_ENCLAVE) {
-				logDebug("Data available outside: " + list.map { n => n.decrypt.asInstanceOf[T] } + " " + list.map { n => n.decrypt.getClass.getSimpleName })
-			}
 		}
 		consumer.Lock.synchronized {
 			consumer.fillingFuture = null

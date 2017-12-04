@@ -8,7 +8,7 @@ import org.apache.spark.internal.Logging
    */
 
 trait Encrypted extends Serializable {
-	def decrypt: Any
+	def decrypt[U]: U
 }
 
 trait Encryptable extends Serializable {
@@ -16,7 +16,10 @@ trait Encryptable extends Serializable {
 }
 
 private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted {
-	def decrypt = dec(cipher)
+	def decrypt[U]: U = {
+		if (SgxSettings.IS_ENCLAVE) dec(cipher).asInstanceOf[U]
+		else throw new RuntimeException("Must not decrypt outside of enclave")
+	}
 }
 
 object Encrypt {
@@ -39,9 +42,12 @@ private object Base64StringEncrypt extends Logging {
 }
 
 class EncryptedTuple2[T1,T2](t1: Encrypted, t2: Encrypted) extends Product2[T1,T2] with Encrypted {
-	def decrypt = (t1.decrypt,t2.decrypt)
+	def decrypt[U]: U = {
+		if (SgxSettings.IS_ENCLAVE) (t1.decrypt[T1],t2.decrypt[T2]).asInstanceOf[U]
+		else throw new RuntimeException("Must not decrypt outside of enclave")
+	}
 
-	def _1 = t1.decrypt.asInstanceOf[T1]
-	def _2 = t2.decrypt.asInstanceOf[T2]
-	def canEqual(that: Any) = decrypt.canEqual(that)
+	def _1 = t1.decrypt[T1]
+	def _2 = t2.decrypt[T2]
+	def canEqual(that: Any) = decrypt[Product2[T1,T2]].canEqual(that)
 }

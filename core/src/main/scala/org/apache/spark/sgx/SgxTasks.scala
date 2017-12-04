@@ -14,6 +14,8 @@ import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
+import java.lang.management.ManagementFactory
+
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
 	def executeInsideEnclave(): R = {
 		logDebug(this + ".executeInsideEnclave()");
