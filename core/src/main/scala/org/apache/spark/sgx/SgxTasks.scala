@@ -9,6 +9,7 @@ import scala.reflect.ClassTag
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.util.random.RandomSampler
 
+import org.apache.spark.Partitioner
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
@@ -97,15 +98,24 @@ case class SgxComputeTaskPartitionwiseSampledRDD[T, U](
 	override def toString = this.getClass.getSimpleName + "(sampler=" + sampler + ", it=" + it + ")"
 }
 
-case class SgxExternalSorterInsertAll[K,V,C](
-	sorter: ExternalSorter[K,V,C],
-	it: SgxFakeIterator[Product2[K, V]]) extends SgxExecuteInside[Unit] {
+//case class SgxTaskGetPartitionSgxProduct2Key(
+//	partitioner: Partitioner,
+//	pair: Product2[Any,Any]) extends SgxExecuteInside[Int] {
+//
+//	def apply() = Await.result( Future { partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1) }, Duration.Inf)
+//
+//	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
+//}
+
+case class SgxTaskExternalSorterInsertAllCreateKey[K](
+	partitioner: Partitioner,
+	pair: Product2[K,Any]) extends SgxExecuteInside[(Int,K)] {
 
 	def apply() = {
 		Await.result( Future {
-			sorter.insertAll(SgxMain.fakeIterators.remove[Iterator[Product2[K, V]]](it.id))
+			(partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1), pair._1)
 		}, Duration.Inf)
 	}
 
-	override def toString = this.getClass.getSimpleName + "(sorter=" + sorter + ", it=" + it + ")"
+	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
