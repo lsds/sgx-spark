@@ -11,6 +11,7 @@ import org.apache.spark.util.random.RandomSampler
 
 import org.apache.spark.Partitioner
 import org.apache.spark.internal.Logging
+import org.apache.spark.sgx.Decrypt
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
@@ -53,11 +54,13 @@ case class SgxOtherTask[U, T](
 
 case class SgxFct2[A, B, Z](
 	fct: (A, B) => Z,
-	a: A,
-	b: B) extends SgxExecuteInside[Z] {
+	a: Any,
+	b: Any) extends SgxExecuteInside[Encrypted] {
+
+	logDebug(this.toString())
 
 	def apply() = {
-		Await.result(Future { fct(a, b) }, Duration.Inf)
+		Await.result(Future { val x = fct(Decrypt[A](a), Decrypt[B](b)); logDebug("result: " + x); Encrypt(x) }, Duration.Inf)
 	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + " (" + (if (a != null) a.getClass.getName else "") + "), b=" + b + " (" + (if (b != null) b.getClass.getName else "") + "))"
 }

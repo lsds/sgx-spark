@@ -136,7 +136,7 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
         incrementSize()
       }
       if (SgxSettings.SGX_ENABLED)
-      nullValue = new SgxFct2[Boolean,V,V](updateFunc, haveNullValue, nullValue).executeInsideEnclave()
+      nullValue = new SgxFct2[Boolean,V,V](updateFunc, haveNullValue, nullValue).executeInsideEnclave().asInstanceOf[V]
       else
       nullValue = updateFunc(haveNullValue, nullValue)
       haveNullValue = true
@@ -148,7 +148,7 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
       val curKey = data(2 * pos)
       if (curKey.eq(null)) {
         val newValue = if (SgxSettings.SGX_ENABLED)
-    	new SgxFct2[Boolean,V,V](updateFunc, false, null.asInstanceOf[V]).executeInsideEnclave()
+    	new SgxFct2[Boolean,V,V](updateFunc, false, null).executeInsideEnclave().asInstanceOf[V]
         else
     	updateFunc(false, null.asInstanceOf[V])
         data(2 * pos) = k
@@ -157,8 +157,9 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
         return newValue
       } else if (k.eq(curKey) || k.equals(curKey)) {
         val newValue = if (SgxSettings.SGX_ENABLED)
-        new SgxFct2[Boolean,V,V](updateFunc, true, data(2 * pos + 1).asInstanceOf[V]).executeInsideEnclave()
-        else updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
+        new SgxFct2[Boolean,V,V](updateFunc, true, data(2 * pos + 1)).executeInsideEnclave().asInstanceOf[V]
+        else
+        updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         return newValue
       } else {

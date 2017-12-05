@@ -22,14 +22,27 @@ private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted {
 	}
 }
 
+object Decrypt extends Logging {
+	def apply[U](cipher: Any): U = {
+		val x = if (cipher == null) null.asInstanceOf[U]
+		else cipher match {
+			case e: Encrypted => e.decrypt[U]
+			case p: Any => p.asInstanceOf[U]
+		}
+		logDebug("Decrypting: " + cipher + (if (cipher != null) " (" +  cipher.getClass().getName + ")" else "") + " to " + x)
+		x
+	}
+}
+
 object Encrypt {
 	def apply(plain: Any): Encrypted = Base64StringEncrypt(plain)
 }
 
 private object Base64StringEncrypt extends Logging {
 	def apply(plain: Any): Encrypted = {
-		logDebug("Encrypting: " + plain + " (" + plain.getClass().getName + ")")
-		val x = plain match {
+		val x = if (plain == null) null.asInstanceOf[Encrypted]
+		else plain match {
+			case e: Encrypted => e
 			case e: Encryptable => e.encrypt
 			case t: Tuple2[_,_] => new EncryptedTuple2(Encrypt(t._1), Encrypt(t._2))
 			case p: Any =>
@@ -38,7 +51,7 @@ private object Base64StringEncrypt extends Logging {
 					(x: String) => Serialization.deserialize(Base64.getDecoder.decode(x))
 				)
 		}
-		logDebug(" --> " + x + " (" + x.getClass.getName + ")")
+		logDebug("Encrypting: " + plain + (if (plain !=null) " (" + plain.getClass().getName + ")" else "") + " to " + x)
 		x
 	}
 }
