@@ -47,7 +47,8 @@ object KMeansExample {
 
     // Save and load model
     clusters.save(sc, args(1))
-    // val sameModel = KMeansModel.load(sc, "target/org/apache/spark/KMeansExample/KMeansModel")
+    println("K Means result: " + clusters + " (" + clusters.clusterCenters.mkString("[",",","]") + ")")
+//    val sameModel = KMeansModel.load(sc, args(1))
     // $example off$
 
     sc.stop()

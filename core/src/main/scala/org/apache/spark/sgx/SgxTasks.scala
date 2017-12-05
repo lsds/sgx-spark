@@ -15,6 +15,8 @@ import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
+import org.apache.spark.sgx.EncryptionUtils._
+
 import java.lang.management.ManagementFactory
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
@@ -57,7 +59,7 @@ case class SgxFct2[A, B, Z](
 	def apply() = {
 		Await.result(Future { fct(a, b) }, Duration.Inf)
 	}
-	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
+	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + " (" + (if (a != null) a.getClass.getName else "") + "), b=" + b + " (" + (if (b != null) b.getClass.getName else "") + "))"
 }
 
 case class SgxFold[T](
@@ -97,15 +99,6 @@ case class SgxComputeTaskPartitionwiseSampledRDD[T, U](
 
 	override def toString = this.getClass.getSimpleName + "(sampler=" + sampler + ", it=" + it + ")"
 }
-
-//case class SgxTaskGetPartitionSgxProduct2Key(
-//	partitioner: Partitioner,
-//	pair: Product2[Any,Any]) extends SgxExecuteInside[Int] {
-//
-//	def apply() = Await.result( Future { partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1) }, Duration.Inf)
-//
-//	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
-//}
 
 case class SgxTaskExternalSorterInsertAllCreateKey[K](
 	partitioner: Partitioner,
