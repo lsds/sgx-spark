@@ -54,12 +54,12 @@ class EncryptedTuple2[T1,T2](t1: Encrypted, t2: Encrypted) extends Product2[T1,T
 	def canEqual(that: Any) = decrypt[Product2[T1,T2]].canEqual(that)
 }
 
-class EncryptedBoolean(b: Encrypted) extends Encrypted {
-	def decrypt[U] = b.decrypt[U]
-}
-
-object EncryptionUtils {
-	implicit class BooleanEncryption(val b: Boolean) extends Encryptable {
-		def encrypt = new EncryptedBoolean(Encrypt(b))
-	}
-}
+//class EncryptedBoolean(b: Encrypted) extends Encrypted {
+//	def decrypt[U] = b.decrypt[U]
+//}
+//
+//object EncryptionUtils {
+//	implicit class BooleanEncryption(val b: Boolean) extends Encryptable {
+//		def encrypt = new EncryptedBoolean(Encrypt(b))
+//	}
+//}

@@ -29,7 +29,13 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 			}
 			logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
 
-			if (result != null) com.sendOne(result)
+			if (result != null) {
+//				val r = result match {
+//					case d: Double => HandleManager.create(scala.util.Random.nextDouble, d)
+//					case x: Any => x
+//				}
+				com.sendOne(result)
+			}
 		}
 
 		com.close()

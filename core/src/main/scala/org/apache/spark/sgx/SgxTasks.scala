@@ -15,8 +15,6 @@ import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
-import org.apache.spark.sgx.EncryptionUtils._
-
 import java.lang.management.ManagementFactory
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
@@ -67,8 +65,12 @@ case class SgxFold[T](
 	op: (T,T) => T,
 	id: SgxIteratorProviderIdentifier) extends SgxExecuteInside[T] {
 
+	logDebug("xxx Creating SgxFold")
+
 	def apply() = {
-		Await.result(Future { new SgxIteratorConsumer[T](id).fold(v)(op) }, Duration.Inf).asInstanceOf[T]
+		val x = Await.result(Future { new SgxIteratorConsumer[T](id).fold(v)(op) }, Duration.Inf).asInstanceOf[T]
+		logDebug("xxx Executing SgxFold = " + x)
+		x
 	}
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
 }

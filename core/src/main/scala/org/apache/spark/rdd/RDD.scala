@@ -1142,13 +1142,12 @@ abstract class RDD[T: ClassTag](
     val cleanOp = sc.clean(op)
     val foldPartition = (iter: Iterator[T]) =>
     	if (SgxSettings.SGX_ENABLED) {
-    		logDebug("Creating SgxIteratorProvider for "  + this)
     		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
     		new SgxFold(zeroValue, cleanOp, id).executeInsideEnclave()
     	}
     	else
     	iter.fold(zeroValue)(cleanOp)
-    	
+
     val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
     sc.runJob(this, foldPartition, mergeResult)
     jobResult
