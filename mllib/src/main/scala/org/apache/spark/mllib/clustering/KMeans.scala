@@ -293,8 +293,10 @@ class KMeans private (
         counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
       }.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
         axpy(1.0, sum2, sum1)
+    	  logDebug("xxx kmeans2: ("+sum1+", "+count1+" + "+count2+") = ("+sum1+", "+ (count1 + count2) + ")")
         (sum1, count1 + count2)
       }.mapValues { case (sum, count) =>
+    	  logDebug("xxx kmeans3")
         scal(1.0 / count, sum)
         new VectorWithNorm(sum)
       }.collectAsMap()
@@ -352,7 +354,7 @@ class KMeans private (
     var costs = data.map(_ => Double.PositiveInfinity)
 
     // Initialize the first center to a random point.
-    val seed = new XORShiftRandom(this.seed).nextInt()
+    val seed = new XORShiftRandom(this.seed).nextInt() // sgx: use SGX SDK RNG?!
     val sample = data.takeSample(false, 1, seed)
     // Could be empty if data is empty; fail with a better message early:
     require(sample.nonEmpty, s"No samples available from $data")
@@ -372,21 +374,29 @@ class KMeans private (
       bcNewCentersList += bcNewCenters
       val preCosts = costs
       costs = data.zip(preCosts).map { case (point, cost) => {
-        math.min(KMeans.pointCost(bcNewCenters.value, point), cost)}
+        val x = math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
+        logDebug("xxx map1 math.min: " + x)
+        x
+        }
       }.persist(StorageLevel.MEMORY_AND_DISK)
-      val sumCosts = costs.sum()
+      val sumCosts = costs.sumS() // sgx: worker enclave. todo result returned in plain => encrypt or return handle
+      logDebug("xxx sumCosts " + sumCosts)
 
       bcNewCenters.unpersist(blocking = false)
       preCosts.unpersist(blocking = false)
 
       val chosen = data.zip(costs).mapPartitionsWithIndex { (index, pointCosts) =>
+    	  logDebug("xxx map2")
         val rand = new XORShiftRandom(seed ^ (step << 16) ^ index)
-        pointCosts.filter { case (_, c) => rand.nextDouble() < 2.0 * c * k / sumCosts }.map(_._1)
-      }.collect()
+        pointCosts.filter { case (_, c) => rand.nextDouble() < 2.0 * c * k / sumCosts.value }.map(_._1)
+      }.collect() // sgx: map in worker enclave; collect outside
+      logDebug("xxx chosen " + chosen.mkString("[",", ", "]"))
       newCenters = chosen.map(_.toDense)
       centers ++= newCenters
       step += 1
     }
+
+    logDebug("xxx map loop done")
 
     costs.unpersist(blocking = false)
     bcNewCentersList.foreach(_.destroy(false))
@@ -610,7 +620,7 @@ object KMeans extends Logging {
  * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDisdtance]]
  */
 private[clustering]
-class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable with Encryptable with Logging {
+class VectorWithNorm(val vector: Vector, val norm: Double) extends Encryptable with Serializable {
 
   def this(vector: Vector) = this(vector, Vectors.norm(vector, 2.0))
 
@@ -626,7 +636,7 @@ class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable 
 
 
 private[clustering]
-class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
+class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted {
 
   override def toDense = {
 	if (SgxSettings.IS_ENCLAVE) decrypt[VectorWithNorm].toDense

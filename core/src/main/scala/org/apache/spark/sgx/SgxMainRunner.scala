@@ -27,9 +27,15 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 					logDebug("Accessing Fake iterator " + x.fakeId)
 					SgxFactory.get.newSgxIteratorProvider[Any](SgxMain.fakeIterators.get(x.fakeId), true).identifier
 			}
-			logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
+			logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ") as result of " + recv)
 
-			if (result != null) com.sendOne(result)
+			if (result != null) {
+//				val r = result match {
+//					case d: Double => HandleManager.create(scala.util.Random.nextDouble, d)
+//					case x: Any => x
+//				}
+				com.sendOne(result)
+			}
 		}
 
 		com.close()

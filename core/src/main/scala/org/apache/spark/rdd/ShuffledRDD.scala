@@ -111,3 +111,18 @@ class ShuffledRDD[K: ClassTag, V: ClassTag, C: ClassTag](
     prev = null
   }
 }
+
+
+class ShuffledRDDInside[K: ClassTag, V: ClassTag, C: ClassTag](
+    @transient var prev: RDD[_ <: Product2[K, V]],
+    part: Partitioner,
+    id: Long)
+  extends RDD[(K, C)](prev.context, Nil) {
+}
+
+class ShuffledRDDOutside[K: ClassTag, V: ClassTag, C: ClassTag](
+    @transient var prev: RDD[_ <: Product2[K, V]],
+    part: Partitioner,
+    id: Long)
+  extends RDD[(K, C)](prev.context, Nil) {
+}

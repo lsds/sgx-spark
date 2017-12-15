@@ -16,8 +16,6 @@ import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
-import org.apache.spark.sgx.EncryptionUtils._
-
 import java.lang.management.ManagementFactory
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
@@ -52,6 +50,17 @@ case class SgxOtherTask[U, T](
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", it=" + it + ")"
 }
 
+case class SgxAction[U, T](
+	fct: Iterator[T] => U,
+	it: SgxFakeIterator[T]) extends SgxExecuteInside[U] {
+
+	def apply() = {
+		Await.result(Future { fct(SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
+	}
+	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", it=" + it + ")"
+}
+
+
 case class SgxFct2[A, B, Z](
 	fct: (A, B) => Z,
 	a: Any,
@@ -71,7 +80,9 @@ case class SgxFold[T](
 	id: SgxIteratorProviderIdentifier) extends SgxExecuteInside[T] {
 
 	def apply() = {
-		Await.result(Future { new SgxIteratorConsumer[T](id).fold(v)(op) }, Duration.Inf).asInstanceOf[T]
+		val x = Await.result(Future { new SgxIteratorConsumer[T](id).fold(v)(op) }, Duration.Inf).asInstanceOf[T]
+		logDebug("xxx Executing SgxFold = " + x)
+		x
 	}
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
 }
@@ -115,3 +126,18 @@ case class SgxTaskExternalSorterInsertAllCreateKey[K](
 
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
+
+case class SgxTaskCreateShuffledRDD[K: ClassTag, V: ClassTag, C: ClassTag](
+	@transient var prev: RDD[_ <: Product2[K, V]],
+    part: Partitioner) extends SgxExecuteInside[Long] {
+
+	def apply() = {
+		Await.result( Future { new ShuffledRDDSgx(prev, part) }, Duration.Inf)
+		scala.util.Random.nextLong()
+	}
+}
+
+
+
+
+
