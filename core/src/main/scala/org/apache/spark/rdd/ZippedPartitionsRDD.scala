@@ -117,6 +117,8 @@ private[spark] class ZippedPartitionsRDD2Sgx[A: ClassTag, B: ClassTag, V: ClassT
     val x = if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
       new SgxComputeTaskZippedPartitionsRDD2(_f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
     else _f(it1, it2)
+        if (x.isInstanceOf[SgxFakeIterator[V]]) logDebug("xxx zip returning: fake " + x.asInstanceOf[SgxFakeIterator[V]].id + " ("+x.getClass.getName+")")
+    else logDebug("xxx zip returning: " + x + " ("+x.getClass.getName+")")
     x
   }
 

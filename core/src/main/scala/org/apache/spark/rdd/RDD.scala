@@ -48,6 +48,7 @@ import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, Poi
 
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxFold
+import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
@@ -1140,16 +1141,28 @@ abstract class RDD[T: ClassTag](
     // Clone the zero value since we will also be serializing it as part of tasks
     var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
     val cleanOp = sc.clean(op)
-    val foldPartition = (iter: Iterator[T]) =>
+    val foldPartition = (iter: Iterator[T]) => {
+    	iter match {
+    		case x: SgxFakeIterator[T] => logDebug("xxx sum() iterator: fake " + x.id)
+    		case x: Iterator[T] => logDebug("xxx sum() iterator " + x.getClass.getName)
+    	}
+    	val (x,y) = iter.duplicate
+    	logDebug("xxx sum iterating over: ")
+    	x.foreach(t => logDebug("   xxx sum " + t + " ("+t.asInstanceOf[Encrypted].decrypt[Double]+")"))
     	if (SgxSettings.SGX_ENABLED) {
-    		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
+    		val id = SgxFactory.get.newSgxIteratorProvider[T](y, false).identifier
     		new SgxFold(zeroValue, cleanOp, id).executeInsideEnclave()
     	}
     	else
-    	iter.fold(zeroValue)(cleanOp)
-
-    val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
+    	y.fold(zeroValue)(cleanOp)
+    }
+    
+    val mergeResult = (index: Int, taskResult: T) => {
+    	logDebug("xxx sum calculating job result")
+    	jobResult = op(jobResult, taskResult)
+    }
     sc.runJob(this, foldPartition, mergeResult)
+    logDebug("xxx sum jobResult: " + jobResult)
     jobResult
   }
 

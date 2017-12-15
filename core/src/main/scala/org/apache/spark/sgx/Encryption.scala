@@ -17,8 +17,9 @@ trait Encryptable extends Serializable {
 
 private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted {
 	def decrypt[U]: U = {
-		if (SgxSettings.IS_ENCLAVE) dec(cipher).asInstanceOf[U]
-		else throw new RuntimeException("Must not decrypt outside of enclave")
+//		if (SgxSettings.IS_ENCLAVE)
+			dec(cipher).asInstanceOf[U]
+//		else throw new RuntimeException("Must not decrypt outside of enclave")
 	}
 }
 

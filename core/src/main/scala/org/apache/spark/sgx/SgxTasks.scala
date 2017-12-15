@@ -49,6 +49,17 @@ case class SgxOtherTask[U, T](
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", it=" + it + ")"
 }
 
+case class SgxAction[U, T](
+	fct: Iterator[T] => U,
+	it: SgxFakeIterator[T]) extends SgxExecuteInside[U] {
+
+	def apply() = {
+		Await.result(Future { fct(SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
+	}
+	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", it=" + it + ")"
+}
+
+
 case class SgxFct2[A, B, Z](
 	fct: (A, B) => Z,
 	a: A,
@@ -64,8 +75,6 @@ case class SgxFold[T](
 	v: T,
 	op: (T,T) => T,
 	id: SgxIteratorProviderIdentifier) extends SgxExecuteInside[T] {
-
-	logDebug("xxx Creating SgxFold")
 
 	def apply() = {
 		val x = Await.result(Future { new SgxIteratorConsumer[T](id).fold(v)(op) }, Duration.Inf).asInstanceOf[T]
@@ -114,3 +123,18 @@ case class SgxTaskExternalSorterInsertAllCreateKey[K](
 
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
+
+case class SgxTaskCreateShuffledRDD[K: ClassTag, V: ClassTag, C: ClassTag](
+	@transient var prev: RDD[_ <: Product2[K, V]],
+    part: Partitioner) extends SgxExecuteInside[Long] {
+
+	def apply() = {
+		Await.result( Future { new ShuffledRDDSgx(prev, part) }, Duration.Inf)
+		scala.util.Random.nextLong()
+	}
+}
+
+
+
+
+

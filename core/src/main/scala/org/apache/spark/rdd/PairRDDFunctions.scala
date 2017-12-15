@@ -91,11 +91,13 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       self.context.clean(mergeValue),
       self.context.clean(mergeCombiners))
     if (self.partitioner == Some(partitioner)) {
+    	logDebug("xxx combineByKeyWithClassTag mapPartitions")
       self.mapPartitions(iter => {
         val context = TaskContext.get()
         new InterruptibleIterator(context, aggregator.combineValuesByKey(iter, context))
       }, preservesPartitioning = true)
     } else {
+    	logDebug("xxx combineByKeyWithClassTag ShuffledRDD")
       new ShuffledRDD[K, V, C](self, partitioner)
         .setSerializer(serializer)
         .setAggregator(aggregator)
@@ -755,7 +757,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    */
   def mapValues[U](f: V => U): RDD[(K, U)] = self.withScope {
     val cleanF = self.context.clean(f)
-    if (SgxSettings.SGX_ENABLED)    
+    if (SgxSettings.SGX_ENABLED)
     new MapPartitionsRDDSgx[(K, U), (K, V)](self,
       (pid, iter) => iter.map { case (k, v) => (k, cleanF(v)) },
       preservesPartitioning = true)
@@ -771,7 +773,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    */
   def flatMapValues[U](f: V => TraversableOnce[U]): RDD[(K, U)] = self.withScope {
     val cleanF = self.context.clean(f)
-    if (SgxSettings.SGX_ENABLED) 
+    if (SgxSettings.SGX_ENABLED)
     new MapPartitionsRDDSgx[(K, U), (K, V)](self,
       (pid, iter) => iter.flatMap { case (k, v) =>
         cleanF(v).map(x => (k, x))

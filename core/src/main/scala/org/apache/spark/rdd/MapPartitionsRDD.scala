@@ -48,6 +48,10 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
   }
 }
 
+object Cntr {
+	var x = 0;
+}
+
 private[spark] class MapPartitionsRDDSgx[U: ClassTag, T: ClassTag](
 	var _prev: RDD[T],
 	f: (Int, Iterator[T]) => Iterator[U], // (partition index, iterator)
@@ -55,11 +59,27 @@ private[spark] class MapPartitionsRDDSgx[U: ClassTag, T: ClassTag](
 		extends MapPartitionsRDD[U,T](_prev, null, preservesPartitioning) {
 
 	override def compute(split: Partition, context: TaskContext): Iterator[U] = {
-		firstParent[T].iterator(split, context) match {
+		val y = Cntr.synchronized { Cntr.x = Cntr.x+1; Cntr.x; }
+		val t = firstParent[T].iterator(split, context)
+		logDebug("xxx MapPartitionsRDDSgx.compute() "+y+" on " + t + "@" + t.hashCode())
+//		if (t.isInstanceOf[org.apache.spark.util.CompletionIterator[_,_]]) {
+//			throw new RuntimeException("org.apache.spark.util.CompletionIterator: " + t + " "+ (if (t.hasNext) t.next else ""))
+//		}
+		val x = firstParent[T].iterator(split, context) match {
 			case x: SgxIteratorProvider[T] => new SgxFirstTask(f, split.index, x.identifier).executeInsideEnclave()
 			case x: SgxFakeIterator[T] => new SgxOtherTask(f, split.index, x).executeInsideEnclave()
-			case x: Iterator[T] => f(split.index, firstParent[T].iterator(split, context))
+			case x: Iterator[T] => {
+				val (i,j) = firstParent[T].iterator(split, context).duplicate
+				logDebug("xxx MapPartitionsRDDSgx.compute() REAL iterator "+y+" on " + t + "@" + t.hashCode() + " with element " + (if (i.hasNext) i.next else "<empty>"))
+				f(split.index, j)
+//				f(split.index, firstParent[T].iterator(split, context))
+			}
 		}
+	    if (x.isInstanceOf[SgxFakeIterator[U]]) logDebug("xxx map returning "+y+": fake " + x.asInstanceOf[SgxFakeIterator[U]].id + " ("+x.getClass.getName+")")
+	    else {
+	    	logDebug("xxx map returning "+y+": " +x.getClass.getName+"@" + x.hashCode())
+	    }
+	    x
 	}
 
 	override def clearDependencies() {
