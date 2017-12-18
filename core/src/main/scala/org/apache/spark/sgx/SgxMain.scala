@@ -12,6 +12,7 @@ class Waiter() extends Callable[Unit] {
 
 object SgxMain {
 	val fakeIterators = new IdentifierManager[Iterator[Any],SgxFakeIterator[Any]](SgxFakeIterator(_))
+	val shuffledRdds = new ShuffledRDDManager()
 
 	def main(args: Array[String]): Unit = {
 		Completor.submit(new Waiter())

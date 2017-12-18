@@ -269,6 +269,11 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
 
 }
 
+//private[spark] class TorrentBroadcastSgx[T: ClassTag](obj: Encrypted, id: Long)
+//  extends TorrentBroadcast[Encrypted](obj, id) {
+//
+//  override def getValue() = super.getValue().
+//}
 
 private object TorrentBroadcast extends Logging {
 

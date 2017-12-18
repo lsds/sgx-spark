@@ -98,6 +98,12 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       }, preservesPartitioning = true)
     } else {
     	logDebug("xxx combineByKeyWithClassTag ShuffledRDD")
+      if (SgxSettings.SGX_ENABLED)
+      new ShuffledRDD[K, V, C](self, partitioner)
+        .setSerializer(serializer)
+        .setAggregator(aggregator)
+        .setMapSideCombine(mapSideCombine)
+      else
       new ShuffledRDD[K, V, C](self, partitioner)
         .setSerializer(serializer)
         .setAggregator(aggregator)
@@ -537,6 +543,9 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
     if (self.partitioner == Some(partitioner)) {
       self
     } else {
+      if (SgxSettings.SGX_ENABLED)
+      new ShuffledRDDSgx[K, V, V](self, partitioner)
+      else
       new ShuffledRDD[K, V, V](self, partitioner)
     }
   }

@@ -23,6 +23,17 @@ import org.apache.spark._
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.serializer.Serializer
 
+import org.apache.spark.sgx.SgxTaskShuffledRDDCreate
+import org.apache.spark.sgx.SgxTaskShuffledRDDSetSerializer
+import org.apache.spark.sgx.SgxTaskShuffledRDDSetKeyOrdering
+import org.apache.spark.sgx.SgxTaskShuffledRDDSetAggregator
+import org.apache.spark.sgx.SgxTaskShuffledRDDSetMapSideCombine
+import org.apache.spark.sgx.SgxTaskShuffledRDDClearDependencies
+import org.apache.spark.sgx.SgxTaskShuffledRDDGetPartitions
+import org.apache.spark.sgx.SgxTaskShuffledRDDGetDependencies
+//import org.apache.spark.sgx.SgxTaskShuffledRDDGetPreferredLocations
+import org.apache.spark.sgx.SgxTaskShuffledRDDCompute
+
 private[spark] class ShuffledRDDPartition(val idx: Int) extends Partition {
   override val index: Int = idx
 }
@@ -113,16 +124,53 @@ class ShuffledRDD[K: ClassTag, V: ClassTag, C: ClassTag](
 }
 
 
-class ShuffledRDDInside[K: ClassTag, V: ClassTag, C: ClassTag](
-    @transient var prev: RDD[_ <: Product2[K, V]],
-    part: Partitioner,
-    id: Long)
-  extends RDD[(K, C)](prev.context, Nil) {
-}
+class ShuffledRDDSgx[K: ClassTag, V: ClassTag, C: ClassTag](
+    @transient var _prev: RDD[_ <: Product2[K, V]],
+    part: Partitioner)
+  extends ShuffledRDD[K,V,C](_prev, part) {
 
-class ShuffledRDDOutside[K: ClassTag, V: ClassTag, C: ClassTag](
-    @transient var prev: RDD[_ <: Product2[K, V]],
-    part: Partitioner,
-    id: Long)
-  extends RDD[(K, C)](prev.context, Nil) {
+  val sgxId = new SgxTaskShuffledRDDCreate[K,V,C](_prev, part).executeInsideEnclave()
+
+  override def setSerializer(serializer: Serializer): ShuffledRDD[K, V, C] = {
+    new SgxTaskShuffledRDDSetSerializer(sgxId, serializer).executeInsideEnclave()
+    this
+  }
+
+  override def setKeyOrdering(keyOrdering: Ordering[K]): ShuffledRDD[K, V, C] = {
+    new SgxTaskShuffledRDDSetKeyOrdering(sgxId, keyOrdering).executeInsideEnclave()
+    this
+  }
+
+  override def setAggregator(aggregator: Aggregator[K, V, C]): ShuffledRDD[K, V, C] = {
+    new SgxTaskShuffledRDDSetAggregator(sgxId, aggregator).executeInsideEnclave()
+    this
+  }
+
+  override def setMapSideCombine(mapSideCombine: Boolean): ShuffledRDD[K, V, C] = {
+    new SgxTaskShuffledRDDSetMapSideCombine(sgxId, mapSideCombine).executeInsideEnclave()
+    this
+  }
+
+  override def getDependencies: Seq[Dependency[_]] = {
+    new SgxTaskShuffledRDDGetDependencies(sgxId).executeInsideEnclave()
+  }
+
+  override def getPartitions: Array[Partition] = {
+    new SgxTaskShuffledRDDGetPartitions(sgxId).executeInsideEnclave()
+  }
+
+  override protected def getPreferredLocations(partition: Partition): Seq[String] = {
+	  throw new NotImplementedError
+//    new SgxTaskShuffledRDDGetPreferredLocations(sgxId, partition).executeInsideEnclave()
+  }
+
+  override def compute(split: Partition, context: TaskContext): Iterator[(K, C)] = {
+    new SgxTaskShuffledRDDCompute[K,C](sgxId, split, context).executeInsideEnclave()
+  }
+
+  override def clearDependencies() {
+	new SgxTaskShuffledRDDClearDependencies(sgxId).executeInsideEnclave()
+    super.clearDependencies()
+    prev = null
+  }
 }

@@ -477,11 +477,18 @@ abstract class RDD[T: ClassTag](
       } : Iterator[(Int, T)]
 
       // include a shuffle step so that our upstream tasks are still distributed
+      if (SgxSettings.SGX_ENABLED)
+      new CoalescedRDD(
+        new ShuffledRDDSgx[Int, T, T](mapPartitionsWithIndex(distributePartition),
+        new HashPartitioner(numPartitions)),
+        numPartitions,
+        partitionCoalescer).values
+      else
       new CoalescedRDD(
         new ShuffledRDD[Int, T, T](mapPartitionsWithIndex(distributePartition),
         new HashPartitioner(numPartitions)),
         numPartitions,
-        partitionCoalescer).values
+        partitionCoalescer).values 
     } else {
       new CoalescedRDD(this, numPartitions, partitionCoalescer)
     }

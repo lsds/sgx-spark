@@ -9,14 +9,20 @@ import scala.reflect.ClassTag
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.util.random.RandomSampler
 
+import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.ShuffledRDD
+import org.apache.spark.Aggregator
+import org.apache.spark.Dependency
+import org.apache.spark.Partition
 import org.apache.spark.Partitioner
+import org.apache.spark.serializer.Serializer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sgx.Decrypt
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 import java.lang.management.ManagementFactory
+import org.apache.spark.TaskContext
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
 	def executeInsideEnclave(): R = {
@@ -80,9 +86,7 @@ case class SgxFold[T](
 	id: SgxIteratorProviderIdentifier) extends SgxExecuteInside[T] {
 
 	def apply() = {
-		val x = Await.result(Future { new SgxIteratorConsumer[T](id).fold(v)(op) }, Duration.Inf).asInstanceOf[T]
-		logDebug("xxx Executing SgxFold = " + x)
-		x
+		Await.result(Future { new SgxIteratorConsumer[T](id).fold(v)(op) }, Duration.Inf).asInstanceOf[T]
 	}
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
 }
@@ -127,17 +131,70 @@ case class SgxTaskExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
-case class SgxTaskCreateShuffledRDD[K: ClassTag, V: ClassTag, C: ClassTag](
+case class SgxTaskShuffledRDDCreate[K: ClassTag, V: ClassTag, C: ClassTag](
 	@transient var prev: RDD[_ <: Product2[K, V]],
     part: Partitioner) extends SgxExecuteInside[Long] {
 
 	def apply() = {
-		Await.result( Future { new ShuffledRDDSgx(prev, part) }, Duration.Inf)
-		scala.util.Random.nextLong()
+		val s = Await.result( Future { new ShuffledRDD[K,V,C](prev, part) }, Duration.Inf)
+		val id = scala.util.Random.nextLong()
+		SgxMain.shuffledRdds.put(id, s)
+		id
 	}
+
+	override def toString = this.getClass.getSimpleName + "(prev=" + prev + ", part=" + part + ")"
 }
 
+case class SgxTaskShuffledRDDSetSerializer(id: Long, serializer: Serializer) extends SgxExecuteInside[Unit] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[Any,Any,Any](id).setSerializer(serializer) }, Duration.Inf)
 
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ", serializer=" + serializer + ")"
+}
 
+case class SgxTaskShuffledRDDSetKeyOrdering[K](id: Long, keyOrdering: Ordering[K]) extends SgxExecuteInside[Unit] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[K,Any,Any](id).setKeyOrdering(keyOrdering) }, Duration.Inf)
 
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ", keyOrdering=" + keyOrdering + ")"
+}
 
+case class SgxTaskShuffledRDDSetAggregator[K,V,C](id: Long, aggregator: Aggregator[K,V,C]) extends SgxExecuteInside[Unit] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[K,V,C](id).setAggregator(aggregator) }, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ", aggregator=" + aggregator + ")"
+}
+
+case class SgxTaskShuffledRDDSetMapSideCombine(id: Long, mapSideCombine: Boolean) extends SgxExecuteInside[Unit] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[Any,Any,Any](id).setMapSideCombine(mapSideCombine) }, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ", mapSideCombine=" + mapSideCombine + ")"
+}
+
+case class SgxTaskShuffledRDDClearDependencies(id: Long) extends SgxExecuteInside[Unit] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[Any,Any,Any](id).clearDependencies() }, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
+}
+
+case class SgxTaskShuffledRDDGetPartitions(id: Long) extends SgxExecuteInside[Array[Partition]] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[Any,Any,Any](id).getPartitions }, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
+}
+
+case class SgxTaskShuffledRDDGetDependencies(id: Long) extends SgxExecuteInside[Seq[Dependency[_]]] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[Any,Any,Any](id).getDependencies }, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
+}
+
+//case class SgxTaskShuffledRDDGetPreferredLocations(id: Long, partition: Partition) extends SgxExecuteInside[Seq[String]] {
+//	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[Any,Any,Any](id).getPreferredLocations(partition) }, Duration.Inf)
+//
+//	override def toString = this.getClass.getSimpleName + "(id=" + id + ", partition=" + partition + ")"
+//}
+
+case class SgxTaskShuffledRDDCompute[K,C](id: Long, split: Partition, context: TaskContext) extends SgxExecuteInside[Iterator[(K, C)]] {
+	def apply() = Await.result( Future { SgxMain.shuffledRdds.get[K,Any,C](id).compute(split, context) }, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ", split=" + split + ", context=" + context + ")"
+}

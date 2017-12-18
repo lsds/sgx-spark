@@ -19,7 +19,7 @@ abstract class SgxBroadcastProvider() extends Callable[Unit] with Logging {
 			val r = com.recvOne() match {
 				case req: MsgBroadcastGet[_] =>
 					logDebug("Request for: " + req.bc)
-					req.bc.value
+					Encrypt(req.bc.value)
 
 				case MsgBroadcastReqClose =>
 					stop(com)
