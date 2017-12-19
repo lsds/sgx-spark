@@ -21,16 +21,30 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.{SecurityManager, SparkConf}
 
+import java.io.PrintWriter
+import java.io.StringWriter
+
+import org.apache.spark.internal.Logging
 /**
  * A [[org.apache.spark.broadcast.Broadcast]] implementation that uses a BitTorrent-like
  * protocol to do a distributed transfer of the broadcasted data to the executors. Refer to
  * [[org.apache.spark.broadcast.TorrentBroadcast]] for more details.
  */
-private[spark] class TorrentBroadcastFactory extends BroadcastFactory {
+private[spark] class TorrentBroadcastFactory extends BroadcastFactory with Logging {
 
   override def initialize(isDriver: Boolean, conf: SparkConf, securityMgr: SecurityManager) { }
 
   override def newBroadcast[T: ClassTag](value_ : T, isLocal: Boolean, id: Long): Broadcast[T] = {
+	  try {
+	  	throw new RuntimeException(" new TorrentBroadcast: " + value_)
+	  } catch {
+	 	  case e: Exception => {
+	 	 	  val sw = new StringWriter
+				e.printStackTrace(new PrintWriter(sw))
+				logDebug(sw.toString)
+
+	 	  }
+	  }
     new TorrentBroadcast[T](value_, id)
   }
 

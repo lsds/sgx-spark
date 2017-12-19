@@ -70,12 +70,12 @@ case class SgxAction[U, T](
 case class SgxFct2[A, B, Z](
 	fct: (A, B) => Z,
 	a: Any,
-	b: Any) extends SgxExecuteInside[Encrypted] {
+	b: Any) extends SgxExecuteInside[Z] {
 
 	logDebug(this.toString())
 
 	def apply() = {
-		Await.result(Future { val x = fct(Decrypt[A](a), Decrypt[B](b)); logDebug("result: " + x); Encrypt(x) }, Duration.Inf)
+		Await.result(Future { fct(Decrypt[A](a), Decrypt[B](b)) }, Duration.Inf)
 	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + " (" + (if (a != null) a.getClass.getName else "") + "), b=" + b + " (" + (if (b != null) b.getClass.getName else "") + "))"
 }

@@ -33,6 +33,7 @@ import org.apache.spark.storage._
 import org.apache.spark.util.Utils
 import org.apache.spark.util.io.{ChunkedByteBuffer, ChunkedByteBufferOutputStream}
 
+import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
 
@@ -98,7 +99,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   override protected def getValue() = {
     logDebug("getValue("+this+")")
     val x = if (SgxSettings.IS_ENCLAVE) {
-	  SgxBroadcastEnclave.value(this)
+	  SgxBroadcastEnclave.value(this).asInstanceOf[Encrypted].decrypt[T]
     } else
     _value
     logDebug("getValue("+this+") = " + x)

@@ -224,8 +224,10 @@ class KMeans private (
     // Compute squared norms and cache them.
     val norms = data.map(Vectors.norm(_, 2.0))
     norms.persist()
-    val zippedData = data.zip(norms).map { case (v, norm) =>
+    val zippedData = data.zip(norms).map { case (v, norm) => {
+    	logDebug("zippedData ("+v+","+norm+")")
       new VectorWithNorm(v, norm)
+    }
     }
     val model = runAlgorithm(zippedData, instr)
     norms.unpersist()
@@ -358,7 +360,6 @@ class KMeans private (
     val sample = data.takeSample(false, 1, seed)
     // Could be empty if data is empty; fail with a better message early:
     require(sample.nonEmpty, s"No samples available from $data")
-    logDebug("available samples: " + sample)
 
     val centers = ArrayBuffer[VectorWithNorm]()
     var newCenters = Seq(sample.head.toDense)
@@ -370,12 +371,16 @@ class KMeans private (
     var step = 0
     val bcNewCentersList = ArrayBuffer[Broadcast[_]]()
     while (step < initializationSteps) {
+    	logDebug("xxx centers=" + centers + "; newCenters="+newCenters)
       val bcNewCenters = data.context.broadcast(newCenters)
       bcNewCentersList += bcNewCenters
       val preCosts = costs
       costs = data.zip(preCosts).map { case (point, cost) => {
+    	  logDebug("xxx map1 math.min A: ("+point+","+cost+")")
+    	  logDebug("xxx map1 math.min B: ("+bcNewCenters.value+")")
+    	  logDebug("xxx map1 math.min C: ("+KMeans.pointCost(bcNewCenters.value, point)+")")
         val x = math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
-        logDebug("xxx map1 math.min: " + x)
+        logDebug("xxx map1 math.min D: " + x)
         x
         }
       }.persist(StorageLevel.MEMORY_AND_DISK)
@@ -563,8 +568,10 @@ object KMeans extends Logging {
    * Returns the index of the closest center to the given point, as well as the squared distance.
    */
   private[mllib] def findClosest(
-      centers: TraversableOnce[VectorWithNorm],
+      centers2: TraversableOnce[VectorWithNorm],
       point: VectorWithNorm): (Int, Double) = {
+	val centers = if (SgxSettings.SGX_ENABLED) centers2.map(x => if (x.isInstanceOf[SgxVectorWithNorm]) x.asInstanceOf[SgxVectorWithNorm].decrypt[VectorWithNorm] else x)
+		else centers2
     var bestDistance = Double.PositiveInfinity
     var bestIndex = 0
     var i = 0
