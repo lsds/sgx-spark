@@ -33,12 +33,8 @@ import org.apache.spark.sgx.SDouble
  */
 class DoubleRDDFunctions(self: RDD[Double]) extends Logging with Serializable {
   /** Add up the elements in this RDD. */
-  def sum(): Double = self.withScope {
+  def sum(): SDouble = self.withScope {
     self.fold(0.0)(_ + _)
-  }
-
-  def sumS(): SDouble = self.withScope {
-    new SDouble(self.fold(0.0)(_ + _))
   }
 
   /**

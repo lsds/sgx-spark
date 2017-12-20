@@ -2137,10 +2137,6 @@ class SparkContext(config: SparkConf) extends Logging {
       resultHandler: (Int, U) => Unit)
   {
     val processFunc = (context: TaskContext, iter: Iterator[T]) =>
-//      iter match {
-//        case x: SgxFakeIterator[T] => new SgxAction(processPartition, x).executeInsideEnclave()
-//        case x: Iterator[T] => processPartition(x)
-//      }
     	processPartition(iter)
 
     runJob[T, U](rdd, processFunc, 0 until rdd.partitions.length, resultHandler)

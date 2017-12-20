@@ -371,20 +371,14 @@ class KMeans private (
     var step = 0
     val bcNewCentersList = ArrayBuffer[Broadcast[_]]()
     while (step < initializationSteps) {
-    	logDebug("xxx centers=" + centers + "; newCenters="+newCenters)
       val bcNewCenters = data.context.broadcast(newCenters)
       bcNewCentersList += bcNewCenters
       val preCosts = costs
       costs = data.zip(preCosts).map { case (point, cost) => {
-    	  logDebug("xxx map1 math.min A: ("+point+","+cost+")")
-    	  logDebug("xxx map1 math.min B: ("+bcNewCenters.value+")")
-    	  logDebug("xxx map1 math.min C: ("+KMeans.pointCost(bcNewCenters.value, point)+")")
-        val x = math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
-        logDebug("xxx map1 math.min D: " + x)
-        x
+        math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
         }
       }.persist(StorageLevel.MEMORY_AND_DISK)
-      val sumCosts = costs.sumS() // sgx: worker enclave. todo result returned in plain => encrypt or return handle
+      val sumCosts = costs.sum() // sgx: worker enclave. todo result returned in plain => encrypt or return handle
       logDebug("xxx sumCosts " + sumCosts)
 
       bcNewCenters.unpersist(blocking = false)
@@ -393,7 +387,7 @@ class KMeans private (
       val chosen = data.zip(costs).mapPartitionsWithIndex { (index, pointCosts) =>
     	  logDebug("xxx map2")
         val rand = new XORShiftRandom(seed ^ (step << 16) ^ index)
-        pointCosts.filter { case (_, c) => rand.nextDouble() < 2.0 * c * k / sumCosts.value }.map(_._1)
+        pointCosts.filter { case (_, c) => rand.nextDouble() < 2.0 * c * k / sumCosts }.map(_._1)
       }.collect() // sgx: map in worker enclave; collect outside
       logDebug("xxx chosen " + chosen.mkString("[",", ", "]"))
       newCenters = chosen.map(_.toDense)

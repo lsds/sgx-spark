@@ -48,6 +48,8 @@ import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, Poi
 
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxFold
+import org.apache.spark.sgx.SgxFct2
+import org.apache.spark.sgx.Decrypt
 import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.iterator.SgxFakeIterator
@@ -1149,27 +1151,25 @@ abstract class RDD[T: ClassTag](
     var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
     val cleanOp = sc.clean(op)
     val foldPartition = (iter: Iterator[T]) => {
-    	iter match {
-    		case x: SgxFakeIterator[T] => logDebug("xxx sum() iterator: fake " + x.id)
-    		case x: Iterator[T] => logDebug("xxx sum() iterator " + x.getClass.getName)
-    	}
-    	val (x,y) = iter.duplicate
-    	logDebug("xxx sum iterating over: ")
-    	x.foreach(t => logDebug("   xxx sum " + t + " ("+t.asInstanceOf[Encrypted].decrypt[Double]+")"))
-    	if (SgxSettings.SGX_ENABLED) {
-    		val id = SgxFactory.get.newSgxIteratorProvider[T](y, false).identifier
+    	val x = if (SgxSettings.SGX_ENABLED) {
+    		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
     		new SgxFold(zeroValue, cleanOp, id).executeInsideEnclave()
     	}
     	else
-    	y.fold(zeroValue)(cleanOp)
+    	iter.fold(zeroValue)(cleanOp)
+    	logDebug("xxx fold result = " + x + " ("+Decrypt[Double](x)+")")
+    	x
     }
     
     val mergeResult = (index: Int, taskResult: T) => {
-    	logDebug("xxx sum calculating job result")
-    	jobResult = op(jobResult, taskResult)
+    	logDebug("xxx sum calculating job result : ("+jobResult+","+taskResult+") ("+Decrypt(jobResult)+","+Decrypt(taskResult)+")")
+    	jobResult = if (SgxSettings.SGX_ENABLED)
+    	new SgxFct2(op, jobResult, taskResult).executeInsideEnclave()
+    	else
+    	op(jobResult, taskResult)
     }
     sc.runJob(this, foldPartition, mergeResult)
-    logDebug("xxx sum jobResult: " + jobResult)
+    logDebug("xxx sum jobResult: " + jobResult + " ("+Decrypt(jobResult)+")")
     jobResult
   }
 
