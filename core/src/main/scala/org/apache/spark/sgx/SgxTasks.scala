@@ -15,6 +15,10 @@ import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
+import org.apache.spark.deploy.SparkApplication
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+
 import java.lang.management.ManagementFactory
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
@@ -49,12 +53,22 @@ case class SgxOtherTask[U, T](
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", it=" + it + ")"
 }
 
+case class SgxFct0[Z](
+	fct: () => Z) extends SgxExecuteInside[Z] {
+
+	def apply() = {
+		Await.result(Future { fct() }, Duration.Inf)
+	}
+	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
+}
+
 case class SgxFct2[A, B, Z](
 	fct: (A, B) => Z,
 	a: A,
 	b: B) extends SgxExecuteInside[Z] {
 
 	def apply() = {
+		logDebug("apply()")
 		Await.result(Future { fct(a, b) }, Duration.Inf)
 	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
@@ -119,3 +133,30 @@ case class SgxTaskExternalSorterInsertAllCreateKey[K](
 
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
+
+case class SgxTaskCreateSparkContext[K](conf: SparkConf) extends SgxExecuteInside[Unit] {
+
+	def apply() = {
+		Await.result( Future {
+			SgxMain.sparkContext = new SparkContext(conf)
+			Unit
+		}, Duration.Inf)
+	}
+
+	override def toString = this.getClass.getSimpleName + "(conf=" + conf + ")"
+}
+
+
+//case class SgxTaskStartApp(
+//	app: SparkApplication,
+//	args: Array[String],
+//	conf: SparkConf) extends SgxExecuteInside[Unit] {
+//
+//	def apply() = {
+//		Await.result( Future {
+//			(partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1), pair._1)
+//		}, Duration.Inf)
+//	}
+//
+//	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
+//}

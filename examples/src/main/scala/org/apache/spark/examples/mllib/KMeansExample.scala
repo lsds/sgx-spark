@@ -24,25 +24,33 @@ import org.apache.spark.mllib.clustering.{KMeans, KMeansModel}
 import org.apache.spark.mllib.linalg.Vectors
 // $example off$
 
-object KMeansExample {
+import org.apache.spark.internal.Logging
+
+object KMeansExample extends Logging {
 
   def main(args: Array[String]) {
 
     val conf = new SparkConf().setAppName("KMeansExample")
+    logDebug("kmeans 2")
     val sc = new SparkContext(conf)
+	logDebug("kmeans 3")
 
     // $example on$
     // Load and parse the data
     val data = sc.textFile(args(0))
+    logDebug("kmeans 4")
     val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache()
+    logDebug("kmeans 5")
 
     // Cluster the data into two classes using KMeans
     val numClusters = 2
     val numIterations = 20
     val clusters = KMeans.train(parsedData, numClusters, numIterations)
+    logDebug("kmeans 6")
 
     // Evaluate clustering by computing Within Set Sum of Squared Errors
     val WSSSE = clusters.computeCost(parsedData)
+    logDebug("kmeans 7")
     println("Within Set Sum of Squared Errors = " + WSSSE)
 
     // Save and load model
