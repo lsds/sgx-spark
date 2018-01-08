@@ -31,9 +31,7 @@ object KMeansExample extends Logging {
   def main(args: Array[String]) {
 
     val conf = new SparkConf().setAppName("KMeansExample")
-    logDebug("kmeans 2")
     val sc = new SparkContext(conf)
-	logDebug("kmeans 3")
 
     // $example on$
     // Load and parse the data

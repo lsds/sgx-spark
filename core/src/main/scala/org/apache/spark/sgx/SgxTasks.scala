@@ -9,6 +9,7 @@ import scala.reflect.ClassTag
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.util.random.RandomSampler
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.Partitioner
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
@@ -134,29 +135,18 @@ case class SgxTaskExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
-case class SgxTaskCreateSparkContext[K](conf: SparkConf) extends SgxExecuteInside[Unit] {
-
-	def apply() = {
-		Await.result( Future {
-			SgxMain.sparkContext = new SparkContext(conf)
-			Unit
-		}, Duration.Inf)
-	}
-
+case class SgxTaskCreateSparkContext(conf: SparkConf) extends SgxExecuteInside[Unit] {
+	def apply() = Await.result( Future { SgxMain.sparkContext = new SparkContext(conf); Unit }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(conf=" + conf + ")"
 }
 
+case class SgxTaskSparkContextDefaultParallelism() extends SgxExecuteInside[Int] {
+	def apply() = Await.result( Future { SgxMain.sparkContext.defaultParallelism }, Duration.Inf)
+	override def toString = this.getClass.getSimpleName + "()"
+}
 
-//case class SgxTaskStartApp(
-//	app: SparkApplication,
-//	args: Array[String],
-//	conf: SparkConf) extends SgxExecuteInside[Unit] {
-//
-//	def apply() = {
-//		Await.result( Future {
-//			(partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1), pair._1)
-//		}, Duration.Inf)
-//	}
-//
-//	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
-//}
+case class SgxTaskSparkContextTextFile(path: String) extends SgxExecuteInside[RDD[String]] {
+	def apply() = Await.result( Future { SgxMain.sparkContext.textFile(path) }, Duration.Inf)
+	override def toString = this.getClass.getSimpleName + "(path=" + path + ")"
+}
+

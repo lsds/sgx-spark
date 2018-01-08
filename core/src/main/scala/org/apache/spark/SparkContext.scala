@@ -64,6 +64,8 @@ import org.apache.spark.util._
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxFct0
 import org.apache.spark.sgx.SgxTaskCreateSparkContext
+import org.apache.spark.sgx.SgxTaskSparkContextTextFile
+import org.apache.spark.sgx.SgxTaskSparkContextDefaultParallelism
 
 /**
  * Main entry point for Spark functionality. A SparkContext represents the connection to a Spark
@@ -77,23 +79,23 @@ import org.apache.spark.sgx.SgxTaskCreateSparkContext
  */
 class SparkContext(config: SparkConf) extends Logging {
   // The call site where this SparkContext was constructed.
-	logDebug("sparkcontext 1")
+
   private val creationSite: CallSite = Utils.getCallSite()
-logDebug("sparkcontext 2")
+
   private val outcall = SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE
   if (outcall) new SgxTaskCreateSparkContext(config).executeInsideEnclave()
-logDebug("sparkcontext 3")
+
   // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
   private val allowMultipleContexts: Boolean =
     config.getBoolean("spark.driver.allowMultipleContexts", false)
-logDebug("sparkcontext 4")
+
   // In order to prevent multiple SparkContexts from being active at the same time, mark this
   // context as having started construction.
   // NOTE: this must be placed at the beginning of the SparkContext constructor.
   SparkContext.markPartiallyConstructed(this, allowMultipleContexts)
-logDebug("sparkcontext 5")
+
   val startTime = System.currentTimeMillis()
-logDebug("sparkcontext 6")
+
   private[spark] val stopped: AtomicBoolean = new AtomicBoolean(false)
 
   private[spark] def assertNotStopped(): Unit = {
@@ -265,13 +267,13 @@ logDebug("sparkcontext 6")
       listenerBus: LiveListenerBus): SparkEnv = {
     SparkEnv.createDriverEnv(conf, isLocal, listenerBus, SparkContext.numDriverCores(master))
   }
-logDebug("sparkcontext 10")
+
   private[spark] def env: SparkEnv = _env
 
   // Used to store a URL for each static file/jar together with the file's local timestamp
   private[spark] val addedFiles = new ConcurrentHashMap[String, Long]().asScala
   private[spark] val addedJars = new ConcurrentHashMap[String, Long]().asScala
-logDebug("sparkcontext 20")
+
   // Keeps track of all persisted RDDs
   private[spark] val persistentRdds = {
     val map: ConcurrentMap[Int, RDD[_]] = new MapMaker().weakValues().makeMap[Int, RDD[_]]()
@@ -280,7 +282,7 @@ logDebug("sparkcontext 20")
   private[spark] def jobProgressListener: JobProgressListener = _jobProgressListener
 
   def statusTracker: SparkStatusTracker = _statusTracker
-logDebug("sparkcontext 21")
+
   private[spark] def progressBar: Option[ConsoleProgressBar] = _progressBar
 
   private[spark] def ui: Option[SparkUI] = _ui
@@ -299,18 +301,18 @@ logDebug("sparkcontext 21")
 
   // Environment variables to pass to our executors.
   private[spark] val executorEnvs = HashMap[String, String]()
-logDebug("sparkcontext 23")
+
   // Set SPARK_USER for user who is running SparkContext.
   val sparkUser = if (!outcall) Utils.getCurrentUserName() else new SgxFct0(() => Utils.getCurrentUserName()).executeInsideEnclave()
-logDebug("sparkcontext 24: " + sparkUser)
+
   private[spark] def schedulerBackend: SchedulerBackend = _schedulerBackend
-logDebug("sparkcontext 25")
+
   private[spark] def taskScheduler: TaskScheduler = _taskScheduler
-  logDebug("sparkcontext 26")
+
   private[spark] def taskScheduler_=(ts: TaskScheduler): Unit = {
     _taskScheduler = ts
   }
-logDebug("sparkcontext 27")
+
   private[spark] def dagScheduler: DAGScheduler = _dagScheduler
   private[spark] def dagScheduler_=(ds: DAGScheduler): Unit = {
     _dagScheduler = ds
@@ -329,7 +331,7 @@ logDebug("sparkcontext 27")
   def applicationAttemptId: Option[String] = _applicationAttemptId
 
   private[spark] def eventLogger: Option[EventLoggingListener] = _eventLogger
-logDebug("sparkcontext 25")
+
   private[spark] def executorAllocationManager: Option[ExecutorAllocationManager] =
     _executorAllocationManager
 
@@ -346,7 +348,7 @@ logDebug("sparkcontext 25")
     }
     override protected def initialValue(): Properties = new Properties()
   }
-logDebug("sparkcontext 26")
+
   /* ------------------------------------------------------------------------------------- *
    | Initialization. This code initializes the context in a manner that is exception-safe. |
    | All internal fields holding state are initialized here, and any error prompts the     |
@@ -608,7 +610,7 @@ logDebug("sparkcontext 26")
         throw e
       }
   }
-logDebug("sparkcontext 12")
+
   /**
    * Called by the web UI to obtain executor thread dumps.  This method may be expensive.
    * Logs an error and returns None if we failed to obtain a thread dump, which could occur due
@@ -834,6 +836,14 @@ logDebug("sparkcontext 12")
     new ParallelCollectionRDD[T](this, seq.map(_._1), math.max(seq.size, 1), indexToPrefs)
   }
 
+  def xxx(): Unit = {
+	  logDebug("sparkcontext 3")
+  }
+
+  def yyy(): Unit = withScope {
+	  logDebug("sparkcontext 4")
+  }
+
   /**
    * Read a text file from HDFS, a local file system (available on all nodes), or any
    * Hadoop-supported file system URI, and return it as an RDD of Strings.
@@ -844,8 +854,9 @@ logDebug("sparkcontext 12")
   def textFile(
       path: String,
       minPartitions: Int = defaultMinPartitions): RDD[String] = withScope {
+	if (outcall) return new SgxTaskSparkContextTextFile(path).executeInsideEnclave()
     assertNotStopped()
-    if (outcall) throw new RuntimeException("NOT IMPLEMENTED")
+    logDebug("sparkcontext 2")
     hadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text],
       minPartitions).map(pair => pair._2.toString).setName(path)
   }
@@ -1675,7 +1686,7 @@ logDebug("sparkcontext 12")
         false
     }
   }
-logDebug("sparkcontext 7")
+
   /**
    * :: DeveloperApi ::
    * Request that the cluster manager kill the specified executor.
@@ -2345,6 +2356,7 @@ logDebug("sparkcontext 7")
 
   /** Default level of parallelism to use when not given by user (e.g. parallelize and makeRDD). */
   def defaultParallelism: Int = {
+	if (outcall) return new SgxTaskSparkContextDefaultParallelism().executeInsideEnclave()
     assertNotStopped()
     taskScheduler.defaultParallelism
   }
@@ -2417,7 +2429,7 @@ logDebug("sparkcontext 7")
       listenerBus.post(environmentUpdate)
     }
   }
-logDebug("sparkcontext 9")
+
   // In order to prevent multiple SparkContexts from being active at the same time, mark this
   // context as having finished construction.
   // NOTE: this must be placed at the end of the SparkContext constructor.
