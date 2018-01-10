@@ -2,20 +2,28 @@ package org.apache.spark.sgx
 
 import gnu.trove.map.hash.TLongObjectHashMap
 
-class IdentifierManager[T,F](c: Long => F) {
+import org.apache.spark.internal.Logging
+
+class IdentifierManager[T]() extends Logging {
 	private val identifiers = new TLongObjectHashMap[T]()
 
-	def create(obj: T): F = this.synchronized {
-		val id = scala.util.Random.nextLong
+	def put(id: Long, obj: T): Unit = this.synchronized {
+//		val id = scala.util.Random.nextLong
+//		identifiers.put(id, obj)
+//		c(id)
+		logDebug("put("+id+","+obj+")")
 		identifiers.put(id, obj)
-		c(id)
 	}
 
 	def get(id: Long): T = this.synchronized {
-		identifiers.get(id)
+		logDebug("get("+id+")")
+		val x = identifiers.get(id)
+		logDebug("get("+id+") = " + x)
+		x
 	}
 
 	def remove[X](id: Long): X = this.synchronized {
+		logDebug("remove("+id+")")
 		identifiers.remove(id).asInstanceOf[X]
 	}
 }

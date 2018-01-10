@@ -43,12 +43,13 @@ import org.apache.spark.partial.PartialResult
 import org.apache.spark.storage.{RDDBlockId, StorageLevel}
 import org.apache.spark.util.{BoundedPriorityQueue, Utils}
 import org.apache.spark.util.collection.{OpenHashMap, Utils => collectionUtils}
-import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, PoissonSampler,
-  SamplingUtils}
+import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, PoissonSampler, SamplingUtils}
 
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxTaskRDDPartitions
+import org.apache.spark.sgx.SgxTaskRDDMap
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
@@ -84,6 +85,8 @@ abstract class RDD[T: ClassTag](
     @transient private var deps: Seq[Dependency[_]]
   ) extends Serializable with Logging {
 
+   var sgxId: Int = _
+
   if (classOf[RDD[_]].isAssignableFrom(elementClassTag.runtimeClass)) {
     // This is a warning instead of an exception in order to avoid breaking user programs that
     // might have defined nested RDDs without running jobs with them.
@@ -91,7 +94,8 @@ abstract class RDD[T: ClassTag](
   }
 
   private def sc: SparkContext = {
-    if (_sc == null) {
+	  if (_sc == null) {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SparkContext.instance
       throw new SparkException(
         "This RDD lacks a SparkContext. It could happen in the following cases: \n(1) RDD " +
         "transformations and actions are NOT invoked by the driver, but inside of other " +
@@ -152,7 +156,11 @@ abstract class RDD[T: ClassTag](
   def sparkContext: SparkContext = sc
 
   /** A unique ID for this RDD (within its SparkContext). */
-  val id: Int = sc.newRddId()
+  val id: Int = {
+	  val x = sc.newRddId()
+	  logDebug("Creating RDD " + x)
+	  x
+  }
 
   /** A friendly name for this RDD */
   @transient var name: String = null
@@ -253,6 +261,8 @@ abstract class RDD[T: ClassTag](
    * RDD is checkpointed or not.
    */
   final def partitions: Array[Partition] = {
+	  logDebug("partitions")
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDPartitions(this.id).executeInsideEnclave()
     checkpointRDD.map(_.partitions).getOrElse {
       if (partitions_ == null) {
         partitions_ = getPartitions
@@ -373,6 +383,8 @@ abstract class RDD[T: ClassTag](
    * Return a new RDD by applying a function to all elements of this RDD.
    */
   def map[U: ClassTag](f: T => U): RDD[U] = withScope {
+	logDebug("map("+this.id+", "+f+"): " + f.getClass.getName)
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDMap(this.id, f).executeInsideEnclave()
     val cleanF = sc.clean(f)
     if (SgxSettings.SGX_ENABLED)
     new MapPartitionsRDDSgx[U, T](this, (pid, iter) => iter.map(cleanF))
@@ -1148,7 +1160,7 @@ abstract class RDD[T: ClassTag](
     	}
     	else
     	iter.fold(zeroValue)(cleanOp)
-    	
+
     val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
     sc.runJob(this, foldPartition, mergeResult)
     jobResult

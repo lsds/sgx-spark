@@ -26,6 +26,10 @@ import org.apache.spark.mllib.linalg.Vectors
 
 import org.apache.spark.internal.Logging
 
+object Foo extends Serializable {
+	def bar(s: String) = s
+}
+
 object KMeansExample extends Logging {
 
   def main(args: Array[String]) {
@@ -36,27 +40,29 @@ object KMeansExample extends Logging {
     // $example on$
     // Load and parse the data
     val data = sc.textFile(args(0))
-    logDebug("kmeans 4")
-    val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache()
-    logDebug("kmeans 5")
-
-    // Cluster the data into two classes using KMeans
-    val numClusters = 2
-    val numIterations = 20
-    val clusters = KMeans.train(parsedData, numClusters, numIterations)
-    logDebug("kmeans 6")
-
-    // Evaluate clustering by computing Within Set Sum of Squared Errors
-    val WSSSE = clusters.computeCost(parsedData)
-    logDebug("kmeans 7")
-    println("Within Set Sum of Squared Errors = " + WSSSE)
-
-    // Save and load model
-    clusters.save(sc, args(1))
-    // val sameModel = KMeansModel.load(sc, "target/org/apache/spark/KMeansExample/KMeansModel")
-    // $example off$
-
-    sc.stop()
+    logDebug("kmeans 4: " + data)
+//    val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache().count()
+//    val x = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).count()
+    val x = data.map(s => s).count()
+    logDebug("kmeans 5: " + x)
+//
+//    // Cluster the data into two classes using KMeans
+//    val numClusters = 2
+//    val numIterations = 20
+//    val clusters = KMeans.train(parsedData, numClusters, numIterations)
+//    logDebug("kmeans 6")
+//
+//    // Evaluate clustering by computing Within Set Sum of Squared Errors
+//    val WSSSE = clusters.computeCost(parsedData)
+//    logDebug("kmeans 7")
+//    println("Within Set Sum of Squared Errors = " + WSSSE)
+//
+//    // Save and load model
+//    clusters.save(sc, args(1))
+//    // val sameModel = KMeansModel.load(sc, "target/org/apache/spark/KMeansExample/KMeansModel")
+//    // $example off$
+//
+//    sc.stop()
   }
 }
 // scalastyle:on println

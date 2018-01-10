@@ -19,13 +19,17 @@ import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.deploy.SparkApplication
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
+import org.apache.spark.TaskContext
+import org.apache.spark.Partition
 
 import java.lang.management.ManagementFactory
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
 	def executeInsideEnclave(): R = {
 		logDebug(this + ".executeInsideEnclave()");
-		ClientHandle.sendRecv[R](this)
+		val x=ClientHandle.sendRecv[R](this)
+		logDebug(this + ".executeInsideEnclave() returning");
+		x
 	}
 
 	def apply(): R
@@ -38,7 +42,10 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	extends SgxExecuteInside[Iterator[U]] {
 
 	def apply() = {
-		SgxMain.fakeIterators.create(Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id)) }, Duration.Inf)).asInstanceOf[Iterator[U]]
+		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		val g = Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id)) }, Duration.Inf)
+		SgxMain.fakeIterators.put(f.id, g)
+		f
 	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", id=" + id + ")"
 }
@@ -49,17 +56,16 @@ case class SgxOtherTask[U, T](
 	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
 	def apply() = {
-		SgxMain.fakeIterators.create(Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)).asInstanceOf[Iterator[U]]
+		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		val g = Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
+		SgxMain.fakeIterators.put(f.id, g)
+		f
 	}
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", it=" + it + ")"
 }
 
-case class SgxFct0[Z](
-	fct: () => Z) extends SgxExecuteInside[Z] {
-
-	def apply() = {
-		Await.result(Future { fct() }, Duration.Inf)
-	}
+case class SgxFct0[Z](fct: () => Z) extends SgxExecuteInside[Z] {
+	def apply() = Await.result(Future { fct() }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
 }
 
@@ -68,10 +74,7 @@ case class SgxFct2[A, B, Z](
 	a: A,
 	b: B) extends SgxExecuteInside[Z] {
 
-	def apply() = {
-		logDebug("apply()")
-		Await.result(Future { fct(a, b) }, Duration.Inf)
-	}
+	def apply() = Await.result(Future { fct(a, b) }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
@@ -92,9 +95,11 @@ case class SgxComputeTaskZippedPartitionsRDD2[A, B, Z](
 	b: SgxFakeIterator[B]) extends SgxExecuteInside[Iterator[Z]] {
 
 	def apply() = {
-		SgxMain.fakeIterators.create(Await.result( Future {
+		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		SgxMain.fakeIterators.put(f.id, Await.result( Future {
 		  fct(SgxMain.fakeIterators.remove[Iterator[A]](a.id), SgxMain.fakeIterators.remove[Iterator[B]](b.id))
 		}, Duration.Inf)).asInstanceOf[Iterator[Z]]
+		f
 	}
 
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
@@ -105,32 +110,23 @@ case class SgxComputeTaskPartitionwiseSampledRDD[T, U](
 	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
 	def apply() = {
-		SgxMain.fakeIterators.create(Await.result( Future {
+		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		SgxMain.fakeIterators.put(f.id, Await.result( Future {
 		  sampler.sample(SgxMain.fakeIterators.remove[Iterator[T]](it.id))
 		}, Duration.Inf)).asInstanceOf[Iterator[U]]
+		f
 	}
 
 	override def toString = this.getClass.getSimpleName + "(sampler=" + sampler + ", it=" + it + ")"
 }
 
-//case class SgxTaskGetPartitionSgxProduct2Key(
-//	partitioner: Partitioner,
-//	pair: Product2[Any,Any]) extends SgxExecuteInside[Int] {
-//
-//	def apply() = Await.result( Future { partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1) }, Duration.Inf)
-//
-//	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
-//}
-
 case class SgxTaskExternalSorterInsertAllCreateKey[K](
 	partitioner: Partitioner,
 	pair: Product2[K,Any]) extends SgxExecuteInside[(Int,K)] {
 
-	def apply() = {
-		Await.result( Future {
+	def apply() = Await.result( Future {
 			(partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1), pair._1)
 		}, Duration.Inf)
-	}
 
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
@@ -146,7 +142,70 @@ case class SgxTaskSparkContextDefaultParallelism() extends SgxExecuteInside[Int]
 }
 
 case class SgxTaskSparkContextTextFile(path: String) extends SgxExecuteInside[RDD[String]] {
-	def apply() = Await.result( Future { SgxMain.sparkContext.textFile(path) }, Duration.Inf)
+
+	def apply() = Await.result( Future {
+		val rdd = SgxMain.sparkContext.textFile(path)
+		SgxMain.rddIds.put(rdd.id, rdd)
+		rdd
+	}, Duration.Inf)
+
 	override def toString = this.getClass.getSimpleName + "(path=" + path + ")"
+}
+
+case class SgxTaskSparkContextStop() extends SgxExecuteInside[Unit] {
+
+	def apply() = Await.result( Future {
+		SgxMain.sparkContext.stop()
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "()"
+}
+
+case class SgxTaskSparkContextNewRddId() extends SgxExecuteInside[Int] {
+
+	def apply() = Await.result( Future {
+		SgxMain.sparkContext.newRddId()
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "()"
+}
+
+case class SgxTaskRDDPartitions[T](rddId: Int) extends SgxExecuteInside[Array[Partition]] {
+logDebug("create SgxTaskRDDPartitions")
+	def apply() = Await.result( Future {
+		logDebug("apply SgxTaskRDDPartitions: " + SgxMain.rddIds)
+		logDebug("apply SgxTaskRDDPartitions: " + SgxMain.rddIds.get(rddId))
+		logDebug("apply SgxTaskRDDPartitions: " + SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]])
+		logDebug("apply SgxTaskRDDPartitions: " + SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].partitions)
+		val x = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].partitions
+		logDebug("apply SgxTaskRDDPartitions = " + x)
+		x
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
+case class SgxTaskRDDMap[T,U:ClassTag](rddId: Int, f: T => U) extends SgxExecuteInside[RDD[U]] {
+
+	def apply() = Await.result( Future {
+		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].map(f)
+		SgxMain.rddIds.put(x.id, r)
+		r
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
+case class SgxTaskSparkContextRunJob[T, U: ClassTag](
+	rddId: Int,
+    func: (TaskContext, Iterator[T]) => U,
+    partitions: Seq[Int],
+    resultHandler: (Int, U) => Unit) extends SgxExecuteInside[Unit] {
+
+	def apply() = Await.result( Future {
+		SgxMain.sparkContext.runJob(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]], func, partitions, resultHandler)
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "()"
 }
 

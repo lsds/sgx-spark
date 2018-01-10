@@ -585,25 +585,32 @@ class DAGScheduler(
       resultHandler: (Int, U) => Unit,
       properties: Properties): JobWaiter[U] = {
     // Check to make sure we are not launching a task on a partition that does not exist.
+	  logDebug("submitJob 1")
     val maxPartitions = rdd.partitions.length
+    logDebug("submitJob 2")
     partitions.find(p => p >= maxPartitions || p < 0).foreach { p =>
       throw new IllegalArgumentException(
         "Attempting to access a non-existent partition: " + p + ". " +
           "Total number of partitions: " + maxPartitions)
     }
-
+logDebug("submitJob 3")
     val jobId = nextJobId.getAndIncrement()
+    logDebug("submitJob 4")
     if (partitions.size == 0) {
       // Return immediately if the job is running 0 tasks
       return new JobWaiter[U](this, jobId, 0, resultHandler)
     }
+logDebug("submitJob 5")
 
     assert(partitions.size > 0)
     val func2 = func.asInstanceOf[(TaskContext, Iterator[_]) => _]
+logDebug("submitJob 6")
     val waiter = new JobWaiter(this, jobId, partitions.size, resultHandler)
+logDebug("submitJob 7")
     eventProcessLoop.post(JobSubmitted(
       jobId, rdd, func2, partitions.toArray, callSite, waiter,
       SerializationUtils.clone(properties)))
+      logDebug("submitJob 8")
     waiter
   }
 
@@ -629,8 +636,11 @@ class DAGScheduler(
       resultHandler: (Int, U) => Unit,
       properties: Properties): Unit = {
     val start = System.nanoTime
+    logDebug("runJob A")
     val waiter = submitJob(rdd, func, partitions, callSite, resultHandler, properties)
+    logDebug("runJob B")
     ThreadUtils.awaitReady(waiter.completionFuture, Duration.Inf)
+    logDebug("runJob C")
     waiter.completionFuture.value.get match {
       case scala.util.Success(_) =>
         logInfo("Job %d finished: %s, took %f s".format
@@ -643,6 +653,7 @@ class DAGScheduler(
         exception.setStackTrace(exception.getStackTrace ++ callerStackTrace)
         throw exception
     }
+    logDebug("runJob D")
   }
 
   /**

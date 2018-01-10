@@ -5,7 +5,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
+import scala.reflect.{classTag, ClassTag}
 
 object Completor extends ExecutorCompletionService[Unit](Executors.newCachedThreadPool()) {}
 
@@ -14,7 +16,8 @@ class Waiter() extends Callable[Unit] {
 }
 
 object SgxMain extends Callable[Unit] with Logging {
-	val fakeIterators = new IdentifierManager[Iterator[Any],SgxFakeIterator[Any]](SgxFakeIterator(_))
+	val fakeIterators = new IdentifierManager[Iterator[Any]]()
+	val rddIds = new IdentifierManager[Any]()
 	var sparkContext: SparkContext = _
 
 	def main(args: Array[String]): Unit = {
@@ -25,4 +28,3 @@ object SgxMain extends Callable[Unit] with Logging {
 
 	def call(): Unit = main(null)
 }
-

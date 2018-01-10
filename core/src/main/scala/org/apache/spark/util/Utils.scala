@@ -1816,11 +1816,13 @@ private[spark] object Utils extends Logging {
    * in the current version of Scala.
    */
   def getIteratorSize[T](iterator: Iterator[T]): Long = {
+	  logDebug("getIteratorSize")
     var count = 0L
     while (iterator.hasNext) {
       count += 1L
       iterator.next()
     }
+	   logDebug("getIteratorSize = " + count)
     count
   }
 

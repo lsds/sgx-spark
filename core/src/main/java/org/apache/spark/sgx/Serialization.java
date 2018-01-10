@@ -36,14 +36,14 @@ class DefaultSerialization {
 	}
 }
 
-class FSTSerialization {
-	private static FSTConfiguration conf = FSTConfiguration.createDefaultConfiguration();
-	
-	public static byte[] serialize(Object o) {
-		return conf.asByteArray(o);
-	}
-
-	public static Object deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
-		return conf.asObject(bytes);
-	}
-}
+//class FSTSerialization {
+//	private static FSTConfiguration conf = FSTConfiguration.createDefaultConfiguration();
+//	
+//	public static byte[] serialize(Object o) {
+//		return conf.asByteArray(o);
+//	}
+//
+//	public static Object deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
+//		return conf.asObject(bytes);
+//	}
+//}

@@ -27,7 +27,9 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 					(list.map { n => n.asInstanceOf[T] }).asJava
 				}
 			})
+
 		}
+		logDebug("new objects: " + consumer.objects)
 		consumer.Lock.synchronized {
 			consumer.fillingFuture = null
 		}

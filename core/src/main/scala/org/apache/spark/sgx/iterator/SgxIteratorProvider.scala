@@ -35,7 +35,7 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean)
 				case num: MsgIteratorReqNextN => {
 					val q = Queue[T]()
 					if (delegate.isInstanceOf[NextIterator[T]] && delegate.hasNext) {
-						// No Prefetching here. Calling next() multiple times on NextIterator and
+						// No prefetching here. Calling next() multiple times on NextIterator and
 						// results in all elements being the same :/)
 						q += delegate.next
 					} else {
@@ -44,7 +44,6 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean)
 						}
 					}
 					val qe = if (doEncrypt) q.map { n => Encrypt(n) } else q
-					logDebug("Sending: " + q + " (" + qe + ")")
 					com.sendOne(qe)
 				}
 				case MsgIteratorReqClose =>

@@ -29,15 +29,22 @@ object Encrypt {
 private object Base64StringEncrypt extends Logging {
 	def apply(plain: Any): Encrypted = {
 		logDebug("Encrypting: " + plain)
-		plain match {
-			case e: Encryptable => e.encrypt
-			case t: Tuple2[_,_] => new EncryptedTuple2(Encrypt(t._1), Encrypt(t._2))
+		val x = plain match {
+			case e: Encryptable =>
+				logDebug("Encryptable")
+				e.encrypt
+			case t: Tuple2[_,_] =>
+				logDebug("Tuple2")
+				new EncryptedTuple2(Encrypt(t._1), Encrypt(t._2))
 			case p: Any =>
+				logDebug("EncryptedObj")
 				new EncryptedObj[String](
 					Base64.getEncoder.encodeToString(Serialization.serialize(plain)),
 					(x: String) => Serialization.deserialize(Base64.getDecoder.decode(x))
 				)
 		}
+		logDebug("Encryption result: " + x)
+		x
 	}
 }
 

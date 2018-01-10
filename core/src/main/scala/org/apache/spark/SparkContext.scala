@@ -66,6 +66,9 @@ import org.apache.spark.sgx.SgxFct0
 import org.apache.spark.sgx.SgxTaskCreateSparkContext
 import org.apache.spark.sgx.SgxTaskSparkContextTextFile
 import org.apache.spark.sgx.SgxTaskSparkContextDefaultParallelism
+import org.apache.spark.sgx.SgxTaskSparkContextStop
+import org.apache.spark.sgx.SgxTaskSparkContextRunJob
+import org.apache.spark.sgx.SgxTaskSparkContextNewRddId
 
 /**
  * Main entry point for Spark functionality. A SparkContext represents the connection to a Spark
@@ -83,7 +86,10 @@ class SparkContext(config: SparkConf) extends Logging {
   private val creationSite: CallSite = Utils.getCallSite()
 
   private val outcall = SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE
-  if (outcall) new SgxTaskCreateSparkContext(config).executeInsideEnclave()
+  if (outcall) {
+	  new SgxTaskCreateSparkContext(config).executeInsideEnclave()
+	  SparkContext.instance = this
+  }
 
   // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
   private val allowMultipleContexts: Boolean =
@@ -836,14 +842,6 @@ class SparkContext(config: SparkConf) extends Logging {
     new ParallelCollectionRDD[T](this, seq.map(_._1), math.max(seq.size, 1), indexToPrefs)
   }
 
-  def xxx(): Unit = {
-	  logDebug("sparkcontext 3")
-  }
-
-  def yyy(): Unit = withScope {
-	  logDebug("sparkcontext 4")
-  }
-
   /**
    * Read a text file from HDFS, a local file system (available on all nodes), or any
    * Hadoop-supported file system URI, and return it as an RDD of Strings.
@@ -856,7 +854,6 @@ class SparkContext(config: SparkConf) extends Logging {
       minPartitions: Int = defaultMinPartitions): RDD[String] = withScope {
 	if (outcall) return new SgxTaskSparkContextTextFile(path).executeInsideEnclave()
     assertNotStopped()
-    logDebug("sparkcontext 2")
     hadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text],
       minPartitions).map(pair => pair._2.toString).setName(path)
   }
@@ -1913,6 +1910,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * Shut down the SparkContext.
    */
   def stop(): Unit = {
+	if (outcall) return new SgxTaskSparkContextStop().executeInsideEnclave()
     if (LiveListenerBus.withinListenerThread.value) {
       throw new SparkException(s"Cannot stop SparkContext within listener bus thread.")
     }
@@ -2049,6 +2047,7 @@ class SparkContext(config: SparkConf) extends Logging {
       func: (TaskContext, Iterator[T]) => U,
       partitions: Seq[Int],
       resultHandler: (Int, U) => Unit): Unit = {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextRunJob(rdd.id, func, partitions, resultHandler).executeInsideEnclave()
     if (stopped.get()) {
       throw new IllegalStateException("SparkContext has been shutdown")
     }
@@ -2058,9 +2057,13 @@ class SparkContext(config: SparkConf) extends Logging {
     if (conf.getBoolean("spark.logLineage", false)) {
       logInfo("RDD's recursive dependencies:\n" + rdd.toDebugString)
     }
+    logDebug("runJob 1: ")
     dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, resultHandler, localProperties.get)
+    logDebug("runJob 2")
     progressBar.foreach(_.finishAll())
+    logDebug("runJob 3")
     rdd.doCheckpoint()
+    logDebug("runJob 4")
   }
 
   /**
@@ -2375,7 +2378,10 @@ class SparkContext(config: SparkConf) extends Logging {
   private val nextRddId = new AtomicInteger(0)
 
   /** Register a new RDD, returning its RDD ID */
-  private[spark] def newRddId(): Int = nextRddId.getAndIncrement()
+  private[spark] def newRddId(): Int = {
+	  if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskSparkContextNewRddId().executeInsideEnclave()
+	  else nextRddId.getAndIncrement()
+  }
 
   /**
    * Registers listeners specified in spark.extraListeners, then starts the listener bus.
@@ -2441,6 +2447,9 @@ class SparkContext(config: SparkConf) extends Logging {
  * various Spark features.
  */
 object SparkContext extends Logging {
+
+  var instance: SparkContext = _
+
   private val VALID_LOG_LEVELS =
     Set("ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN")
 
