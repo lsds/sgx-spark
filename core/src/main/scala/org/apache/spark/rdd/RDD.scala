@@ -50,6 +50,7 @@ import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxTaskRDDPartitions
 import org.apache.spark.sgx.SgxTaskRDDMap
+import org.apache.spark.sgx.SgxTaskRDDPersist
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
@@ -199,6 +200,7 @@ abstract class RDD[T: ClassTag](
    * have a storage level set yet. Local checkpointing is an exception.
    */
   def persist(newLevel: StorageLevel): this.type = {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDPersist(this.id, newLevel).executeInsideEnclave().asInstanceOf[RDD.this.type]
     if (isLocallyCheckpointed) {
       // This means the user previously called localCheckpoint(), which should have already
       // marked this RDD for persisting. Here we should override the old storage level with
@@ -261,7 +263,6 @@ abstract class RDD[T: ClassTag](
    * RDD is checkpointed or not.
    */
   final def partitions: Array[Partition] = {
-	  logDebug("partitions")
 	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDPartitions(this.id).executeInsideEnclave()
     checkpointRDD.map(_.partitions).getOrElse {
       if (partitions_ == null) {

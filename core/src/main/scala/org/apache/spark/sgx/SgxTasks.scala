@@ -21,6 +21,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.TaskContext
 import org.apache.spark.Partition
+import org.apache.spark.storage.StorageLevel
 
 import java.lang.management.ManagementFactory
 
@@ -189,7 +190,18 @@ case class SgxTaskRDDMap[T,U:ClassTag](rddId: Int, f: T => U) extends SgxExecute
 
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].map(f)
-		SgxMain.rddIds.put(x.id, r)
+		SgxMain.rddIds.put(r.id, r)
+		r
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
+case class SgxTaskRDDPersist[T](rddId: Int, level: StorageLevel) extends SgxExecuteInside[RDD[T]] {
+
+	def apply() = Await.result( Future {
+		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].persist(level)
+		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
 
