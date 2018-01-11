@@ -51,6 +51,9 @@ import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxTaskRDDPartitions
 import org.apache.spark.sgx.SgxTaskRDDMap
 import org.apache.spark.sgx.SgxTaskRDDPersist
+import org.apache.spark.sgx.SgxTaskRDDUnpersist
+import org.apache.spark.sgx.SgxTaskRDDZip
+import org.apache.spark.sgx.SgxTaskRDDTakeSample
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
@@ -228,6 +231,10 @@ abstract class RDD[T: ClassTag](
    * @return This RDD.
    */
   def unpersist(blocking: Boolean = true): this.type = {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+		new SgxTaskRDDUnpersist(this.id).executeInsideEnclave()
+		return this
+	}
     logInfo("Removing RDD " + id + " from persistence list")
     sc.unpersistRDD(id, blocking)
     storageLevel = StorageLevel.NONE
@@ -592,37 +599,54 @@ abstract class RDD[T: ClassTag](
       withReplacement: Boolean,
       num: Int,
       seed: Long = Utils.random.nextLong): Array[T] = withScope {
+	  logDebug("takeSample 0")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDTakeSample[T](this.id, withReplacement, num, seed).executeInsideEnclave()
     val numStDev = 10.0
-
+logDebug("takeSample 1")
     require(num >= 0, "Negative number of elements requested")
     require(num <= (Int.MaxValue - (numStDev * math.sqrt(Int.MaxValue)).toInt),
       "Cannot support a sample size > Int.MaxValue - " +
       s"$numStDev * math.sqrt(Int.MaxValue)")
-
+logDebug("takeSample 2")
     if (num == 0) {
+    	logDebug("takeSample 3")
       new Array[T](0)
     } else {
+    	logDebug("takeSample 4")
       val initialCount = this.count()
       if (initialCount == 0) {
+    	  logDebug("takeSample 5")
         new Array[T](0)
       } else {
+    	  logDebug("takeSample 6")
         val rand = new Random(seed)
+    	   logDebug("takeSample 7")
         if (!withReplacement && num >= initialCount) {
-          Utils.randomizeInPlace(this.collect(), rand)
+        	logDebug("takeSample 8")
+          val f = Utils.randomizeInPlace(this.collect(), rand)
+          logDebug("takeSample 9")
+          f
         } else {
+        	logDebug("takeSample 10")
           val fraction = SamplingUtils.computeFractionForSampleSize(num, initialCount,
             withReplacement)
+            logDebug("takeSample 11")
           var samples = this.sample(withReplacement, fraction, rand.nextInt()).collect()
-
+logDebug("takeSample 12")
           // If the first sample didn't turn out large enough, keep trying to take samples;
           // this shouldn't happen often because we use a big multiplier for the initial size
           var numIters = 0
+          logDebug("takeSample 13")
           while (samples.length < num) {
             logWarning(s"Needed to re-sample due to insufficient sample size. Repeat #$numIters")
             samples = this.sample(withReplacement, fraction, rand.nextInt()).collect()
             numIters += 1
+            logDebug("takeSample 14")
           }
-          Utils.randomizeInPlace(samples, rand).take(num)
+        	logDebug("takeSample 15")
+          val g = Utils.randomizeInPlace(samples, rand).take(num)
+          logDebug("takeSample 16")
+          g
         }
       }
     }
@@ -916,6 +940,7 @@ abstract class RDD[T: ClassTag](
    * a map on the other).
    */
   def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDZip[T,U](this.id, other.id).executeInsideEnclave()
     zipPartitions(other, preservesPartitioning = false) { (thisIter, otherIter) =>
       new Iterator[(T, U)] with Serializable {
         def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
@@ -938,6 +963,7 @@ abstract class RDD[T: ClassTag](
   def zipPartitions[B: ClassTag, V: ClassTag]
       (rdd2: RDD[B], preservesPartitioning: Boolean)
       (f: (Iterator[T], Iterator[B]) => Iterator[V]): RDD[V] = withScope {
+	  logDebug("zipPartitions")
 	if (SgxSettings.SGX_ENABLED)
 	new ZippedPartitionsRDD2Sgx(sc, sc.clean(f), this, rdd2, preservesPartitioning)
 	else

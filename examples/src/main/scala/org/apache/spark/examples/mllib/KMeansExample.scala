@@ -40,16 +40,14 @@ object KMeansExample extends Logging {
     // $example on$
     // Load and parse the data
     val data = sc.textFile(args(0))
-    logDebug("kmeans 4: " + data)
-//    val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache().count()
-    val x = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache()
-    logDebug("kmeans 5: " + x)
-//
-//    // Cluster the data into two classes using KMeans
-//    val numClusters = 2
-//    val numIterations = 20
-//    val clusters = KMeans.train(parsedData, numClusters, numIterations)
-//    logDebug("kmeans 6")
+    val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache()
+    logDebug("kmeans 5: " + parsedData)
+
+    // Cluster the data into two classes using KMeans
+    val numClusters = 2
+    val numIterations = 20
+    val clusters = KMeans.train(parsedData, numClusters, numIterations)
+    logDebug("kmeans 6: " + clusters)
 //
 //    // Evaluate clustering by computing Within Set Sum of Squared Errors
 //    val WSSSE = clusters.computeCost(parsedData)
