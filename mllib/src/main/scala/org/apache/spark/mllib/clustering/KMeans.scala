@@ -391,7 +391,7 @@ logDebug("initKMeansParallel 7")
       costs = data.zip(preCosts).map { case (point, cost) => {
         math.min(KMeans.pointCost(bcNewCenters.value, point), cost)}
       }.persist(StorageLevel.MEMORY_AND_DISK)
-      logDebug("initKMeansParallel d")
+      logDebug("initKMeansParallel d: " + costs)
       val sumCosts = costs.sum()
 logDebug("initKMeansParallel e: " + sumCosts)
       bcNewCenters.unpersist(blocking = false)

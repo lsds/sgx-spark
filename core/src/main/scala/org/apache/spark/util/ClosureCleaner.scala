@@ -332,17 +332,22 @@ private[spark] object ClosureCleaner extends Logging {
     logDebug(s" +++ closure $func (${func.getClass.getName}) is now cleaned +++")
 
     if (checkSerializable) {
+    	logDebug("A")
       ensureSerializable(func)
+      logDebug("B")
     }
   }
 
   private def ensureSerializable(func: AnyRef) {
     try {
+    	logDebug("C")
       if (SparkEnv.get != null) {
+    	  logDebug("D")
         SparkEnv.get.closureSerializer.newInstance().serialize(func)
+        logDebug("E")
       }
     } catch {
-      case ex: Exception => throw new SparkException("Task not serializable", ex)
+      case ex: Exception => logDebug("F"); throw new SparkException("Task not serializable", ex)
     }
   }
 

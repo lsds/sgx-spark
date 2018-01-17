@@ -69,6 +69,8 @@ import org.apache.spark.sgx.SgxTaskSparkContextDefaultParallelism
 import org.apache.spark.sgx.SgxTaskSparkContextStop
 import org.apache.spark.sgx.SgxTaskSparkContextRunJob
 import org.apache.spark.sgx.SgxTaskSparkContextNewRddId
+import org.apache.spark.sgx.SgxTaskSparkContextBroadcast
+import org.apache.spark.sgx.SgxTaskSparkContextConf
 
 /**
  * Main entry point for Spark functionality. A SparkContext represents the connection to a Spark
@@ -236,7 +238,7 @@ class SparkContext(config: SparkConf) extends Logging {
    | context.                                                                              |
    * ------------------------------------------------------------------------------------- */
 
-  private[spark] def conf: SparkConf = _conf
+  private[spark] def conf: SparkConf = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextConf().executeInsideEnclave() else _conf
 
   /**
    * Return a copy of this SparkContext's configuration. The configuration ''cannot'' be
@@ -274,7 +276,7 @@ class SparkContext(config: SparkConf) extends Logging {
     SparkEnv.createDriverEnv(conf, isLocal, listenerBus, SparkContext.numDriverCores(master))
   }
 
-  private[spark] def env: SparkEnv = _env
+  def env: SparkEnv = _env
 
   // Used to store a URL for each static file/jar together with the file's local timestamp
   private[spark] val addedFiles = new ConcurrentHashMap[String, Long]().asScala
@@ -1510,12 +1512,18 @@ class SparkContext(config: SparkConf) extends Logging {
    */
   def broadcast[T: ClassTag](value: T): Broadcast[T] = {
     assertNotStopped()
+    logDebug("broadcast 0")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextBroadcast(value).executeInsideEnclave()
+    logDebug("broadcast 1")
     require(!classOf[RDD[_]].isAssignableFrom(classTag[T].runtimeClass),
       "Can not directly broadcast RDDs; instead, call collect() and broadcast the result.")
     val bc = env.broadcastManager.newBroadcast[T](value, isLocal)
+    logDebug("broadcast 2")
     val callSite = getCallSite
+    logDebug("broadcast 3")
     logInfo("Created broadcast " + bc.id + " from " + callSite.shortForm)
     cleaner.foreach(_.registerBroadcastForCleanup(bc))
+    logDebug("broadcast 4")
     bc
   }
 
@@ -2047,17 +2055,21 @@ class SparkContext(config: SparkConf) extends Logging {
       func: (TaskContext, Iterator[T]) => U,
       partitions: Seq[Int],
       resultHandler: (Int, U) => Unit): Unit = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextRunJob(rdd.id, func, partitions, resultHandler).executeInsideEnclave()
+//	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextRunJob(rdd.id, func, partitions, resultHandler).executeInsideEnclave()
+	logDebug("runJob X4: ")
     if (stopped.get()) {
       throw new IllegalStateException("SparkContext has been shutdown")
     }
+	logDebug("runJob X5: ")
     val callSite = getCallSite
+    logDebug("runJob X6 ")
     val cleanedFunc = clean(func)
+    logDebug("runJob X7:")
     logInfo("Starting job: " + callSite.shortForm)
     if (conf.getBoolean("spark.logLineage", false)) {
       logInfo("RDD's recursive dependencies:\n" + rdd.toDebugString)
     }
-    logDebug("runJob 1: ")
+    logDebug("runJob 1")
     dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, resultHandler, localProperties.get)
     logDebug("runJob 2")
     progressBar.foreach(_.finishAll())
@@ -2157,8 +2169,13 @@ class SparkContext(config: SparkConf) extends Logging {
       processPartition: Iterator[T] => U,
       resultHandler: (Int, U) => Unit)
   {
+	  logDebug("runJob X1")
     val processFunc = (context: TaskContext, iter: Iterator[T]) => processPartition(iter)
+    logDebug("runJob X2: " + rdd)
+    logDebug("runJob X2: " + rdd.partitions)
+    logDebug("runJob X2: " + rdd.partitions.length)
     runJob[T, U](rdd, processFunc, 0 until rdd.partitions.length, resultHandler)
+    logDebug("runJob X3")
   }
 
   /**

@@ -1,5 +1,5 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
+s * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -45,16 +45,20 @@ import org.apache.spark.util.{BoundedPriorityQueue, Utils}
 import org.apache.spark.util.collection.{OpenHashMap, Utils => collectionUtils}
 import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, PoissonSampler, SamplingUtils}
 
+import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.iterator.SgxFakeIterator
+import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxTaskRDDPartitions
 import org.apache.spark.sgx.SgxTaskRDDMap
+import org.apache.spark.sgx.SgxTaskRDDFold
 import org.apache.spark.sgx.SgxTaskRDDPersist
 import org.apache.spark.sgx.SgxTaskRDDUnpersist
 import org.apache.spark.sgx.SgxTaskRDDZip
+import org.apache.spark.sgx.SgxFct2
 import org.apache.spark.sgx.SgxTaskRDDTakeSample
-import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
  * A Resilient Distributed Dataset (RDD), the basic abstraction in Spark. Represents an immutable,
@@ -1177,19 +1181,36 @@ logDebug("takeSample 12")
    */
   def fold(zeroValue: T)(op: (T, T) => T): T = withScope {
     // Clone the zero value since we will also be serializing it as part of tasks
-    var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
+	  logDebug("fold 0")	  
+    var jobResult = if (SgxSettings.SGX_ENABLED)
+      Serialization.deserialize(Serialization.serialize(zeroValue)).asInstanceOf[T]
+      else
+      Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDFold(zeroValue, op, this.id).executeInsideEnclave()
+    logDebug("fold 1")
     val cleanOp = sc.clean(op)
-    val foldPartition = (iter: Iterator[T]) =>
+   logDebug("fold 2")
+    val foldPartition = (iter: Iterator[T]) => {
+    	logDebug("foldPartition: " + this.id)
+    	logDebug("foldPartition: ("+zeroValue+","+cleanOp+")")
     	if (SgxSettings.SGX_ENABLED) {
-    		logDebug("Creating SgxIteratorProvider for "  + this)
+    		// SGX: execute folding inside worker enclaves
     		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
     		new SgxFold(zeroValue, cleanOp, id).executeInsideEnclave()
     	}
     	else
     	iter.fold(zeroValue)(cleanOp)
-
-    val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
+    }
+logDebug("fold 3")
+    val mergeResult = (index: Int, taskResult: T) => {
+    	logDebug("executing mergeResult: op("+index+","+taskResult+")")
+    	jobResult = op(jobResult, taskResult)
+    	logDebug("executing mergeResult: op("+index+","+taskResult+")=" + jobResult)
+    }
+    logDebug("fold 4: " + jobResult)
+    logDebug("fold 4: " + sc)
     sc.runJob(this, foldPartition, mergeResult)
+    logDebug("fold 5: " + jobResult) 
     jobResult
   }
 
