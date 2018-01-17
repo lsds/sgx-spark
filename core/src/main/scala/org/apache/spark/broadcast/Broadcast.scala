@@ -25,6 +25,9 @@ import org.apache.spark.SparkException
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
+
 /**
  * A broadcast variable. Broadcast variables allow the programmer to keep a read-only variable
  * cached on each machine rather than shipping a copy of it with tasks. They can be used, for
@@ -84,6 +87,9 @@ abstract class Broadcast[T: ClassTag](val id: Long) extends Serializable with Lo
    * @param blocking Whether to block until unpersisting has completed
    */
   def unpersist(blocking: Boolean) {
+	  logDebug("unpersist 1")
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxBroadcastEnclave.unpersist(this, blocking)
+	logDebug("unpersist 2")
     assertValid()
     doUnpersist(blocking)
   }

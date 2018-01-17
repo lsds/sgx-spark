@@ -17,9 +17,13 @@ abstract class SgxBroadcastProvider() extends Callable[Unit] with Logging {
 		var running = true
 		while (running) {
 			val r = com.recvOne() match {
-				case req: MsgBroadcastGet[_] =>
-					logDebug("Request for: " + req.bc)
+				case req: MsgBroadcastValue[_] =>
+					logDebug("Request for: " + req.bc + ".value")
 					req.bc.value
+
+				case req: MsgBroadcastUnpersist[_] =>
+					logDebug("Request for: " + req.bc + ".unpersist")
+					req.bc.unpersist
 
 				case MsgBroadcastReqClose =>
 					stop(com)

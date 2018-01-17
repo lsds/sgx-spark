@@ -55,7 +55,7 @@ import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
  * When initialized, TorrentBroadcast objects read SparkEnv.get.conf.
  *
  * @param obj object to broadcast
- * @param id A unique identifier for the broadcast variable.
+ * @param id A unique identifier for the broadcast variable.d
  */
 private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   extends Broadcast[T](id) with Logging with Serializable {
@@ -195,6 +195,7 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
    * Remove all persisted state associated with this Torrent broadcast on the executors.
    */
   override protected def doUnpersist(blocking: Boolean) {
+    logDebug(s"Unpersisting TorrentBroadcast $id")
     TorrentBroadcast.unpersist(id, removeFromDriver = false, blocking)
   }
 
@@ -311,7 +312,6 @@ private object TorrentBroadcast extends Logging {
    * If removeFromDriver is true, also remove these persisted blocks on the driver.
    */
   def unpersist(id: Long, removeFromDriver: Boolean, blocking: Boolean): Unit = {
-    logDebug(s"Unpersisting TorrentBroadcast $id")
     SparkEnv.get.blockManager.master.removeBroadcast(id, removeFromDriver, blocking)
   }
 }

@@ -56,6 +56,7 @@ import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxFct2
 import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxMain
+import org.apache.spark.sgx.SgxFactory
 
 /**
  * Whether to submit, kill, or request the status of an application.
@@ -167,6 +168,7 @@ object SparkSubmit extends CommandLineUtils with Logging {
 
     if (SgxSettings.SGX_ENABLED) {
       Completor.submit(SgxMain)
+      SgxFactory.get.runSgxBroadcastProvider()
     }    
 
     def doRunMain(): Unit = {

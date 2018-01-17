@@ -1203,7 +1203,7 @@ logDebug("takeSample 12")
     	iter.fold(zeroValueC)(cleanOp)
     }
 logDebug("fold 3: ")
-// TODO: mergeResult operates outside of enclave
+// TODO: move execution of mergeResult into enclave
     val mergeResult = (index: Int, taskResult: T) => {
     	logDebug("executing mergeResult")
     	jobResult = op(jobResult, taskResult)
