@@ -53,6 +53,7 @@ import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxTaskRDDPartitions
 import org.apache.spark.sgx.SgxTaskRDDMap
+import org.apache.spark.sgx.SgxTaskRDDMapPartitionsWithIndex
 import org.apache.spark.sgx.SgxTaskRDDFold
 import org.apache.spark.sgx.SgxTaskRDDPersist
 import org.apache.spark.sgx.SgxTaskRDDUnpersist
@@ -924,6 +925,8 @@ logDebug("takeSample 12")
   def mapPartitionsWithIndex[U: ClassTag](
       f: (Int, Iterator[T]) => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
+	logDebug("mapPartitionsWithIndex("+this.id+", "+f+", "+preservesPartitioning+"): " + f.getClass.getName)
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDMapPartitionsWithIndex(this.id, f, preservesPartitioning).executeInsideEnclave()
     val cleanedF = sc.clean(f)
     if (SgxSettings.SGX_ENABLED)
     new MapPartitionsRDDSgx(

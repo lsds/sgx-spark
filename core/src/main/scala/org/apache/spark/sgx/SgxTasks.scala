@@ -216,6 +216,17 @@ case class SgxTaskRDDMap[T,U:ClassTag](rddId: Int, f: T => U) extends SgxExecute
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
+case class SgxTaskRDDMapPartitionsWithIndex[T,U:ClassTag](rddId: Int, f: (Int, Iterator[T]) => Iterator[U], preservesPartitioning: Boolean) extends SgxExecuteInside[RDD[U]] {
+
+	def apply() = Await.result( Future {
+		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].mapPartitionsWithIndex(f)
+		SgxMain.rddIds.put(r.id, r)
+		r
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
 case class SgxTaskRDDZip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxExecuteInside[RDD[(T,U)]] {
 
 	def apply() = Await.result( Future {

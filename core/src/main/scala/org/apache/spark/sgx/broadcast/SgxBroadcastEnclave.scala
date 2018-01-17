@@ -18,7 +18,6 @@ object SgxBroadcastEnclave extends Logging {
 	}
 
 	def unpersist[T](bc: Broadcast[T], blocking: Boolean): Unit = {
-		logDebug("unpersist A")
 		com.sendRecv[T](new MsgBroadcastUnpersist(bc, blocking))
 	}
 
