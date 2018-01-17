@@ -1,5 +1,7 @@
 package org.apache.spark.sgx.shm
 
+import org.apache.spark.internal.Logging
+
 import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxFactory
@@ -9,7 +11,7 @@ import org.apache.spark.sgx.broadcast.shm.SgxShmBroadcastProvider
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.shm.SgxShmIteratorProvider
 
-object SgxShmFactory extends SgxFactory {
+object SgxShmFactory extends SgxFactory with Logging {
 	val mgr = if (SgxSettings.IS_ENCLAVE) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC);
 			else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 	Completor.submit(mgr);
@@ -17,6 +19,7 @@ object SgxShmFactory extends SgxFactory {
 	private var startedBroadcastProvider = false
 
 	def newSgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProvider[T] = {
+		logDebug("newSgxIteratorProvider")
 		val iter = new SgxShmIteratorProvider[T](delegate, doEncrypt)
 		Completor.submit(iter)
 		iter

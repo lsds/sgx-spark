@@ -1182,33 +1182,33 @@ logDebug("takeSample 12")
   def fold(zeroValue: T)(op: (T, T) => T): T = withScope {
     // Clone the zero value since we will also be serializing it as part of tasks
 	  logDebug("fold 0")	  
-    var jobResult = if (SgxSettings.SGX_ENABLED)
-      Serialization.deserialize(Serialization.serialize(zeroValue)).asInstanceOf[T]
-      else
-      Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
       if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDFold(zeroValue, op, this.id).executeInsideEnclave()
+    var jobResult = 
+//    	if (SgxSettings.SGX_ENABLED)
+//      Serialization.deserialize(Serialization.serialize(zeroValue)).asInstanceOf[T]
+//      else
+      Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
+    val zeroValueC = jobResult
     logDebug("fold 1")
     val cleanOp = sc.clean(op)
    logDebug("fold 2")
     val foldPartition = (iter: Iterator[T]) => {
-    	logDebug("foldPartition: " + this.id)
-    	logDebug("foldPartition: ("+zeroValue+","+cleanOp+")")
+    	// DO NOT ADD LOG MESSAGES HERE! THIS WON'T SERIALIZE
     	if (SgxSettings.SGX_ENABLED) {
-    		// SGX: execute folding inside worker enclaves
+			// SGX: execute folding inside worker enclaves
     		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
-    		new SgxFold(zeroValue, cleanOp, id).executeInsideEnclave()
+    		new SgxFold(zeroValueC, cleanOp, id).executeInsideEnclave()
     	}
     	else
-    	iter.fold(zeroValue)(cleanOp)
+    	iter.fold(zeroValueC)(cleanOp)
     }
-logDebug("fold 3")
+logDebug("fold 3: ")
+// TODO: mergeResult operates outside of enclave
     val mergeResult = (index: Int, taskResult: T) => {
-    	logDebug("executing mergeResult: op("+index+","+taskResult+")")
+    	logDebug("executing mergeResult")
     	jobResult = op(jobResult, taskResult)
-    	logDebug("executing mergeResult: op("+index+","+taskResult+")=" + jobResult)
     }
     logDebug("fold 4: " + jobResult)
-    logDebug("fold 4: " + sc)
     sc.runJob(this, foldPartition, mergeResult)
     logDebug("fold 5: " + jobResult) 
     jobResult

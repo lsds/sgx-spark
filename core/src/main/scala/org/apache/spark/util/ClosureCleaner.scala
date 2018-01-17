@@ -347,7 +347,7 @@ private[spark] object ClosureCleaner extends Logging {
         logDebug("E")
       }
     } catch {
-      case ex: Exception => logDebug("F"); throw new SparkException("Task not serializable", ex)
+      case ex: Exception => logDebug(s"$func (${func.getClass.getName}) is not serializable"); throw new SparkException("Task not serializable", ex)
     }
   }
 
