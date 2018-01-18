@@ -38,6 +38,23 @@ abstract class SgxExecuteInside[R] extends Serializable with Logging {
 	def apply(): R
 }
 
+object SgxRddFct {
+
+	def collect[T](rddId: Int) = new SgxTaskRDDCollect[T](rddId).executeInsideEnclave()
+
+	def count[T](rddId: Int) = new SgxTaskRDDCount[T](rddId).executeInsideEnclave()
+
+	def fold[T](v: T, op: (T,T) => T, rddId: Int) = new SgxTaskRDDFold(v, op, rddId).executeInsideEnclave()
+
+	def persist[T](rddId: Int, level: StorageLevel) = new SgxTaskRDDPersist[T](rddId, level).executeInsideEnclave()
+
+	def sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) = new SgxTaskRDDSample[T](rddId, withReplacement, fraction, seed).executeInsideEnclave()
+
+	def unpersist[T](rddId: Int) = new SgxTaskRDDUnpersist[T](rddId).executeInsideEnclave()
+
+	def zip[T,U:ClassTag](rddId1: Int, rddId2: Int) = new SgxTaskRDDZip[T,U](rddId1, rddId2).executeInsideEnclave()
+}
+
 case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	fct: (Int, Iterator[T]) => Iterator[U],
 	partIndex: Int,
@@ -87,14 +104,14 @@ case class SgxFold[T](
 	id: SgxIteratorProviderIdentifier) extends SgxExecuteInside[T] {
 
 	def apply() = {
-		//Await.result(Future {
+		Await.result(Future {
 			new SgxIteratorConsumer[T](id).fold(v)(op)
-			//}, Duration.Inf).asInstanceOf[T]
+			}, Duration.Inf).asInstanceOf[T]
 	}
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
 }
 
-case class SgxTaskRDDFold[T](
+private case class SgxTaskRDDFold[T](
 	v: T,
 	op: (T,T) => T,
 	rddId: Int) extends SgxExecuteInside[T] {
@@ -227,7 +244,7 @@ case class SgxTaskRDDMapPartitionsWithIndex[T,U:ClassTag](rddId: Int, f: (Int, I
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-case class SgxTaskRDDZip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxExecuteInside[RDD[(T,U)]] {
+private case class SgxTaskRDDZip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxExecuteInside[RDD[(T,U)]] {
 
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[T]].zip(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[U]])
@@ -238,7 +255,7 @@ case class SgxTaskRDDZip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxExec
 	override def toString = this.getClass.getSimpleName + "(rddId1=" + rddId1 + ", rddId2=" + rddId2 + ")"
 }
 
-case class SgxTaskRDDPersist[T](rddId: Int, level: StorageLevel) extends SgxExecuteInside[RDD[T]] {
+private case class SgxTaskRDDPersist[T](rddId: Int, level: StorageLevel) extends SgxExecuteInside[RDD[T]] {
 
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].persist(level)
@@ -249,20 +266,42 @@ case class SgxTaskRDDPersist[T](rddId: Int, level: StorageLevel) extends SgxExec
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-case class SgxTaskRDDTakeSample[T](
+private case class SgxTaskRDDSample[T](
 	rddId: Int,
 	withReplacement: Boolean,
-    num: Int,
-    seed: Long) extends SgxExecuteInside[Array[T]] {
+    fraction: Double,
+    seed: Long) extends SgxExecuteInside[RDD[T]] {
 
-	def apply() = //Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].takeSample(withReplacement, num, seed)
-//	}, Duration.Inf)
+	def apply() = Await.result( Future {
+		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
+		SgxMain.rddIds.put(r.id, r)
+		r
+	}, Duration.Inf)
 
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-case class SgxTaskRDDUnpersist[T](rddId: Int) extends SgxExecuteInside[Unit] {
+private case class SgxTaskRDDCollect[T](
+	rddId: Int) extends SgxExecuteInside[Array[T]] {
+
+	def apply() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
+private case class SgxTaskRDDCount[T](
+	rddId: Int) extends SgxExecuteInside[Long] {
+
+	def apply() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count()
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
+private case class SgxTaskRDDUnpersist[T](rddId: Int) extends SgxExecuteInside[Unit] {
 
 	def apply() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].unpersist()

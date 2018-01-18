@@ -1,5 +1,5 @@
 /*
-s * Licensed to the Apache Software Foundation (ASF) under one or more
+ * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -54,12 +54,8 @@ import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxTaskRDDPartitions
 import org.apache.spark.sgx.SgxTaskRDDMap
 import org.apache.spark.sgx.SgxTaskRDDMapPartitionsWithIndex
-import org.apache.spark.sgx.SgxTaskRDDFold
-import org.apache.spark.sgx.SgxTaskRDDPersist
-import org.apache.spark.sgx.SgxTaskRDDUnpersist
-import org.apache.spark.sgx.SgxTaskRDDZip
 import org.apache.spark.sgx.SgxFct2
-import org.apache.spark.sgx.SgxTaskRDDTakeSample
+import org.apache.spark.sgx.SgxRddFct
 
 /**
  * A Resilient Distributed Dataset (RDD), the basic abstraction in Spark. Represents an immutable,
@@ -208,7 +204,8 @@ abstract class RDD[T: ClassTag](
    * have a storage level set yet. Local checkpointing is an exception.
    */
   def persist(newLevel: StorageLevel): this.type = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDPersist(this.id, newLevel).executeInsideEnclave().asInstanceOf[RDD.this.type]
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.persist[T](this.id, newLevel).asInstanceOf[RDD.this.type]
+	else
     if (isLocallyCheckpointed) {
       // This means the user previously called localCheckpoint(), which should have already
       // marked this RDD for persisting. Here we should override the old storage level with
@@ -237,7 +234,7 @@ abstract class RDD[T: ClassTag](
    */
   def unpersist(blocking: Boolean = true): this.type = {
 	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-		new SgxTaskRDDUnpersist(this.id).executeInsideEnclave()
+		SgxRddFct.unpersist(this.id)
 		return this
 	}
     logInfo("Removing RDD " + id + " from persistence list")
@@ -275,7 +272,8 @@ abstract class RDD[T: ClassTag](
    * RDD is checkpointed or not.
    */
   final def partitions: Array[Partition] = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDPartitions(this.id).executeInsideEnclave()
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskRDDPartitions(this.id).executeInsideEnclave()
+	else
     checkpointRDD.map(_.partitions).getOrElse {
       if (partitions_ == null) {
         partitions_ = getPartitions
@@ -397,12 +395,14 @@ abstract class RDD[T: ClassTag](
    */
   def map[U: ClassTag](f: T => U): RDD[U] = withScope {
 	logDebug("map("+this.id+", "+f+"): " + f.getClass.getName)
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDMap(this.id, f).executeInsideEnclave()
-    val cleanF = sc.clean(f)
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx[U, T](this, (pid, iter) => iter.map(cleanF))
-    else
-    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskRDDMap(this.id, f).executeInsideEnclave()
+	else {
+      val cleanF = sc.clean(f)
+      if (SgxSettings.SGX_ENABLED)
+      new MapPartitionsRDDSgx[U, T](this, (pid, iter) => iter.map(cleanF))
+      else
+      new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))
+	}
   }
 
   /**
@@ -530,7 +530,8 @@ abstract class RDD[T: ClassTag](
       seed: Long = Utils.random.nextLong): RDD[T] = {
     require(fraction >= 0,
       s"Fraction must be nonnegative, but got ${fraction}")
-
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.sample(this.id, withReplacement, fraction, seed)
+    else
     withScope {
       require(fraction >= 0.0, "Negative fraction value: " + fraction)
       if (withReplacement) {
@@ -605,7 +606,6 @@ abstract class RDD[T: ClassTag](
       num: Int,
       seed: Long = Utils.random.nextLong): Array[T] = withScope {
 	  logDebug("takeSample 0")
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDTakeSample[T](this.id, withReplacement, num, seed).executeInsideEnclave()
     val numStDev = 10.0
 logDebug("takeSample 1")
     require(num >= 0, "Negative number of elements requested")
@@ -926,18 +926,20 @@ logDebug("takeSample 12")
       f: (Int, Iterator[T]) => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
 	logDebug("mapPartitionsWithIndex("+this.id+", "+f+", "+preservesPartitioning+"): " + f.getClass.getName)
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDMapPartitionsWithIndex(this.id, f, preservesPartitioning).executeInsideEnclave()
-    val cleanedF = sc.clean(f)
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx(
-      this,
-      (index: Int, iter: Iterator[T]) => cleanedF(index, iter),
-      preservesPartitioning)
-    else
-    new MapPartitionsRDD(
-      this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
-      preservesPartitioning)
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskRDDMapPartitionsWithIndex(this.id, f, preservesPartitioning).executeInsideEnclave()
+	else {
+	    val cleanedF = sc.clean(f)
+	    if (SgxSettings.SGX_ENABLED)
+	    new MapPartitionsRDDSgx(
+	      this,
+	      (index: Int, iter: Iterator[T]) => cleanedF(index, iter),
+	      preservesPartitioning)
+	    else
+	    new MapPartitionsRDD(
+	      this,
+	      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
+	      preservesPartitioning)
+	}
   }
 
   /**
@@ -947,7 +949,8 @@ logDebug("takeSample 12")
    * a map on the other).
    */
   def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)] = withScope {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDZip[T,U](this.id, other.id).executeInsideEnclave()
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.zip[T,U](this.id, other.id)
+	else
     zipPartitions(other, preservesPartitioning = false) { (thisIter, otherIter) =>
       new Iterator[(T, U)] with Serializable {
         def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
@@ -1033,10 +1036,16 @@ logDebug("takeSample 12")
    * all the data is loaded into the driver's memory.
    */
   def collect(): Array[T] = withScope {
-    val results = sc.runJob(this, (iter: Iterator[T]) => {
-      iter.toArray
-    })
-    Array.concat(results: _*)
+	  logDebug("collect 0")
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.collect[T](this.id)
+	else {
+	  logDebug("collect 1")
+      val results = sc.runJob(this, (iter: Iterator[T]) => {
+        iter.toArray
+      })
+      logDebug("collect 2")
+      Array.concat(results: _*)
+	}
   }
 
   /**
@@ -1185,36 +1194,38 @@ logDebug("takeSample 12")
   def fold(zeroValue: T)(op: (T, T) => T): T = withScope {
     // Clone the zero value since we will also be serializing it as part of tasks
 	  logDebug("fold 0")	  
-      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskRDDFold(zeroValue, op, this.id).executeInsideEnclave()
-    var jobResult = 
-//    	if (SgxSettings.SGX_ENABLED)
-//      Serialization.deserialize(Serialization.serialize(zeroValue)).asInstanceOf[T]
-//      else
-      Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
-    val zeroValueC = jobResult
-    logDebug("fold 1")
-    val cleanOp = sc.clean(op)
-   logDebug("fold 2")
-    val foldPartition = (iter: Iterator[T]) => {
-    	// DO NOT ADD LOG MESSAGES HERE! THIS WON'T SERIALIZE
-    	if (SgxSettings.SGX_ENABLED) {
-			// SGX: execute folding inside worker enclaves
-    		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
-    		new SgxFold(zeroValueC, cleanOp, id).executeInsideEnclave()
-    	}
-    	else
-    	iter.fold(zeroValueC)(cleanOp)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.fold(zeroValue, op, this.id)
+    else {  
+	    var jobResult = 
+	//    	if (SgxSettings.SGX_ENABLED)
+	//      Serialization.deserialize(Serialization.serialize(zeroValue)).asInstanceOf[T]
+	//      else
+	      Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
+	    val zeroValueC = jobResult
+	    logDebug("fold 1")
+	    val cleanOp = sc.clean(op)
+	   logDebug("fold 2")
+	    val foldPartition = (iter: Iterator[T]) => {
+	    	// DO NOT ADD LOG MESSAGES HERE! THIS WON'T SERIALIZE
+	    	if (SgxSettings.SGX_ENABLED) {
+				// SGX: execute folding inside worker enclaves
+	    		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
+	    		new SgxFold(zeroValueC, cleanOp, id).executeInsideEnclave()
+	    	}
+	    	else
+	    	iter.fold(zeroValueC)(cleanOp)
+	    }
+	logDebug("fold 3: ")
+	// TODO: move execution of mergeResult into enclave
+	    val mergeResult = (index: Int, taskResult: T) => {
+	    	logDebug("executing mergeResult")
+	    	jobResult = op(jobResult, taskResult)
+	    }
+	    logDebug("fold 4: " + jobResult)
+	    sc.runJob(this, foldPartition, mergeResult)
+	    logDebug("fold 5: " + jobResult) 
+	    jobResult
     }
-logDebug("fold 3: ")
-// TODO: move execution of mergeResult into enclave
-    val mergeResult = (index: Int, taskResult: T) => {
-    	logDebug("executing mergeResult")
-    	jobResult = op(jobResult, taskResult)
-    }
-    logDebug("fold 4: " + jobResult)
-    sc.runJob(this, foldPartition, mergeResult)
-    logDebug("fold 5: " + jobResult) 
-    jobResult
   }
 
   /**
@@ -1283,7 +1294,11 @@ logDebug("fold 3: ")
   /**
    * Return the number of elements in the RDD.
    */
-  def count(): Long = sc.runJob(this, Utils.getIteratorSize _).sum
+  def count(): Long = {
+	  if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.count(this.id)
+	  else
+	  sc.runJob(this, Utils.getIteratorSize _).sum
+  }
 
   /**
    * Approximate version of count() that returns a potentially incomplete result

@@ -13,12 +13,16 @@ object SgxBroadcastEnclave extends Logging {
 		com = _com
 	}
 
-	def value[T](bc: Broadcast[T]): T = {
-		com.sendRecv[T](new MsgBroadcastValue(bc))
+	def destroy[T](bc: Broadcast[T], blocking: Boolean): Unit = {
+		com.sendRecv[T](new MsgBroadcastDestroy(bc, blocking))
 	}
 
 	def unpersist[T](bc: Broadcast[T], blocking: Boolean): Unit = {
 		com.sendRecv[T](new MsgBroadcastUnpersist(bc, blocking))
+	}
+
+	def value[T](bc: Broadcast[T]): T = {
+		com.sendRecv[T](new MsgBroadcastValue(bc))
 	}
 
 	override def toString(): String = this.getClass.getSimpleName

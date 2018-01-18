@@ -21,6 +21,10 @@ abstract class SgxBroadcastProvider() extends Callable[Unit] with Logging {
 					logDebug("Request for: " + req.bc + ".value")
 					req.bc.value
 
+				case req: MsgBroadcastDestroy[_] =>
+					logDebug("Request for: " + req.bc + ".destroy")
+					req.bc.destroy
+
 				case req: MsgBroadcastUnpersist[_] =>
 					logDebug("Request for: " + req.bc + ".unpersist")
 					req.bc.unpersist
