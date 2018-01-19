@@ -90,8 +90,6 @@ abstract class RDD[T: ClassTag](
     @transient private var deps: Seq[Dependency[_]]
   ) extends Serializable with Logging {
 
-   var sgxId: Int = _
-
   if (classOf[RDD[_]].isAssignableFrom(elementClassTag.runtimeClass)) {
     // This is a warning instead of an exception in order to avoid breaking user programs that
     // might have defined nested RDDs without running jobs with them.
@@ -973,7 +971,6 @@ logDebug("takeSample 12")
   def zipPartitions[B: ClassTag, V: ClassTag]
       (rdd2: RDD[B], preservesPartitioning: Boolean)
       (f: (Iterator[T], Iterator[B]) => Iterator[V]): RDD[V] = withScope {
-	  logDebug("zipPartitions")
 	if (SgxSettings.SGX_ENABLED)
 	new ZippedPartitionsRDD2Sgx(sc, sc.clean(f), this, rdd2, preservesPartitioning)
 	else
@@ -1194,7 +1191,7 @@ logDebug("takeSample 12")
   def fold(zeroValue: T)(op: (T, T) => T): T = withScope {
     // Clone the zero value since we will also be serializing it as part of tasks
 	  logDebug("fold 0")	  
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.fold(zeroValue, op, this.id)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.fold(this.id, zeroValue, op)
     else {  
 	    var jobResult = 
 	//    	if (SgxSettings.SGX_ENABLED)
@@ -1344,6 +1341,7 @@ logDebug("takeSample 12")
    * , which returns an RDD[T, Long] instead of a map.
    */
   def countByValue()(implicit ord: Ordering[T] = null): Map[T, Long] = withScope {
+	logDebug("countByValue")
     map(value => (value, null)).countByKey()
   }
 

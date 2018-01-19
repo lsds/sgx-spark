@@ -53,12 +53,12 @@ private[spark] class MapPartitionsRDDSgx[U: ClassTag, T: ClassTag](
 	f: (Int, Iterator[T]) => Iterator[U], // (partition index, iterator)
 	preservesPartitioning: Boolean = false)
 		extends MapPartitionsRDD[U,T](_prev, null, preservesPartitioning) {
-logDebug("create MapPartitionsRDDSgx")
+
 	override def compute(split: Partition, context: TaskContext): Iterator[U] = {
 		firstParent[T].iterator(split, context) match {
-			case x: SgxIteratorProvider[T] => logDebug("compute 1("+split.index+","+x.identifier+")" + x.getClass.getName); new SgxFirstTask(f, split.index, x.identifier).executeInsideEnclave()
-			case x: SgxFakeIterator[T] => logDebug("compute 2: " + x.getClass.getName); new SgxOtherTask(f, split.index, x).executeInsideEnclave()
-			case x: Iterator[T] => logDebug("compute 3: " + x.getClass.getName); f(split.index, firstParent[T].iterator(split, context))
+			case x: SgxIteratorProvider[T] => new SgxFirstTask(f, split.index, x.identifier).executeInsideEnclave()
+			case x: SgxFakeIterator[T] => new SgxOtherTask(f, split.index, x).executeInsideEnclave()
+			case x: Iterator[T] => f(split.index, firstParent[T].iterator(split, context))
 		}
 	}
 

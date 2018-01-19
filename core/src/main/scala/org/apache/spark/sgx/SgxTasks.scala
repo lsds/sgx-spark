@@ -10,11 +10,14 @@ import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.util.random.RandomSampler
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.spark.Partitioner
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
+
+import org.apache.spark.serializer.Serializer
 
 import org.apache.spark.deploy.SparkApplication
 import org.apache.spark.SparkConf
@@ -23,9 +26,6 @@ import org.apache.spark.TaskContext
 import org.apache.spark.Partition
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.serializer.SerializerInstance
-
-import java.lang.management.ManagementFactory
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
 	def executeInsideEnclave(): R = {
@@ -42,9 +42,20 @@ object SgxRddFct {
 
 	def collect[T](rddId: Int) = new SgxTaskRDDCollect[T](rddId).executeInsideEnclave()
 
+	def combineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
+	  rddId: Int,
+      createCombiner: V => C,
+      mergeValue: (C, V) => C,
+      mergeCombiners: (C, C) => C,
+      partitioner: Partitioner,
+      mapSideCombine: Boolean,
+      serializer: Serializer) = new SgxTaskRDDCombineByKeyWithClassTag[C,V,K](rddId, createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer).executeInsideEnclave()
+
 	def count[T](rddId: Int) = new SgxTaskRDDCount[T](rddId).executeInsideEnclave()
 
-	def fold[T](v: T, op: (T,T) => T, rddId: Int) = new SgxTaskRDDFold(v, op, rddId).executeInsideEnclave()
+	def fold[T](rddId: Int, v: T, op: (T,T) => T) = new SgxTaskRDDFold(rddId, v, op).executeInsideEnclave()
+
+	def mapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) = new SgxTaskRDDMapValues[U,V,K](rddId, f).executeInsideEnclave()
 
 	def persist[T](rddId: Int, level: StorageLevel) = new SgxTaskRDDPersist[T](rddId, level).executeInsideEnclave()
 
@@ -55,6 +66,11 @@ object SgxRddFct {
 	def zip[T,U:ClassTag](rddId1: Int, rddId2: Int) = new SgxTaskRDDZip[T,U](rddId1, rddId2).executeInsideEnclave()
 }
 
+object SgxSparkContextFct {
+
+	def stop() = new SgxTaskSparkContextStop().executeInsideEnclave()
+}
+
 case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	fct: (Int, Iterator[T]) => Iterator[U],
 	partIndex: Int,
@@ -62,7 +78,7 @@ case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	extends SgxExecuteInside[Iterator[U]] {
 
 	def apply() = {
-		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		val f = SgxFakeIterator()
 		val g = Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id)) }, Duration.Inf)
 		SgxMain.fakeIterators.put(f.id, g)
 		f
@@ -76,7 +92,7 @@ case class SgxOtherTask[U, T](
 	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
 	def apply() = {
-		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		val f = SgxFakeIterator()
 		val g = Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
 		SgxMain.fakeIterators.put(f.id, g)
 		f
@@ -112,9 +128,9 @@ case class SgxFold[T](
 }
 
 private case class SgxTaskRDDFold[T](
+	rddId: Int,
 	v: T,
-	op: (T,T) => T,
-	rddId: Int) extends SgxExecuteInside[T] {
+	op: (T,T) => T) extends SgxExecuteInside[T] {
 
 	def apply() = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].fold(v)(op)
 
@@ -128,7 +144,7 @@ case class SgxComputeTaskZippedPartitionsRDD2[A, B, Z](
 	b: SgxFakeIterator[B]) extends SgxExecuteInside[Iterator[Z]] {
 
 	def apply() = {
-		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		val f = SgxFakeIterator()
 		val g = Await.result( Future {
 		  fct(SgxMain.fakeIterators.remove[Iterator[A]](a.id), SgxMain.fakeIterators.remove[Iterator[B]](b.id))
 		}, Duration.Inf)
@@ -144,7 +160,7 @@ case class SgxComputeTaskPartitionwiseSampledRDD[T, U](
 	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
 
 	def apply() = {
-		val f = SgxFakeIterator(scala.util.Random.nextLong)
+		val f = SgxFakeIterator()
 		val g = Await.result( Future { sampler.sample(SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
 		SgxMain.fakeIterators.put(f.id, g)
 		f
@@ -185,7 +201,7 @@ case class SgxTaskSparkContextTextFile(path: String) extends SgxExecuteInside[RD
 	override def toString = this.getClass.getSimpleName + "(path=" + path + ")"
 }
 
-case class SgxTaskSparkContextStop() extends SgxExecuteInside[Unit] {
+private case class SgxTaskSparkContextStop() extends SgxExecuteInside[Unit] {
 
 	def apply() = Await.result( Future { SgxMain.sparkContext.stop() }, Duration.Inf)
 
@@ -231,6 +247,33 @@ case class SgxTaskRDDMap[T,U:ClassTag](rddId: Int, f: T => U) extends SgxExecute
 	}, Duration.Inf)
 
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
+private case class SgxTaskRDDMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) extends SgxExecuteInside[RDD[(K, U)]] {
+
+	def apply() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).mapValues(f)
+		SgxMain.rddIds.put(r.id, r)
+		r
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+}
+
+private case class SgxTaskRDDCombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
+      rddId: Int,
+      createCombiner: V => C,
+      mergeValue: (C, V) => C,
+      mergeCombiners: (C, C) => C,
+      partitioner: Partitioner,
+      mapSideCombine: Boolean,
+      serializer: Serializer) extends SgxExecuteInside[RDD[(K, C)]] {
+
+	def apply() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).combineByKeyWithClassTag(createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer)
+		SgxMain.rddIds.put(r.id, r)
+		r
+	}, Duration.Inf)
 }
 
 case class SgxTaskRDDMapPartitionsWithIndex[T,U:ClassTag](rddId: Int, f: (Int, Iterator[T]) => Iterator[U], preservesPartitioning: Boolean) extends SgxExecuteInside[RDD[U]] {

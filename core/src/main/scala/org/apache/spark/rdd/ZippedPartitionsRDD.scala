@@ -107,21 +107,15 @@ private[spark] class ZippedPartitionsRDD2Sgx[A: ClassTag, B: ClassTag, V: ClassT
     var _rdd2: RDD[B],
     preservesPartitioning: Boolean = false)
   extends ZippedPartitionsRDD2[A,B,V](sc, _f, _rdd1, _rdd2, preservesPartitioning) {
-logDebug("create ZippedPartitionsRDD2Sgx")
-  override def compute(s: Partition, context: TaskContext): Iterator[V] = {
-	logDebug("compute")
-	val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
-logDebug("compute 1")
-  	val it1 = _rdd1.iterator(partitions(0), context)
-  	logDebug("compute 2")
-    val it2 = _rdd2.iterator(partitions(1), context)
-    logDebug("compute 3")
 
-    val x = if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
+  override def compute(s: Partition, context: TaskContext): Iterator[V] = {
+	val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
+  	val it1 = _rdd1.iterator(partitions(0), context)
+    val it2 = _rdd2.iterator(partitions(1), context)
+
+    if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
       new SgxComputeTaskZippedPartitionsRDD2(_f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
     else _f(it1, it2)
-    logDebug("compute 4")
-    x
   }
 
   override def clearDependencies() {

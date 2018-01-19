@@ -66,7 +66,7 @@ import org.apache.spark.sgx.SgxFct0
 import org.apache.spark.sgx.SgxTaskCreateSparkContext
 import org.apache.spark.sgx.SgxTaskSparkContextTextFile
 import org.apache.spark.sgx.SgxTaskSparkContextDefaultParallelism
-import org.apache.spark.sgx.SgxTaskSparkContextStop
+import org.apache.spark.sgx.SgxSparkContextFct
 import org.apache.spark.sgx.SgxTaskSparkContextRunJob
 import org.apache.spark.sgx.SgxTaskSparkContextNewRddId
 import org.apache.spark.sgx.SgxTaskSparkContextBroadcast
@@ -1918,7 +1918,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * Shut down the SparkContext.
    */
   def stop(): Unit = {
-	if (outcall) return new SgxTaskSparkContextStop().executeInsideEnclave()
+	if (outcall) return SgxSparkContextFct.stop()
     if (LiveListenerBus.withinListenerThread.value) {
       throw new SparkException(s"Cannot stop SparkContext within listener bus thread.")
     }

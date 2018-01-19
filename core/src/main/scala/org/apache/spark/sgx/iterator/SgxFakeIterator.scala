@@ -4,7 +4,9 @@ import org.apache.spark.sgx.ClientHandle
 
 case class SgxFakeIteratorException(id: Long) extends RuntimeException("A FakeIterator is just a placeholder and not supposed to be used. (" + id + ")") {}
 
-case class SgxFakeIterator[T](id: Long) extends Iterator[T] with Serializable {
+case class SgxFakeIterator[T]() extends Iterator[T] with Serializable {
+
+	val id = scala.util.Random.nextLong
 
 	override def hasNext: Boolean =  throw SgxFakeIteratorException(id)
 	override def next: T = throw SgxFakeIteratorException(id)
