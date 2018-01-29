@@ -26,14 +26,12 @@ import org.apache.spark.partial.PartialResult
 import org.apache.spark.partial.SumEvaluator
 import org.apache.spark.util.StatCounter
 
-import org.apache.spark.sgx.SDouble
-
 /**
  * Extra functions available on RDDs of Doubles through an implicit conversion.
  */
 class DoubleRDDFunctions(self: RDD[Double]) extends Logging with Serializable {
   /** Add up the elements in this RDD. */
-  def sum(): SDouble = self.withScope {
+  def sum(): Double = self.withScope {
     self.fold(0.0)(_ + _)
   }
 
