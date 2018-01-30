@@ -53,7 +53,6 @@ import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxTaskRDDPartitions
 import org.apache.spark.sgx.SgxTaskRDDMap
-import org.apache.spark.sgx.SgxTaskRDDMapPartitionsWithIndex
 import org.apache.spark.sgx.SgxFct2
 import org.apache.spark.sgx.SgxRddFct
 
@@ -858,17 +857,21 @@ logDebug("takeSample 12")
   def mapPartitions[U: ClassTag](
       f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    val cleanedF = sc.clean(f)
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx(
-      this,
-      (index: Int, iter: Iterator[T]) => cleanedF(iter),
-      preservesPartitioning)
-    else
-    new MapPartitionsRDD(
-      this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
-      preservesPartitioning)
+	logDebug("mapPartitions("+this.id+", "+f+", "+preservesPartitioning+"): " + f.getClass.getName)
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.mapPartitions(this.id, f, preservesPartitioning)
+	else {
+      val cleanedF = sc.clean(f)
+      if (SgxSettings.SGX_ENABLED)
+      new MapPartitionsRDDSgx(
+        this,
+        (index: Int, iter: Iterator[T]) => cleanedF(iter),
+        preservesPartitioning)
+      else
+      new MapPartitionsRDD(
+        this,
+        (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
+        preservesPartitioning)
+	}
   }
 
   /**
@@ -924,7 +927,7 @@ logDebug("takeSample 12")
       f: (Int, Iterator[T]) => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
 	logDebug("mapPartitionsWithIndex("+this.id+", "+f+", "+preservesPartitioning+"): " + f.getClass.getName)
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskRDDMapPartitionsWithIndex(this.id, f, preservesPartitioning).executeInsideEnclave()
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.mapPartitionsWithIndex(this.id, f, preservesPartitioning)
 	else {
 	    val cleanedF = sc.clean(f)
 	    if (SgxSettings.SGX_ENABLED)
@@ -1036,8 +1039,9 @@ logDebug("takeSample 12")
 	  logDebug("collect 0")
 	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.collect[T](this.id)
 	else {
-	  logDebug("collect 1")
+	  logDebug("collect 1: " + this)
       val results = sc.runJob(this, (iter: Iterator[T]) => {
+    	  logDebug("xxxx iter.toArray: " + iter)
         iter.toArray
       })
       logDebug("collect 2")

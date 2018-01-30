@@ -44,8 +44,11 @@ private[spark] abstract class EventLoop[E](name: String) extends Logging {
       try {
         while (!stopped.get) {
           val event = eventQueue.take()
+          logDebug("eventQueue.take() = " + event)
           try {
+        	logDebug("eventQueue.take() try 1")
             onReceive(event)
+            logDebug("eventQueue.take() try 2")
           } catch {
             case NonFatal(e) =>
               try {
@@ -99,6 +102,7 @@ private[spark] abstract class EventLoop[E](name: String) extends Logging {
    * Put the event into the event queue. The event thread will process it later.
    */
   def post(event: E): Unit = {
+	logDebug("eventQueue.put(): " + event)
     eventQueue.put(event)
   }
 

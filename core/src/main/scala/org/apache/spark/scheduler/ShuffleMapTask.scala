@@ -76,12 +76,16 @@ private[spark] class ShuffleMapTask(
 
   override def runTask(context: TaskContext): MapStatus = {
     // Deserialize the RDD using the broadcast variable.
+	  logDebug("runTask X")
     val threadMXBean = ManagementFactory.getThreadMXBean
     val deserializeStartTime = System.currentTimeMillis()
+    logDebug("runTask A")
     val deserializeStartCpuTime = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
       threadMXBean.getCurrentThreadCpuTime
     } else 0L
+    logDebug("runTask B")
     val ser = SparkEnv.get.closureSerializer.newInstance()
+    logDebug("runTask C")
     val (rdd, dep) = ser.deserialize[(RDD[_], ShuffleDependency[_, _, _])](
       ByteBuffer.wrap(taskBinary.value), Thread.currentThread.getContextClassLoader)
     _executorDeserializeTime = System.currentTimeMillis() - deserializeStartTime
@@ -89,12 +93,28 @@ private[spark] class ShuffleMapTask(
       threadMXBean.getCurrentThreadCpuTime - deserializeStartCpuTime
     } else 0L
 
+    logDebug("runTask 0")
+
     var writer: ShuffleWriter[Any, Any] = null
     try {
+    	logDebug("runTask 1")
       val manager = SparkEnv.get.shuffleManager
+      logDebug("runTask 2")
       writer = manager.getWriter[Any, Any](dep.shuffleHandle, partitionId, context)
-      writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
-      writer.stop(success = true).get
+      logDebug("runTask 3")
+      try {
+    	  logDebug("rdd: " + rdd)
+    	  logDebug("writer: " + writer)
+    	  logDebug("rdd.iterator: " + rdd.iterator(partition, context))
+    	  logDebug("rdd.iterator: " + rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      	writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      } catch {
+    	  case e : Exception => logDebug("Exception:" + e.getStackTrace)
+      }
+      logDebug("runTask 4")
+      val x = writer.stop(success = true).get
+      logDebug("runTask 5: " + x)
+    	x
     } catch {
       case e: Exception =>
         try {

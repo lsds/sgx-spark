@@ -826,8 +826,15 @@ logDebug("submitJob 7")
   private[scheduler] def handleBeginEvent(task: Task[_], taskInfo: TaskInfo) {
     // Note that there is a chance that this task is launched after the stage is cancelled.
     // In that case, we wouldn't have the stage anymore in stageIdToStage.
+	  try {
+	logDebug("handleBeginEvent 1" + task + ", " + taskInfo)
     val stageAttemptId = stageIdToStage.get(task.stageId).map(_.latestInfo.attemptId).getOrElse(-1)
+    logDebug("handleBeginEvent 2" + task + ", " + taskInfo)
     listenerBus.post(SparkListenerTaskStart(task.stageId, stageAttemptId, taskInfo))
+    logDebug("handleBeginEvent 3" + task + ", " + taskInfo)
+	  } catch {
+	 	  case e: Exception => logDebug("Exception: " + e + ", " +e.getStackTraceString)
+	  }
   }
 
   private[scheduler] def handleSpeculativeTaskSubmitted(task: Task[_]): Unit = {

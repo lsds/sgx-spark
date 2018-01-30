@@ -282,14 +282,19 @@ logDebug("run Alg 6")
     while (iteration < maxIterations && !converged) {
       val costAccum = sc.doubleAccumulator
       val bcCenters = sc.broadcast(centers)
-logDebug("run Alg A 1")
+logDebug("run Alg A 1: " +data)
       // Find the new centers
       val newCenters = data.mapPartitions { points =>
+    	  logDebug("run AlgX 1")
         val thisCenters = bcCenters.value
+        logDebug("run AlgX 2")
         val dims = thisCenters.head.vector.size
+        logDebug("run AlgX 3")
 
         val sums = Array.fill(thisCenters.length)(Vectors.zeros(dims))
+        logDebug("run AlgX 4")
         val counts = Array.fill(thisCenters.length)(0L)
+		logDebug("run AlgX 5")
 
         points.foreach { point =>
           val (bestCenter, cost) = KMeans.findClosest(thisCenters, point)
@@ -298,13 +303,19 @@ logDebug("run Alg A 1")
           axpy(1.0, point.vector, sum)
           counts(bestCenter) += 1
         }
-
-        counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
+	logDebug("run AlgX 6")
+        val x= counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
+        logDebug("run AlgX 7")
+	x
       }.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
+    	  logDebug("run AlgX 8")
         axpy(1.0, sum2, sum1)
+        logDebug("run AlgX 9")
         (sum1, count1 + count2)
       }.mapValues { case (sum, count) =>
+    	  logDebug("run AlgX 10")
         scal(1.0 / count, sum)
+        logDebug("run AlgX 11")
         new VectorWithNorm(sum)
       }.collectAsMap()
 logDebug("run Alg A 2")
@@ -431,7 +442,7 @@ logDebug("initKMeansParallel 13")
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
 logDebug("initKMeansParallel 14")
       val x = LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)
-      logDebug("initKMeansParallel 15")
+      logDebug("initKMeansParallel 15: " + x.mkString("[", ",", "]"))
       x
     }
   }
