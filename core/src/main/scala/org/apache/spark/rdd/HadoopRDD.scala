@@ -44,8 +44,6 @@ import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownH
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxSettings
 
-import java.util.concurrent.FutureTask
-
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
  */
@@ -105,6 +103,7 @@ class HadoopRDD[K, V](
     valueClass: Class[V],
     minPartitions: Int)
   extends RDD[(K, V)](sc, Nil) with Logging {
+
   if (initLocalJobConfFuncOpt.isDefined) {
     sparkContext.clean(initLocalJobConfFuncOpt.get)
   }
@@ -215,7 +214,6 @@ class HadoopRDD[K, V](
   }
 
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
-	logDebug("compute")
     val iter = new NextIterator[(K, V)] {
 
       private val split = theSplit.asInstanceOf[HadoopPartition]
@@ -326,7 +324,6 @@ class HadoopRDD[K, V](
     if (SgxSettings.SGX_ENABLED) {
       // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
       // The corresponding SgxIteratorConsumer lives inside the enclave.
-      logDebug("Creating SgxIteratorProvider for " + iter)
       SgxFactory.newSgxIteratorProvider[(K,V)](iter, true)
     }
     else

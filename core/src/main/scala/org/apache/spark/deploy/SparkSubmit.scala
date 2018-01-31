@@ -887,8 +887,7 @@ object SparkSubmit extends CommandLineUtils with Logging {
     }
 
     try {
-      if (SgxSettings.SGX_ENABLED) SgxFct.fct2(app.start, childArgs.toArray, sparkConf)
-      else
+      if (SgxSettings.SGX_ENABLED) return SgxFct.fct2(app.start, childArgs.toArray, sparkConf)
       app.start(childArgs.toArray, sparkConf)
     } catch {
       case t: Throwable =>
