@@ -64,13 +64,8 @@ import org.apache.spark.util._
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxFct0
 import org.apache.spark.sgx.SgxTaskCreateSparkContext
-import org.apache.spark.sgx.SgxTaskSparkContextTextFile
-import org.apache.spark.sgx.SgxTaskSparkContextDefaultParallelism
 import org.apache.spark.sgx.SgxSparkContextFct
 import org.apache.spark.sgx.SgxAccumulatorV2Fct
-import org.apache.spark.sgx.SgxTaskSparkContextRunJob
-import org.apache.spark.sgx.SgxTaskSparkContextNewRddId
-import org.apache.spark.sgx.SgxTaskSparkContextBroadcast
 
 /**
  * Main entry point for Spark functionality. A SparkContext represents the connection to a Spark
@@ -854,7 +849,7 @@ class SparkContext(config: SparkConf) extends Logging {
   def textFile(
       path: String,
       minPartitions: Int = defaultMinPartitions): RDD[String] = withScope {
-	if (outcall) return new SgxTaskSparkContextTextFile(path).executeInsideEnclave()
+	if (outcall) return SgxSparkContextFct.textFile(path)
     assertNotStopped()
     hadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text],
       minPartitions).map(pair => pair._2.toString).setName(path)
@@ -1512,18 +1507,13 @@ class SparkContext(config: SparkConf) extends Logging {
    */
   def broadcast[T: ClassTag](value: T): Broadcast[T] = {
     assertNotStopped()
-    logDebug("broadcast 0")
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextBroadcast(value).executeInsideEnclave()
-    logDebug("broadcast 1")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkContextFct.broadcast(value)
     require(!classOf[RDD[_]].isAssignableFrom(classTag[T].runtimeClass),
       "Can not directly broadcast RDDs; instead, call collect() and broadcast the result.")
     val bc = env.broadcastManager.newBroadcast[T](value, isLocal)
-    logDebug("broadcast 2")
     val callSite = getCallSite
-    logDebug("broadcast 3")
     logInfo("Created broadcast " + bc.id + " from " + callSite.shortForm)
     cleaner.foreach(_.registerBroadcastForCleanup(bc))
-    logDebug("broadcast 4")
     bc
   }
 
@@ -2055,7 +2045,6 @@ class SparkContext(config: SparkConf) extends Logging {
       func: (TaskContext, Iterator[T]) => U,
       partitions: Seq[Int],
       resultHandler: (Int, U) => Unit): Unit = {
-//	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextRunJob(rdd.id, func, partitions, resultHandler).executeInsideEnclave()
 	logDebug("runJob X4: ")
     if (stopped.get()) {
       throw new IllegalStateException("SparkContext has been shutdown")
@@ -2376,7 +2365,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
   /** Default level of parallelism to use when not given by user (e.g. parallelize and makeRDD). */
   def defaultParallelism: Int = {
-	if (outcall) return new SgxTaskSparkContextDefaultParallelism().executeInsideEnclave()
+	if (outcall) return SgxSparkContextFct.defaultParallelism()
     assertNotStopped()
     taskScheduler.defaultParallelism
   }
@@ -2396,7 +2385,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
   /** Register a new RDD, returning its RDD ID */
   private[spark] def newRddId(): Int = {
-	  if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskSparkContextNewRddId().executeInsideEnclave()
+	  if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkContextFct.newRddId()
 	  else nextRddId.getAndIncrement()
   }
 

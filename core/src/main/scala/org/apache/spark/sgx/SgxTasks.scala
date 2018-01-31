@@ -87,12 +87,7 @@ object SgxAccumulatorV2Fct {
 		name: Option[String] = None) = new SgxTaskAccumulatorRegister(acc, name).executeInsideEnclave()
 }
 
-object SgxSparkContextFct {
 
-	def conf() = new SgxTaskSparkContextConf().executeInsideEnclave()
-
-	def stop() = new SgxTaskSparkContextStop().executeInsideEnclave()
-}
 
 case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	fct: (Int, Iterator[T]) => Iterator[U],
@@ -206,50 +201,6 @@ case class SgxTaskExternalSorterInsertAllCreateKey[K](
 case class SgxTaskCreateSparkContext(conf: SparkConf) extends SgxExecuteInside[Unit] {
 	def apply() = Await.result( Future { SgxMain.sparkContext = new SparkContext(conf); Unit }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(conf=" + conf + ")"
-}
-
-case class SgxTaskSparkContextDefaultParallelism() extends SgxExecuteInside[Int] {
-	def apply() = Await.result( Future { SgxMain.sparkContext.defaultParallelism }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "()"
-}
-
-case class SgxTaskSparkContextTextFile(path: String) extends SgxExecuteInside[RDD[String]] {
-
-	def apply() = Await.result( Future {
-		val rdd = SgxMain.sparkContext.textFile(path)
-		SgxMain.rddIds.put(rdd.id, rdd)
-		rdd
-	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(path=" + path + ")"
-}
-
-private case class SgxTaskSparkContextStop() extends SgxExecuteInside[Unit] {
-
-	def apply() = Await.result( Future { SgxMain.sparkContext.stop() }, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "()"
-}
-
-case class SgxTaskSparkContextNewRddId() extends SgxExecuteInside[Int] {
-
-	def apply() = Await.result( Future { SgxMain.sparkContext.newRddId() }, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "()"
-}
-
-case class SgxTaskSparkContextBroadcast[T: ClassTag](value: T) extends SgxExecuteInside[Broadcast[T]] {
-
-	def apply() = Await.result( Future { SgxMain.sparkContext.broadcast(value) }, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "()"
-}
-
-private case class SgxTaskSparkContextConf() extends SgxExecuteInside[SparkConf] {
-
-	def apply() = Await.result( Future { SgxMain.sparkContext.conf }, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "()"
 }
 
 private case class SgxTaskAccumulatorRegister[T,U](
@@ -398,23 +349,5 @@ private case class SgxTaskRDDUnpersist[T](rddId: Int) extends SgxExecuteInside[U
 	}, Duration.Inf)
 
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
-}
-
-case class SgxTaskSparkContextRunJob[T, U: ClassTag](
-	rddId: Int,
-    func: (TaskContext, Iterator[T]) => U,
-    partitions: Seq[Int],
-    resultHandler: (Int, U) => Unit) extends SgxExecuteInside[Unit] {
-
-	def apply() = {
-		logDebug("apply()")
-		val x = (i: Int, u: U) => {
-			logDebug("resultHandler: ("+i+","+u+")")
-			resultHandler(i,u)
-		}
-		SgxMain.sparkContext.runJob(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]], func, partitions, x)
-	}
-
-	override def toString = this.getClass.getSimpleName + "()"
 }
 
