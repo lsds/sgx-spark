@@ -11,11 +11,15 @@ import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.shm.ShmCommunicationManager
 
-abstract class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends InterruptibleIterator[T](null, null) with Callable[Unit] with Logging {
-	protected def do_accept: SgxCommunicator
+class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends InterruptibleIterator[T](null, null) with Callable[Unit] with Logging {
 
-	val identifier: SgxIteratorProviderIdentifier
+	val com = ShmCommunicationManager.get().newShmCommunicator(false)
+
+	val identifier = new SgxIteratorProviderIdentifier(com.getMyPort)
+
+	def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
 
 	override final def hasNext: Boolean = delegate.hasNext
 
@@ -61,5 +65,5 @@ abstract class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean)
 		com.close()
 	}
 
-	override def toString() = getClass.getSimpleName + "(identifier=" + identifier + ")"
+	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
 }
