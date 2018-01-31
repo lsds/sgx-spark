@@ -201,7 +201,7 @@ private[ui] class JobPage(parent: JobsTab, store: AppStatusStore) extends WebUIP
     val stages = jobData.stageIds.map { stageId =>
       // This could be empty if the listener hasn't received information about the
       // stage or if the stage information has been garbage collected
-      store.stageData(stageId).lastOption.getOrElse {
+      store.asOption(store.lastStageAttempt(stageId)).getOrElse {
         new v1.StageData(
           v1.StageStatus.PENDING,
           stageId,
@@ -336,8 +336,14 @@ private[ui] class JobPage(parent: JobsTab, store: AppStatusStore) extends WebUIP
     content ++= makeTimeline(activeStages ++ completedStages ++ failedStages,
       store.executorList(false), appStartTime)
 
-    content ++= UIUtils.showDagVizForJob(
-      jobId, store.operationGraphForJob(jobId))
+    val operationGraphContent = store.asOption(store.operationGraphForJob(jobId)) match {
+      case Some(operationGraph) => UIUtils.showDagVizForJob(jobId, operationGraph)
+      case None =>
+        <div id="no-info">
+          <p>No DAG visualization information to display for job {jobId}</p>
+        </div>
+    }
+    content ++= operationGraphContent
 
     if (shouldShowActiveStages) {
       content ++= <h4 id="active">Active Stages ({activeStages.size})</h4> ++

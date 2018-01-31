@@ -216,6 +216,7 @@ class KMeans private (
   private[spark] def run(
       data: RDD[Vector],
       instr: Option[Instrumentation[NewKMeans]]): KMeansModel = {
+
     if (data.getStorageLevel == StorageLevel.NONE) {
       logWarning("The input data is not directly cached, which may hurt performance if its"
         + " parent RDDs are also uncached.")
@@ -223,17 +224,12 @@ class KMeans private (
 
     // Compute squared norms and cache them.
     val norms = data.map(Vectors.norm(_, 2.0))
-
     norms.persist()
-
     val zippedData = data.zip(norms).map { case (v, norm) =>
       new VectorWithNorm(v, norm)
     }
-logDebug("run 4")
     val model = runAlgorithm(zippedData, instr)
-    logDebug("run 5")
     norms.unpersist()
-    logDebug("run 6")
 
     // Warn at the end of the run as well, for increased visibility.
     if (data.getStorageLevel == StorageLevel.NONE) {
@@ -249,54 +245,44 @@ logDebug("run 4")
   private def runAlgorithm(
       data: RDD[VectorWithNorm],
       instr: Option[Instrumentation[NewKMeans]]): KMeansModel = {
+
     val sc = data.sparkContext
-logDebug("run Alg 1")
+
     val initStartTime = System.nanoTime()
-logDebug("run Alg 2")
+
     val centers = initialModel match {
       case Some(kMeansCenters) =>
-    	  logDebug("run Alg 2a")
         kMeansCenters.clusterCenters.map(new VectorWithNorm(_))
       case None =>
         if (initializationMode == KMeans.RANDOM) {
-        	logDebug("run Alg 2b")
           initRandom(data)
         } else {
-        	logDebug("run Alg 2c")
           initKMeansParallel(data)
         }
     }
-    logDebug("run Alg 3")
     val initTimeInSeconds = (System.nanoTime() - initStartTime) / 1e9
     logInfo(f"Initialization with $initializationMode took $initTimeInSeconds%.3f seconds.")
-logDebug("run Alg 4")
+
     var converged = false
     var cost = 0.0
     var iteration = 0
 
     val iterationStartTime = System.nanoTime()
-logDebug("run Alg 5")
+
     instr.foreach(_.logNumFeatures(centers.head.vector.size))
-logDebug("run Alg 6")
+
     // Execute iterations of Lloyd's algorithm until converged
     while (iteration < maxIterations && !converged) {
-    	logDebug("run Alg A 1a: " +data)
       val costAccum = sc.doubleAccumulator
-      logDebug("run Alg A 1b: " +data)
       val bcCenters = sc.broadcast(centers)
-logDebug("run Alg A 1c: " +data)
+
       // Find the new centers
       val newCenters = data.mapPartitions { points =>
-    	  logDebug("run AlgX 1")
         val thisCenters = bcCenters.value
-        logDebug("run AlgX 2")
         val dims = thisCenters.head.vector.size
-        logDebug("run AlgX 3")
 
         val sums = Array.fill(thisCenters.length)(Vectors.zeros(dims))
-        logDebug("run AlgX 4")
         val counts = Array.fill(thisCenters.length)(0L)
-		logDebug("run AlgX 5")
 
         points.foreach { point =>
           val (bestCenter, cost) = KMeans.findClosest(thisCenters, point)
@@ -305,24 +291,18 @@ logDebug("run Alg A 1c: " +data)
           axpy(1.0, point.vector, sum)
           counts(bestCenter) += 1
         }
-	logDebug("run AlgX 6")
-        val x= counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
-        logDebug("run AlgX 7")
-	x
+
+        counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
       }.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
-    	  logDebug("run AlgX 8")
         axpy(1.0, sum2, sum1)
-        logDebug("run AlgX 9")
         (sum1, count1 + count2)
       }.mapValues { case (sum, count) =>
-    	  logDebug("run AlgX 10")
         scal(1.0 / count, sum)
-        logDebug("run AlgX 11")
         new VectorWithNorm(sum)
       }.collectAsMap()
-logDebug("run Alg A 2")
+
       bcCenters.destroy(blocking = false)
-logDebug("run Alg A 3")
+
       // Update the cluster centers and costs
       converged = true
       newCenters.foreach { case (j, newCenter) =>
@@ -331,21 +311,20 @@ logDebug("run Alg A 3")
         }
         centers(j) = newCenter
       }
-logDebug("run Alg A 4")
+
       cost = costAccum.value
       iteration += 1
-logDebug("run Alg A 5")
     }
-logDebug("run Alg 6")
+
     val iterationTimeInSeconds = (System.nanoTime() - iterationStartTime) / 1e9
     logInfo(f"Iterations took $iterationTimeInSeconds%.3f seconds.")
-logDebug("run Alg 7")
+
     if (iteration == maxIterations) {
       logInfo(s"KMeans reached the max number of iterations: $maxIterations.")
     } else {
       logInfo(s"KMeans converged in $iteration iterations.")
     }
-logDebug("run Alg 8")
+
     logInfo(s"The cost is $cost.")
 
     new KMeansModel(centers.map(_.vector))
@@ -372,63 +351,49 @@ logDebug("run Alg 8")
    */
   private[clustering] def initKMeansParallel(data: RDD[VectorWithNorm]): Array[VectorWithNorm] = {
     // Initialize empty centers and point costs.
-logDebug("initKMeansParallel 1")
     var costs = data.map(_ => Double.PositiveInfinity)
-logDebug("initKMeansParallel 2")
+
     // Initialize the first center to a random point.
     val seed = new XORShiftRandom(this.seed).nextInt()
-    logDebug("initKMeansParallel 3: " + data.id)
     val sample = data.takeSample(false, 1, seed)
-    logDebug("initKMeansParallel 4")
     // Could be empty if data is empty; fail with a better message early:
     require(sample.nonEmpty, s"No samples available from $data")
-    logDebug("available samples: " + sample)
-logDebug("initKMeansParallel 5")
+
     val centers = ArrayBuffer[VectorWithNorm]()
     var newCenters = Seq(sample.head.toDense)
     centers ++= newCenters
-logDebug("initKMeansParallel 6")
+
     // On each step, sample 2 * k points on average with probability proportional
     // to their squared distance from the centers. Note that only distances between points
     // and new centers are computed in each iteration.
     var step = 0
     val bcNewCentersList = ArrayBuffer[Broadcast[_]]()
-logDebug("initKMeansParallel 7")
     while (step < initializationSteps) {
-    	logDebug("initKMeansParallel a")
       val bcNewCenters = data.context.broadcast(newCenters)
-      logDebug("initKMeansParallel b")
       bcNewCentersList += bcNewCenters
-      logDebug("initKMeansParallel c")
       val preCosts = costs
-      costs = data.zip(preCosts).map { case (point, cost) => {
-        math.min(KMeans.pointCost(bcNewCenters.value, point), cost)}
+      costs = data.zip(preCosts).map { case (point, cost) =>
+        math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
       }.persist(StorageLevel.MEMORY_AND_DISK)
-      logDebug("initKMeansParallel d: " + costs)
       val sumCosts = costs.sum()
-logDebug("initKMeansParallel e: " + sumCosts)
+
       bcNewCenters.unpersist(blocking = false)
-      logDebug("initKMeansParallel f")
       preCosts.unpersist(blocking = false)
-logDebug("initKMeansParallel g")
 
       val chosen = data.zip(costs).mapPartitionsWithIndex { (index, pointCosts) =>
         val rand = new XORShiftRandom(seed ^ (step << 16) ^ index)
         pointCosts.filter { case (_, c) => rand.nextDouble() < 2.0 * c * k / sumCosts }.map(_._1)
       }.collect()
-      logDebug("initKMeansParallel h")
       newCenters = chosen.map(_.toDense)
-      logDebug("initKMeansParallel i")
       centers ++= newCenters
-      logDebug("initKMeansParallel j")
       step += 1
     }
-logDebug("initKMeansParallel 8")
+
     costs.unpersist(blocking = false)
     bcNewCentersList.foreach(_.destroy(false))
-logDebug("initKMeansParallel 9")
+
     val distinctCenters = centers.map(_.vector).distinct.map(new VectorWithNorm(_))
-logDebug("initKMeansParallel 10")
+
     if (distinctCenters.size <= k) {
       distinctCenters.toArray
     } else {
@@ -436,16 +401,12 @@ logDebug("initKMeansParallel 10")
       // candidate by the number of points in the dataset mapping to it and run a local k-means++
       // on the weighted centers to pick k of them
       val bcCenters = data.context.broadcast(distinctCenters)
-logDebug("initKMeansParallel 11")
       val countMap = data.map(KMeans.findClosest(bcCenters.value, _)._1).countByValue()
-logDebug("initKMeansParallel 12")
+
       bcCenters.destroy(blocking = false)
-logDebug("initKMeansParallel 13")
+
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
-logDebug("initKMeansParallel 14")
-      val x = LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)
-      logDebug("initKMeansParallel 15: " + x.mkString("[", ",", "]"))
-      x
+      LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)
     }
   }
 }
@@ -455,7 +416,7 @@ logDebug("initKMeansParallel 14")
  * Top-level methods for calling K-means clustering.
  */
 @Since("0.8.0")
-object KMeans extends Logging {
+object KMeans {
 
   // Initialization mode names
   @Since("0.8.0")
@@ -642,12 +603,10 @@ object KMeans extends Logging {
   }
 }
 
-
-
 /**
  * A vector with its norm for fast distance computation.
  *
- * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDisdtance]]
+ * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDistance]]
  */
 private[clustering]
 class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable with Encryptable with Logging {

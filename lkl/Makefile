@@ -43,7 +43,7 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars
 	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
 	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
-	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
+	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.*-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
 #	sudo cp    ../ring_buff/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
 	sudo cp    ../C/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
 

@@ -26,10 +26,6 @@ import org.apache.spark.mllib.linalg.Vectors
 
 import org.apache.spark.internal.Logging
 
-object Foo extends Serializable {
-	def bar(s: String) = s
-}
-
 object KMeansExample extends Logging {
 
   def main(args: Array[String]) {
@@ -41,18 +37,16 @@ object KMeansExample extends Logging {
     // Load and parse the data
     val data = sc.textFile(args(0))
     val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache()
-    logDebug("kmeans 5: " + parsedData)
 
     // Cluster the data into two classes using KMeans
     val numClusters = 2
     val numIterations = 20
     val clusters = KMeans.train(parsedData, numClusters, numIterations)
-    logDebug("kmeans 6: " + clusters.clusterCenters.mkString("[", ",", "]"))
+    logDebug("kmeans done: " + clusters.clusterCenters.mkString("[", ",", "]"))
 
     // Evaluate clustering by computing Within Set Sum of Squared Errors
     val WSSSE = clusters.computeCost(parsedData)
-    logDebug("kmeans 7")
-    println("Within Set Sum of Squared Errors = " + WSSSE)
+    println(s"Within Set Sum of Squared Errors = $WSSSE")
 
     // Save and load model
     clusters.save(sc, args(1))
