@@ -51,7 +51,6 @@ import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxTaskRDDPartitions
 import org.apache.spark.sgx.SgxFct2
 import org.apache.spark.sgx.SgxRddFct
 
@@ -268,7 +267,7 @@ abstract class RDD[T: ClassTag](
    * RDD is checkpointed or not.
    */
   final def partitions: Array[Partition] = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskRDDPartitions(this.id).executeInsideEnclave()
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.partitions(this.id)
 	else
     checkpointRDD.map(_.partitions).getOrElse {
       if (partitions_ == null) {

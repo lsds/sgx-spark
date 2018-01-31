@@ -7,6 +7,7 @@ import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
@@ -15,6 +16,8 @@ object SgxSparkContextFct {
 	def broadcast[T: ClassTag](value: T) = new SgxSparkContextBroadcast(value).executeInsideEnclave()
 
 	def conf() = new SgxSparkContextConf().executeInsideEnclave()
+
+	def create(conf: SparkConf) = new SgxTaskSparkContextCreate(conf).executeInsideEnclave()
 
 	def defaultParallelism() = new SgxSparkContextDefaultParallelism().executeInsideEnclave()
 
@@ -39,6 +42,11 @@ private case class SgxSparkContextBroadcast[T: ClassTag](value: T) extends SgxEx
 private case class SgxSparkContextConf() extends SgxExecuteInside[SparkConf] {
 	def apply() = Await.result( Future { SgxMain.sparkContext.conf }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "()"
+}
+
+private case class SgxTaskSparkContextCreate(conf: SparkConf) extends SgxExecuteInside[Unit] {
+	def apply() = Await.result( Future { SgxMain.sparkContext = new SparkContext(conf); Unit }, Duration.Inf)
+	override def toString = this.getClass.getSimpleName + "(conf=" + conf + ")"
 }
 
 private case class SgxSparkContextDefaultParallelism() extends SgxExecuteInside[Int] {

@@ -63,7 +63,6 @@ import org.apache.spark.util._
 
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxFct0
-import org.apache.spark.sgx.SgxTaskCreateSparkContext
 import org.apache.spark.sgx.SgxSparkContextFct
 import org.apache.spark.sgx.SgxAccumulatorV2Fct
 
@@ -84,7 +83,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
   private val outcall = SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE
   if (outcall) {
-	  new SgxTaskCreateSparkContext(config).executeInsideEnclave()
+	  SgxSparkContextFct.create(config)
 	  SparkContext.instance = this
   }
 
