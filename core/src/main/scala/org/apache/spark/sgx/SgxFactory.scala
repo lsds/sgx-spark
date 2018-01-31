@@ -1,7 +1,6 @@
 package org.apache.spark.sgx
 
 import org.apache.spark.sgx.broadcast.SgxBroadcastProvider
-import org.apache.spark.sgx.broadcast.shm.SgxShmBroadcastProvider
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
@@ -21,7 +20,7 @@ object SgxFactory {
 	def runSgxBroadcastProvider(): Unit = {
 		synchronized {
 			if (!startedBroadcastProvider) {
-				Completor.submit(new SgxShmBroadcastProvider())
+				Completor.submit(new SgxBroadcastProvider())
 				startedBroadcastProvider = true
 			}
 		}

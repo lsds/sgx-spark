@@ -5,11 +5,19 @@ import java.util.concurrent.Callable
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 
+import org.apache.spark.sgx.ClientHandle
+import org.apache.spark.sgx.shm.ShmCommunicationManager
+
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxCommunicator
 
-abstract class SgxBroadcastProvider() extends Callable[Unit] with Logging {
-	val com: SgxCommunicator
+class SgxBroadcastProvider() extends Callable[Unit] with Logging {
+
+	private val _com = ShmCommunicationManager.get().newShmCommunicator(false)
+
+	ClientHandle.sendRecv[Boolean](new SgxBroadcastProviderIdentifier(_com.getMyPort))
+
+	val com = _com.connect(_com.recvOne.asInstanceOf[Long])
 
 	def call(): Unit = {
 		logDebug(this + " now running with " + com)
@@ -48,5 +56,5 @@ abstract class SgxBroadcastProvider() extends Callable[Unit] with Logging {
 		com.close()
 	}
 
-	override def toString() = getClass.getSimpleName + "()"
+	override def toString() = this.getClass.getSimpleName + "(com=" + com + ")"
 }
