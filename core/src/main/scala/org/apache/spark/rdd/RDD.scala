@@ -1209,7 +1209,7 @@ logDebug("takeSample 12")
 	    	// DO NOT ADD LOG MESSAGES HERE! THIS WON'T SERIALIZE
 	    	if (SgxSettings.SGX_ENABLED) {
 				// SGX: execute folding inside worker enclaves
-	    		val id = SgxFactory.get.newSgxIteratorProvider[T](iter, false).identifier
+	    		val id = SgxFactory.newSgxIteratorProvider[T](iter, false).identifier
 	    		new SgxFold(zeroValueC, cleanOp, id).executeInsideEnclave()
 	    	}
 	    	else

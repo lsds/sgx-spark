@@ -23,7 +23,7 @@ object SgxMain extends Callable[Unit] with Logging {
 	def main(args: Array[String]): Unit = {
 		logDebug("Running SgxMain.main()")
 		Completor.submit(new Waiter())
-		while (true) Completor.submit(new SgxMainRunner(SgxFactory.get.acceptCommunicator()))
+		while (true) Completor.submit(new SgxMainRunner(SgxFactory.acceptCommunicator()))
 	}
 
 	def call(): Unit = main(null)

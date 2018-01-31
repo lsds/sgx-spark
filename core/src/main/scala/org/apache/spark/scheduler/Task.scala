@@ -111,7 +111,7 @@ private[spark] abstract class Task[T](
     try {
       if (SgxSettings.SGX_ENABLED) {
     	  logDebug("Initializing SGX")
-    	  SgxFactory.get.runSgxBroadcastProvider()
+    	  SgxFactory.runSgxBroadcastProvider()
       }
       runTask(context)
     } catch {

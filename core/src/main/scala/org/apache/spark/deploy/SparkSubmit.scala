@@ -168,7 +168,7 @@ object SparkSubmit extends CommandLineUtils with Logging {
 
     if (SgxSettings.SGX_ENABLED) {
       Completor.submit(SgxMain)
-      SgxFactory.get.runSgxBroadcastProvider()
+      SgxFactory.runSgxBroadcastProvider()
     }    
 
     def doRunMain(): Unit = {
