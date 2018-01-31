@@ -38,8 +38,6 @@ abstract class SgxExecuteInside[R] extends Serializable with Logging {
 	def apply(): R
 }
 
-
-
 object SgxAccumulatorV2Fct {
 
 	def register(
@@ -81,15 +79,6 @@ case class SgxOtherTask[U, T](
 case class SgxFct0[Z](fct: () => Z) extends SgxExecuteInside[Z] {
 	def apply() = Await.result(Future { fct() }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
-}
-
-case class SgxFct2[A, B, Z](
-	fct: (A, B) => Z,
-	a: A,
-	b: B) extends SgxExecuteInside[Z] {
-
-	def apply() = Await.result(Future { fct(a, b) }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
 case class SgxFold[T](

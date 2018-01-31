@@ -53,7 +53,7 @@ import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.util._
 
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxFct2
+import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.SgxMain
 import org.apache.spark.sgx.SgxFactory
@@ -887,7 +887,7 @@ object SparkSubmit extends CommandLineUtils with Logging {
     }
 
     try {
-      if (SgxSettings.SGX_ENABLED) new SgxFct2(app.start, childArgs.toArray, sparkConf).executeInsideEnclave()
+      if (SgxSettings.SGX_ENABLED) SgxFct.fct2(app.start, childArgs.toArray, sparkConf)
       else
       app.start(childArgs.toArray, sparkConf)
     } catch {

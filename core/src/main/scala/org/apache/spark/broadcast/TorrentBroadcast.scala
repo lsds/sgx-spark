@@ -55,7 +55,7 @@ import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
  * When initialized, TorrentBroadcast objects read SparkEnv.get.conf.
  *
  * @param obj object to broadcast
- * @param id A unique identifier for the broadcast variable.d
+ * @param id A unique identifier for the broadcast variable.
  */
 private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   extends Broadcast[T](id) with Logging with Serializable {
@@ -96,13 +96,9 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   private var checksums: Array[Int] = _
 
   override protected def getValue() = {
-    logDebug("getValue("+this+")")
-    val x = if (SgxSettings.IS_ENCLAVE) {
-	  SgxBroadcastEnclave.value(this)
-    } else
+    if (SgxSettings.IS_ENCLAVE) SgxBroadcastEnclave.value(this)
+    else
     _value
-    logDebug("getValue("+this+") = " + x)
-    x
   }
 
   private def calcChecksum(block: ByteBuffer): Int = {
@@ -196,7 +192,6 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
    * Remove all persisted state associated with this Torrent broadcast on the executors.
    */
   override protected def doUnpersist(blocking: Boolean) {
-    logDebug(s"Unpersisting TorrentBroadcast $id")
     TorrentBroadcast.unpersist(id, removeFromDriver = false, blocking)
   }
 
@@ -327,6 +322,7 @@ private object TorrentBroadcast extends Logging {
    * If removeFromDriver is true, also remove these persisted blocks on the driver.
    */
   def unpersist(id: Long, removeFromDriver: Boolean, blocking: Boolean): Unit = {
+    logDebug(s"Unpersisting TorrentBroadcast $id")
     SparkEnv.get.blockManager.master.removeBroadcast(id, removeFromDriver, blocking)
   }
 }

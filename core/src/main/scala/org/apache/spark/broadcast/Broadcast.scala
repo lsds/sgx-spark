@@ -87,11 +87,11 @@ abstract class Broadcast[T: ClassTag](val id: Long) extends Serializable with Lo
    * @param blocking Whether to block until unpersisting has completed
    */
   def unpersist(blocking: Boolean) {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxBroadcastEnclave.unpersist(this, blocking)
-	else {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxBroadcastEnclave.unpersist(this, blocking)
+    else {
       assertValid()
       doUnpersist(blocking)
-	}
+    }
   }
 
 
@@ -110,14 +110,14 @@ abstract class Broadcast[T: ClassTag](val id: Long) extends Serializable with Lo
    * @param blocking Whether to block until destroy has completed
    */
   private[spark] def destroy(blocking: Boolean) {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxBroadcastEnclave.destroy(this, blocking)
-	else {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxBroadcastEnclave.destroy(this, blocking)
+    else {
       assertValid()
       _isValid = false
       _destroySite = Utils.getCallSite().shortForm
       logInfo("Destroying %s (from %s)".format(toString, _destroySite))
       doDestroy(blocking)
-	}
+    }
   }
 
   /**
