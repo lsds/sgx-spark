@@ -67,10 +67,10 @@ import org.apache.spark.sgx.SgxTaskCreateSparkContext
 import org.apache.spark.sgx.SgxTaskSparkContextTextFile
 import org.apache.spark.sgx.SgxTaskSparkContextDefaultParallelism
 import org.apache.spark.sgx.SgxSparkContextFct
+import org.apache.spark.sgx.SgxAccumulatorV2Fct
 import org.apache.spark.sgx.SgxTaskSparkContextRunJob
 import org.apache.spark.sgx.SgxTaskSparkContextNewRddId
 import org.apache.spark.sgx.SgxTaskSparkContextBroadcast
-import org.apache.spark.sgx.SgxTaskSparkContextConf
 
 /**
  * Main entry point for Spark functionality. A SparkContext represents the connection to a Spark
@@ -238,7 +238,7 @@ class SparkContext(config: SparkConf) extends Logging {
    | context.                                                                              |
    * ------------------------------------------------------------------------------------- */
 
-  private[spark] def conf: SparkConf = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return new SgxTaskSparkContextConf().executeInsideEnclave() else _conf
+  private[spark] def conf: SparkConf = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkContextFct.conf() else _conf
 
   /**
    * Return a copy of this SparkContext's configuration. The configuration ''cannot'' be
@@ -1434,7 +1434,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * @note Accumulators must be registered before use, or it will throw exception.
    */
   def register(acc: AccumulatorV2[_, _]): Unit = {
-    acc.register(this)
+	acc.register(this)
   }
 
   /**
@@ -1443,7 +1443,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * @note Accumulators must be registered before use, or it will throw exception.
    */
   def register(acc: AccumulatorV2[_, _], name: String): Unit = {
-    acc.register(this, name = Option(name))
+	acc.register(this, name = Option(name))
   }
 
   /**

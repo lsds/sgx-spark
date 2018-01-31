@@ -280,9 +280,11 @@ logDebug("run Alg 5")
 logDebug("run Alg 6")
     // Execute iterations of Lloyd's algorithm until converged
     while (iteration < maxIterations && !converged) {
+    	logDebug("run Alg A 1a: " +data)
       val costAccum = sc.doubleAccumulator
+      logDebug("run Alg A 1b: " +data)
       val bcCenters = sc.broadcast(centers)
-logDebug("run Alg A 1: " +data)
+logDebug("run Alg A 1c: " +data)
       // Find the new centers
       val newCenters = data.mapPartitions { points =>
     	  logDebug("run AlgX 1")

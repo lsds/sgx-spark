@@ -52,7 +52,6 @@ import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxFold
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxTaskRDDPartitions
-import org.apache.spark.sgx.SgxTaskRDDMap
 import org.apache.spark.sgx.SgxFct2
 import org.apache.spark.sgx.SgxRddFct
 
@@ -392,7 +391,7 @@ abstract class RDD[T: ClassTag](
    */
   def map[U: ClassTag](f: T => U): RDD[U] = withScope {
 	logDebug("map("+this.id+", "+f+"): " + f.getClass.getName)
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) new SgxTaskRDDMap(this.id, f).executeInsideEnclave()
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.map(this.id, f)
 	else {
       val cleanF = sc.clean(f)
       if (SgxSettings.SGX_ENABLED)

@@ -26,6 +26,8 @@ import org.apache.spark.TaskContext
 import org.apache.spark.Partition
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.util.AccumulatorV2
+import org.apache.spark.util.AccumulatorMetadata
 
 abstract class SgxExecuteInside[R] extends Serializable with Logging {
 	def executeInsideEnclave(): R = {
@@ -55,6 +57,8 @@ object SgxRddFct {
 
 	def fold[T](rddId: Int, v: T, op: (T,T) => T) = new SgxTaskRDDFold(rddId, v, op).executeInsideEnclave()
 
+	def map[T,U:ClassTag](rddId: Int, f: T => U) = new SgxTaskRDDMap(rddId, f).executeInsideEnclave()
+
 	def mapPartitions[T,U:ClassTag](
 		rddId: Int,
 		f: Iterator[T] => Iterator[U],
@@ -76,7 +80,16 @@ object SgxRddFct {
 	def zip[T,U:ClassTag](rddId1: Int, rddId2: Int) = new SgxTaskRDDZip[T,U](rddId1, rddId2).executeInsideEnclave()
 }
 
+object SgxAccumulatorV2Fct {
+
+	def register(
+		acc: AccumulatorV2[_, _],
+		name: Option[String] = None) = new SgxTaskAccumulatorRegister(acc, name).executeInsideEnclave()
+}
+
 object SgxSparkContextFct {
+
+	def conf() = new SgxTaskSparkContextConf().executeInsideEnclave()
 
 	def stop() = new SgxTaskSparkContextStop().executeInsideEnclave()
 }
@@ -232,9 +245,22 @@ case class SgxTaskSparkContextBroadcast[T: ClassTag](value: T) extends SgxExecut
 	override def toString = this.getClass.getSimpleName + "()"
 }
 
-case class SgxTaskSparkContextConf() extends SgxExecuteInside[SparkConf] {
+private case class SgxTaskSparkContextConf() extends SgxExecuteInside[SparkConf] {
 
 	def apply() = Await.result( Future { SgxMain.sparkContext.conf }, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "()"
+}
+
+private case class SgxTaskAccumulatorRegister[T,U](
+		acc: AccumulatorV2[T,U],
+		name: Option[String]) extends SgxExecuteInside[AccumulatorMetadata] {
+
+	def apply() = {
+		if (name == null) acc.register(SgxMain.sparkContext)
+		else acc.register(SgxMain.sparkContext, name)
+		acc.metadata
+	}
 
 	override def toString = this.getClass.getSimpleName + "()"
 }
@@ -248,7 +274,7 @@ case class SgxTaskRDDPartitions[T](rddId: Int) extends SgxExecuteInside[Array[Pa
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-case class SgxTaskRDDMap[T,U:ClassTag](rddId: Int, f: T => U) extends SgxExecuteInside[RDD[U]] {
+private case class SgxTaskRDDMap[T,U:ClassTag](rddId: Int, f: T => U) extends SgxExecuteInside[RDD[U]] {
 
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].map(f)
