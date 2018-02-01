@@ -224,10 +224,10 @@ abstract class RDD[T: ClassTag](
    * @return This RDD.
    */
   def unpersist(blocking: Boolean = true): this.type = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-		SgxRddFct.unpersist(this.id)
-		return this
-	}
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+      SgxRddFct.unpersist(this.id)
+      return this
+    }
     logInfo("Removing RDD " + id + " from persistence list")
     sc.unpersistRDD(id, blocking)
     storageLevel = StorageLevel.NONE
@@ -263,8 +263,7 @@ abstract class RDD[T: ClassTag](
    * RDD is checkpointed or not.
    */
   final def partitions: Array[Partition] = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.partitions(this.id)
-	else
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.partitions(this.id)
     checkpointRDD.map(_.partitions).getOrElse {
       if (partitions_ == null) {
         partitions_ = getPartitions
@@ -509,8 +508,7 @@ abstract class RDD[T: ClassTag](
     require(fraction >= 0,
       s"Fraction must be nonnegative, but got ${fraction}")
 
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.sample(this.id, withReplacement, fraction, seed)
-    else
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.sample(this.id, withReplacement, fraction, seed)
     withScope {
       require(fraction >= 0.0, "Negative fraction value: " + fraction)
       if (withReplacement) {
@@ -578,53 +576,37 @@ abstract class RDD[T: ClassTag](
       withReplacement: Boolean,
       num: Int,
       seed: Long = Utils.random.nextLong): Array[T] = withScope {
-	  logDebug("takeSample 0")
     val numStDev = 10.0
-logDebug("takeSample 1")
+
     require(num >= 0, "Negative number of elements requested")
     require(num <= (Int.MaxValue - (numStDev * math.sqrt(Int.MaxValue)).toInt),
       "Cannot support a sample size > Int.MaxValue - " +
       s"$numStDev * math.sqrt(Int.MaxValue)")
-logDebug("takeSample 2")
+
     if (num == 0) {
-    	logDebug("takeSample 3")
       new Array[T](0)
     } else {
-    	logDebug("takeSample 4")
       val initialCount = this.count()
       if (initialCount == 0) {
-    	  logDebug("takeSample 5")
         new Array[T](0)
       } else {
-    	  logDebug("takeSample 6")
         val rand = new Random(seed)
-    	   logDebug("takeSample 7")
         if (!withReplacement && num >= initialCount) {
-        	logDebug("takeSample 8")
-          val f = Utils.randomizeInPlace(this.collect(), rand)
-          logDebug("takeSample 9")
-          f
+          Utils.randomizeInPlace(this.collect(), rand)
         } else {
-        	logDebug("takeSample 10")
           val fraction = SamplingUtils.computeFractionForSampleSize(num, initialCount,
             withReplacement)
-            logDebug("takeSample 11")
           var samples = this.sample(withReplacement, fraction, rand.nextInt()).collect()
-logDebug("takeSample 12")
+
           // If the first sample didn't turn out large enough, keep trying to take samples;
           // this shouldn't happen often because we use a big multiplier for the initial size
           var numIters = 0
-          logDebug("takeSample 13")
           while (samples.length < num) {
             logWarning(s"Needed to re-sample due to insufficient sample size. Repeat #$numIters")
             samples = this.sample(withReplacement, fraction, rand.nextInt()).collect()
             numIters += 1
-            logDebug("takeSample 14")
           }
-        	logDebug("takeSample 15")
-          val g = Utils.randomizeInPlace(samples, rand).take(num)
-          logDebug("takeSample 16")
-          g
+          Utils.randomizeInPlace(samples, rand).take(num)
         }
       }
     }
@@ -975,17 +957,9 @@ logDebug("takeSample 12")
    * all the data is loaded into the driver's memory.
    */
   def collect(): Array[T] = withScope {
-	  logDebug("collect 0")
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.collect[T](this.id)
-	else {
-	  logDebug("collect 1: " + this)
-      val results = sc.runJob(this, (iter: Iterator[T]) => {
-    	  logDebug("xxxx iter.toArray: " + iter)
-        iter.toArray
-      })
-      logDebug("collect 2")
-      Array.concat(results: _*)
-	}
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.collect[T](this.id)
+    val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
+    Array.concat(results: _*)
   }
 
   /**
