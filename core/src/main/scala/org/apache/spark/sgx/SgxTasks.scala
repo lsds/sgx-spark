@@ -98,20 +98,6 @@ case class SgxComputeTaskZippedPartitionsRDD2[A, B, Z](
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
-case class SgxComputeTaskPartitionwiseSampledRDD[T, U](
-	sampler: RandomSampler[T, U],
-	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
-
-	def apply() = {
-		val f = SgxFakeIterator()
-		val g = Await.result( Future { sampler.sample(SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
-		SgxMain.fakeIterators.put(f.id, g)
-		f
-	}
-
-	override def toString = this.getClass.getSimpleName + "(sampler=" + sampler + ", it=" + it + ")"
-}
-
 case class SgxTaskExternalSorterInsertAllCreateKey[K](
 	partitioner: Partitioner,
 	pair: Product2[K,Any]) extends SgxExecuteInside[(Int,K)] {

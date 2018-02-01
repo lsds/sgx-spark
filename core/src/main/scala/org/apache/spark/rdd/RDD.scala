@@ -50,8 +50,8 @@ import org.apache.spark.sgx.Serialization
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxFactory
-import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.SgxRddFct
 
 /**
