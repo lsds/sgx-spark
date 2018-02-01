@@ -33,7 +33,7 @@ import org.apache.spark.storage.{BlockId, DiskBlockObjectWriter}
 
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxTaskExternalSorterInsertAllCreateKey
+import org.apache.spark.sgx.SgxFct
 
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
@@ -200,9 +200,7 @@ private[spark] class ExternalSorter[K, V, C](
       while (records.hasNext) {
         addElementsRead()
         kv = records.next()
-        if (SgxSettings.SGX_ENABLED) {
-		  map.changeValue(new SgxTaskExternalSorterInsertAllCreateKey(partitioner.get, kv).executeInsideEnclave(), update)
-        }
+        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
         else
         map.changeValue((getPartition(kv._1), kv._1), update)
         maybeSpillCollection(usingMap = true)

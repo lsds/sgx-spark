@@ -9,12 +9,7 @@ import scala.reflect.ClassTag
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.util.random.RandomSampler
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.Partitioner
 import org.apache.spark.internal.Logging
-import org.apache.spark.sgx.iterator.SgxIteratorConsumer
-import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
-import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 import org.apache.spark.serializer.Serializer
 
@@ -48,17 +43,6 @@ object SgxAccumulatorV2Fct {
 case class SgxFct0[Z](fct: () => Z) extends SgxExecuteInside[Z] {
 	def apply() = Await.result(Future { fct() }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
-}
-
-case class SgxTaskExternalSorterInsertAllCreateKey[K](
-	partitioner: Partitioner,
-	pair: Product2[K,Any]) extends SgxExecuteInside[(Int,K)] {
-
-	def apply() = Await.result( Future {
-			(partitioner.getPartition(pair.asInstanceOf[Encrypted].decrypt[Product2[_,_]]._1), pair._1)
-		}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
 private case class SgxTaskAccumulatorRegister[T,U](
