@@ -45,35 +45,6 @@ object SgxAccumulatorV2Fct {
 		name: Option[String] = None) = new SgxTaskAccumulatorRegister(acc, name).executeInsideEnclave()
 }
 
-case class SgxFirstTask[U: ClassTag, T: ClassTag](
-	fct: (Int, Iterator[T]) => Iterator[U],
-	partIndex: Int,
-	id: SgxIteratorProviderIdentifier)
-	extends SgxExecuteInside[Iterator[U]] {
-
-	def apply() = {
-		val f = SgxFakeIterator()
-		val g = Await.result(Future { fct(partIndex, new SgxIteratorConsumer[T](id)) }, Duration.Inf)
-		SgxMain.fakeIterators.put(f.id, g)
-		f
-	}
-	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", id=" + id + ")"
-}
-
-case class SgxOtherTask[U, T](
-	fct: (Int, Iterator[T]) => Iterator[U],
-	partIndex: Int,
-	it: SgxFakeIterator[T]) extends SgxExecuteInside[Iterator[U]] {
-
-	def apply() = {
-		val f = SgxFakeIterator()
-		val g = Await.result(Future { fct(partIndex, SgxMain.fakeIterators.remove[Iterator[T]](it.id)) }, Duration.Inf)
-		SgxMain.fakeIterators.put(f.id, g)
-		f
-	}
-	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", it=" + it + ")"
-}
-
 case class SgxFct0[Z](fct: () => Z) extends SgxExecuteInside[Z] {
 	def apply() = Await.result(Future { fct() }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
