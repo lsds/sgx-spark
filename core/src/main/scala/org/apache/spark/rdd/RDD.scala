@@ -43,7 +43,8 @@ import org.apache.spark.partial.PartialResult
 import org.apache.spark.storage.{RDDBlockId, StorageLevel}
 import org.apache.spark.util.{BoundedPriorityQueue, Utils}
 import org.apache.spark.util.collection.{OpenHashMap, Utils => collectionUtils}
-import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, PoissonSampler, SamplingUtils}
+import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, PoissonSampler,
+  SamplingUtils}
 
 import org.apache.spark.sgx.Serialization
 import org.apache.spark.sgx.iterator.SgxFakeIterator
@@ -532,14 +533,8 @@ abstract class RDD[T: ClassTag](
     withScope {
       require(fraction >= 0.0, "Negative fraction value: " + fraction)
       if (withReplacement) {
-    	if (SgxSettings.SGX_ENABLED)
-        new PartitionwiseSampledRDDSgx[T, T](this, new PoissonSampler[T](fraction), true, seed)
-        else
         new PartitionwiseSampledRDD[T, T](this, new PoissonSampler[T](fraction), true, seed)
       } else {
-    	if (SgxSettings.SGX_ENABLED)
-        new PartitionwiseSampledRDDSgx[T, T](this, new BernoulliSampler[T](fraction), true, seed)
-        else
         new PartitionwiseSampledRDD[T, T](this, new BernoulliSampler[T](fraction), true, seed)
       }
     }

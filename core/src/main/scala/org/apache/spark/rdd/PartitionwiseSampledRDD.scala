@@ -69,26 +69,14 @@ private[spark] class PartitionwiseSampledRDD[T: ClassTag, U: ClassTag](
     val split = splitIn.asInstanceOf[PartitionwiseSampledRDDPartition]
     val thisSampler = sampler.clone
     thisSampler.setSeed(split.seed)
-    thisSampler.sample(firstParent[T].iterator(split.prev, context))
-  }
-}
-
-private[spark] class PartitionwiseSampledRDDSgx[T: ClassTag, U: ClassTag](
-    prev: RDD[T],
-    sampler: RandomSampler[T, U],
-    preservesPartitioning: Boolean,
-    @transient private val seed: Long = Utils.random.nextLong)
-  extends PartitionwiseSampledRDD[T,U](prev, sampler, preservesPartitioning, seed) {
-
-  override def compute(splitIn: Partition, context: TaskContext): Iterator[U] = {
-    val split = splitIn.asInstanceOf[PartitionwiseSampledRDDPartition]
-    val it = firstParent[T].iterator(split.prev, context)
-    val thisSampler = sampler.clone
-    thisSampler.setSeed(split.seed)
-
-    it match {
-    	case x: SgxFakeIterator[T] => new SgxComputeTaskPartitionwiseSampledRDD(thisSampler, x).executeInsideEnclave()
-    	case x: Iterator[T] => thisSampler.sample(x)
+    if (SgxSettings.SGX_ENABLED) {
+      val it = firstParent[T].iterator(split.prev, context)
+      it match {
+        case x: SgxFakeIterator[T] => new SgxComputeTaskPartitionwiseSampledRDD(thisSampler, x).executeInsideEnclave()
+        case x: Iterator[T] => thisSampler.sample(x)
+      }
     }
+    else
+    thisSampler.sample(firstParent[T].iterator(split.prev, context))
   }
 }
