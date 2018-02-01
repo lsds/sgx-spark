@@ -95,7 +95,7 @@ abstract class RDD[T: ClassTag](
   }
 
   private def sc: SparkContext = {
-	  if (_sc == null) {
+    if (_sc == null) {
       if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SparkContext.instance
       throw new SparkException(
         "This RDD lacks a SparkContext. It could happen in the following cases: \n(1) RDD " +
@@ -157,11 +157,7 @@ abstract class RDD[T: ClassTag](
   def sparkContext: SparkContext = sc
 
   /** A unique ID for this RDD (within its SparkContext). */
-  val id: Int = {
-	  val x = sc.newRddId()
-	  logDebug("Creating RDD " + x)
-	  x
-  }
+  val id: Int = sc.newRddId()
 
   /** A friendly name for this RDD */
   @transient var name: String = _
@@ -200,8 +196,7 @@ abstract class RDD[T: ClassTag](
    * have a storage level set yet. Local checkpointing is an exception.
    */
   def persist(newLevel: StorageLevel): this.type = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.persist[T](this.id, newLevel).asInstanceOf[RDD.this.type]
-	else
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.persist[T](this.id, newLevel).asInstanceOf[RDD.this.type]
     if (isLocallyCheckpointed) {
       // This means the user previously called localCheckpoint(), which should have already
       // marked this RDD for persisting. Here we should override the old storage level with
@@ -390,15 +385,9 @@ abstract class RDD[T: ClassTag](
    * Return a new RDD by applying a function to all elements of this RDD.
    */
   def map[U: ClassTag](f: T => U): RDD[U] = withScope {
-	logDebug("map("+this.id+", "+f+"): " + f.getClass.getName)
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.map(this.id, f)
-	else {
-      val cleanF = sc.clean(f)
-      if (SgxSettings.SGX_ENABLED)
-      new MapPartitionsRDDSgx[U, T](this, (pid, iter) => iter.map(cleanF))
-      else
-      new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))
-	}
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.map(this.id, f)
+    val cleanF = sc.clean(f)
+    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))
   }
 
   /**
@@ -407,9 +396,6 @@ abstract class RDD[T: ClassTag](
    */
   def flatMap[U: ClassTag](f: T => TraversableOnce[U]): RDD[U] = withScope {
     val cleanF = sc.clean(f)
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx[U, T](this, (pid, iter) => iter.flatMap(cleanF))
-    else
     new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.flatMap(cleanF))
   }
 
@@ -418,12 +404,6 @@ abstract class RDD[T: ClassTag](
    */
   def filter(f: T => Boolean): RDD[T] = withScope {
     val cleanF = sc.clean(f)
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx[T, T](
-      this,
-      (pid, iter) => iter.filter(cleanF),
-      preservesPartitioning = true)
-    else
     new MapPartitionsRDD[T, T](
       this,
       (context, pid, iter) => iter.filter(cleanF),
@@ -528,6 +508,7 @@ abstract class RDD[T: ClassTag](
       seed: Long = Utils.random.nextLong): RDD[T] = {
     require(fraction >= 0,
       s"Fraction must be nonnegative, but got ${fraction}")
+
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.sample(this.id, withReplacement, fraction, seed)
     else
     withScope {
@@ -722,9 +703,6 @@ logDebug("takeSample 12")
    * Return an RDD created by coalescing all elements within each partition into an array.
    */
   def glom(): RDD[Array[T]] = withScope {
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx[Array[T], T](this, (pid, iter) => Iterator(iter.toArray))
-    else
     new MapPartitionsRDD[Array[T], T](this, (context, pid, iter) => Iterator(iter.toArray))
   }
 
@@ -852,21 +830,12 @@ logDebug("takeSample 12")
   def mapPartitions[U: ClassTag](
       f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-	logDebug("mapPartitions("+this.id+", "+f+", "+preservesPartitioning+"): " + f.getClass.getName)
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.mapPartitions(this.id, f, preservesPartitioning)
-	else {
-      val cleanedF = sc.clean(f)
-      if (SgxSettings.SGX_ENABLED)
-      new MapPartitionsRDDSgx(
-        this,
-        (index: Int, iter: Iterator[T]) => cleanedF(iter),
-        preservesPartitioning)
-      else
-      new MapPartitionsRDD(
-        this,
-        (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
-        preservesPartitioning)
-	}
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.mapPartitions(this.id, f, preservesPartitioning)
+    val cleanedF = sc.clean(f)
+    new MapPartitionsRDD(
+      this,
+      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
+      preservesPartitioning)
   }
 
   /**
@@ -881,12 +850,6 @@ logDebug("takeSample 12")
   private[spark] def mapPartitionsWithIndexInternal[U: ClassTag](
       f: (Int, Iterator[T]) => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx(
-      this,
-      (index: Int, iter: Iterator[T]) => f(index, iter),
-      preservesPartitioning)
-    else
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => f(index, iter),
@@ -899,12 +862,6 @@ logDebug("takeSample 12")
   private[spark] def mapPartitionsInternal[U: ClassTag](
       f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    if (SgxSettings.SGX_ENABLED)
-    new MapPartitionsRDDSgx(
-      this,
-      (index: Int, iter: Iterator[T]) => f(iter),
-      preservesPartitioning)
-    else
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => f(iter),
@@ -921,21 +878,12 @@ logDebug("takeSample 12")
   def mapPartitionsWithIndex[U: ClassTag](
       f: (Int, Iterator[T]) => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-	logDebug("mapPartitionsWithIndex("+this.id+", "+f+", "+preservesPartitioning+"): " + f.getClass.getName)
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.mapPartitionsWithIndex(this.id, f, preservesPartitioning)
-	else {
-	    val cleanedF = sc.clean(f)
-	    if (SgxSettings.SGX_ENABLED)
-	    new MapPartitionsRDDSgx(
-	      this,
-	      (index: Int, iter: Iterator[T]) => cleanedF(index, iter),
-	      preservesPartitioning)
-	    else
-	    new MapPartitionsRDD(
-	      this,
-	      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
-	      preservesPartitioning)
-	}
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.mapPartitionsWithIndex(this.id, f, preservesPartitioning)
+    val cleanedF = sc.clean(f)
+    new MapPartitionsRDD(
+      this,
+      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
+      preservesPartitioning)
   }
 
   /**
@@ -945,8 +893,7 @@ logDebug("takeSample 12")
    * a map on the other).
    */
   def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)] = withScope {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.zip[T,U](this.id, other.id)
-	else
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.zip[T,U](this.id, other.id)
     zipPartitions(other, preservesPartitioning = false) { (thisIter, otherIter) =>
       new Iterator[(T, U)] with Serializable {
         def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
@@ -1287,11 +1234,10 @@ logDebug("takeSample 12")
   /**
    * Return the number of elements in the RDD.
    */
-  def count(): Long = {
-	  if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.count(this.id)
-	  else
-	  sc.runJob(this, Utils.getIteratorSize _).sum
-  }
+  def count(): Long =
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.count(this.id)
+    else
+    sc.runJob(this, Utils.getIteratorSize _).sum
 
   /**
    * Approximate version of count() that returns a potentially incomplete result
@@ -1337,7 +1283,6 @@ logDebug("takeSample 12")
    * , which returns an RDD[T, Long] instead of a map.
    */
   def countByValue()(implicit ord: Ordering[T] = null): Map[T, Long] = withScope {
-	logDebug("countByValue")
     map(value => (value, null)).countByKey()
   }
 

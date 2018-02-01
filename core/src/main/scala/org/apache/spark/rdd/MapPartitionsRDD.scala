@@ -21,6 +21,7 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.{Partition, TaskContext}
 
+import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.SgxFirstTask
@@ -40,30 +41,21 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext): Iterator[U] =
+    if (SgxSettings.SGX_ENABLED) {
+      val _f: (Int, Iterator[T]) => Iterator[U] = {
+        (part, iter) => f(null, part, iter)
+      }
+      firstParent[T].iterator(split, context) match {
+        case x: SgxIteratorProvider[T] => new SgxFirstTask(_f, split.index, x.identifier).executeInsideEnclave()
+        case x: SgxFakeIterator[T] => new SgxOtherTask(_f, split.index, x).executeInsideEnclave()
+        case x: Iterator[T] => _f(split.index, firstParent[T].iterator(split, context))
+      }
+    }
+    else 
     f(context, split.index, firstParent[T].iterator(split, context))
 
   override def clearDependencies() {
     super.clearDependencies()
     prev = null
   }
-}
-
-private[spark] class MapPartitionsRDDSgx[U: ClassTag, T: ClassTag](
-	var _prev: RDD[T],
-	f: (Int, Iterator[T]) => Iterator[U], // (partition index, iterator)
-	preservesPartitioning: Boolean = false)
-		extends MapPartitionsRDD[U,T](_prev, null, preservesPartitioning) {
-
-	override def compute(split: Partition, context: TaskContext): Iterator[U] = {
-		firstParent[T].iterator(split, context) match {
-			case x: SgxIteratorProvider[T] => new SgxFirstTask(f, split.index, x.identifier).executeInsideEnclave()
-			case x: SgxFakeIterator[T] => new SgxOtherTask(f, split.index, x).executeInsideEnclave()
-			case x: Iterator[T] => f(split.index, firstParent[T].iterator(split, context))
-		}
-	}
-
-	override def clearDependencies() {
-		super.clearDependencies()
-		_prev = null
-	}
 }
