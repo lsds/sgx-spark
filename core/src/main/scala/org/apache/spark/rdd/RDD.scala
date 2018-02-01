@@ -50,9 +50,8 @@ import org.apache.spark.sgx.Serialization
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxFactory
-import org.apache.spark.sgx.SgxFold
+import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxFct2
 import org.apache.spark.sgx.SgxRddFct
 
 /**
@@ -957,9 +956,12 @@ abstract class RDD[T: ClassTag](
    * all the data is loaded into the driver's memory.
    */
   def collect(): Array[T] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.collect[T](this.id)
-    val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
-    Array.concat(results: _*)
+    // SGX: no return statement allowed at this point
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.collect[T](this.id)
+    else {
+      val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
+      Array.concat(results: _*)
+    }
   }
 
   /**
@@ -1107,39 +1109,21 @@ abstract class RDD[T: ClassTag](
    */
   def fold(zeroValue: T)(op: (T, T) => T): T = withScope {
     // Clone the zero value since we will also be serializing it as part of tasks
-	  logDebug("fold 0")	  
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.fold(this.id, zeroValue, op)
-    else {  
-	    var jobResult = 
-	//    	if (SgxSettings.SGX_ENABLED)
-	//      Serialization.deserialize(Serialization.serialize(zeroValue)).asInstanceOf[T]
-	//      else
-	      Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
-	    val zeroValueC = jobResult
-	    logDebug("fold 1")
-	    val cleanOp = sc.clean(op)
-	   logDebug("fold 2")
-	    val foldPartition = (iter: Iterator[T]) => {
-	    	// DO NOT ADD LOG MESSAGES HERE! THIS WON'T SERIALIZE
-	    	if (SgxSettings.SGX_ENABLED) {
-				// SGX: execute folding inside worker enclaves
-	    		val id = SgxFactory.newSgxIteratorProvider[T](iter, false).identifier
-	    		new SgxFold(zeroValueC, cleanOp, id).executeInsideEnclave()
-	    	}
-	    	else
-	    	iter.fold(zeroValueC)(cleanOp)
-	    }
-	logDebug("fold 3: ")
-	// TODO: move execution of mergeResult into enclave
-	    val mergeResult = (index: Int, taskResult: T) => {
-	    	logDebug("executing mergeResult")
-	    	jobResult = op(jobResult, taskResult)
-	    }
-	    logDebug("fold 4: " + jobResult)
-	    sc.runJob(this, foldPartition, mergeResult)
-	    logDebug("fold 5: " + jobResult) 
-	    jobResult
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.fold(this.id, zeroValue, op)
+    var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
+    val cleanOp = sc.clean(op)
+    val zeroValueC = jobResult
+    val foldPartition = (iter: Iterator[T]) => {
+      // SGX: execute folding inside worker enclaves
+      // DO NOT ADD LOG MESSAGES HERE! THIS WON'T SERIALIZE
+      if (SgxSettings.SGX_ENABLED) SgxIteratorFct.fold(SgxFactory.newSgxIteratorProvider[T](iter, false).identifier, zeroValueC, cleanOp)
+      else
+      iter.fold(zeroValueC)(cleanOp)
     }
+    // TODO: move execution of mergeResult into enclave
+    val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
+    sc.runJob(this, foldPartition, mergeResult)
+    jobResult
   }
 
   /**
@@ -1209,7 +1193,7 @@ abstract class RDD[T: ClassTag](
    * Return the number of elements in the RDD.
    */
   def count(): Long =
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.count(this.id)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.count(this.id)
     else
     sc.runJob(this, Utils.getIteratorSize _).sum
 

@@ -81,19 +81,6 @@ case class SgxFct0[Z](fct: () => Z) extends SgxExecuteInside[Z] {
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
 }
 
-case class SgxFold[T](
-	v: T,
-	op: (T,T) => T,
-	id: SgxIteratorProviderIdentifier) extends SgxExecuteInside[T] {
-
-	def apply() = {
-		Await.result(Future {
-			new SgxIteratorConsumer[T](id).fold(v)(op)
-			}, Duration.Inf).asInstanceOf[T]
-	}
-	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
-}
-
 case class SgxComputeTaskZippedPartitionsRDD2[A, B, Z](
 	fct: (Iterator[A], Iterator[B]) => Iterator[Z],
 	a: SgxFakeIterator[A],
