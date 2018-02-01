@@ -969,9 +969,6 @@ logDebug("takeSample 12")
   def zipPartitions[B: ClassTag, V: ClassTag]
       (rdd2: RDD[B], preservesPartitioning: Boolean)
       (f: (Iterator[T], Iterator[B]) => Iterator[V]): RDD[V] = withScope {
-	if (SgxSettings.SGX_ENABLED)
-	new ZippedPartitionsRDD2Sgx(sc, sc.clean(f), this, rdd2, preservesPartitioning)
-	else
     new ZippedPartitionsRDD2(sc, sc.clean(f), this, rdd2, preservesPartitioning)
   }
 

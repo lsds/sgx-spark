@@ -24,6 +24,7 @@ import scala.reflect.ClassTag
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxComputeTaskZippedPartitionsRDD2
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
@@ -89,6 +90,14 @@ private[spark] class ZippedPartitionsRDD2[A: ClassTag, B: ClassTag, V: ClassTag]
 
   override def compute(s: Partition, context: TaskContext): Iterator[V] = {
     val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
+    if (SgxSettings.SGX_ENABLED) {
+      val it1 = rdd1.iterator(partitions(0), context)
+      val it2 = rdd2.iterator(partitions(1), context)
+      if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
+        new SgxComputeTaskZippedPartitionsRDD2(f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
+      else f(it1, it2)
+    }
+    else
     f(rdd1.iterator(partitions(0), context), rdd2.iterator(partitions(1), context))
   }
 
@@ -97,32 +106,6 @@ private[spark] class ZippedPartitionsRDD2[A: ClassTag, B: ClassTag, V: ClassTag]
     rdd1 = null
     rdd2 = null
     f = null
-  }
-}
-
-private[spark] class ZippedPartitionsRDD2Sgx[A: ClassTag, B: ClassTag, V: ClassTag](
-    sc: SparkContext,
-    var _f: (Iterator[A], Iterator[B]) => Iterator[V],
-    var _rdd1: RDD[A],
-    var _rdd2: RDD[B],
-    preservesPartitioning: Boolean = false)
-  extends ZippedPartitionsRDD2[A,B,V](sc, _f, _rdd1, _rdd2, preservesPartitioning) {
-
-  override def compute(s: Partition, context: TaskContext): Iterator[V] = {
-	val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
-  	val it1 = _rdd1.iterator(partitions(0), context)
-    val it2 = _rdd2.iterator(partitions(1), context)
-
-    if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
-      new SgxComputeTaskZippedPartitionsRDD2(_f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
-    else _f(it1, it2)
-  }
-
-  override def clearDependencies() {
-    super.clearDependencies()
-    _rdd1 = null
-    _rdd2 = null
-    _f = null
   }
 }
 
