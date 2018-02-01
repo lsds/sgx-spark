@@ -40,11 +40,6 @@ object SgxAccumulatorV2Fct {
 		name: Option[String] = None) = new SgxTaskAccumulatorRegister(acc, name).executeInsideEnclave()
 }
 
-case class SgxFct0[Z](fct: () => Z) extends SgxExecuteInside[Z] {
-	def apply() = Await.result(Future { fct() }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
-}
-
 private case class SgxTaskAccumulatorRegister[T,U](
 		acc: AccumulatorV2[T,U],
 		name: Option[String]) extends SgxExecuteInside[AccumulatorMetadata] {

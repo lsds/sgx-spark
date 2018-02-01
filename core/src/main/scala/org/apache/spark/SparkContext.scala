@@ -60,7 +60,7 @@ import org.apache.spark.ui.{ConsoleProgressBar, SparkUI}
 import org.apache.spark.util._
 
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxFct0
+import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSparkContextFct
 import org.apache.spark.sgx.SgxAccumulatorV2Fct
 
@@ -75,8 +75,8 @@ import org.apache.spark.sgx.SgxAccumulatorV2Fct
  *   this config overrides the default configs as well as system properties.
  */
 class SparkContext(config: SparkConf) extends Logging {
-  // The call site where this SparkContext was constructed.
 
+  // The call site where this SparkContext was constructed.
   private val creationSite: CallSite = Utils.getCallSite()
 
   private val outcall = SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE
@@ -267,7 +267,7 @@ class SparkContext(config: SparkConf) extends Logging {
     SparkEnv.createDriverEnv(conf, isLocal, listenerBus, SparkContext.numDriverCores(master))
   }
 
-  def env: SparkEnv = _env
+  private[spark] def env: SparkEnv = _env
 
   // Used to store a URL for each static file/jar together with the file's local timestamp
   private[spark] val addedFiles = new ConcurrentHashMap[String, Long]().asScala
@@ -300,12 +300,11 @@ class SparkContext(config: SparkConf) extends Logging {
   private[spark] val executorEnvs = HashMap[String, String]()
 
   // Set SPARK_USER for user who is running SparkContext.
-  val sparkUser = if (!outcall) Utils.getCurrentUserName() else new SgxFct0(() => Utils.getCurrentUserName()).executeInsideEnclave()
+  val sparkUser = if (!outcall) Utils.getCurrentUserName() else SgxFct.fct0(() => Utils.getCurrentUserName())
 
   private[spark] def schedulerBackend: SchedulerBackend = _schedulerBackend
 
   private[spark] def taskScheduler: TaskScheduler = _taskScheduler
-
   private[spark] def taskScheduler_=(ts: TaskScheduler): Unit = {
     _taskScheduler = ts
   }
@@ -1412,7 +1411,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * @note Accumulators must be registered before use, or it will throw exception.
    */
   def register(acc: AccumulatorV2[_, _]): Unit = {
-	acc.register(this)
+    acc.register(this)
   }
 
   /**
@@ -1421,7 +1420,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * @note Accumulators must be registered before use, or it will throw exception.
    */
   def register(acc: AccumulatorV2[_, _], name: String): Unit = {
-	acc.register(this, name = Option(name))
+    acc.register(this, name = Option(name))
   }
 
   /**
@@ -1895,7 +1894,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * Shut down the SparkContext.
    */
   def stop(): Unit = {
-	if (outcall) return SgxSparkContextFct.stop()
+    if (outcall) return SgxSparkContextFct.stop()
     if (LiveListenerBus.withinListenerThread.value) {
       throw new SparkException(s"Cannot stop SparkContext within listener bus thread.")
     }
@@ -2031,26 +2030,18 @@ class SparkContext(config: SparkConf) extends Logging {
       func: (TaskContext, Iterator[T]) => U,
       partitions: Seq[Int],
       resultHandler: (Int, U) => Unit): Unit = {
-	logDebug("runJob X4: ")
     if (stopped.get()) {
       throw new IllegalStateException("SparkContext has been shutdown")
     }
-	logDebug("runJob X5: ")
     val callSite = getCallSite
-    logDebug("runJob X6 ")
     val cleanedFunc = clean(func)
-    logDebug("runJob X7:")
     logInfo("Starting job: " + callSite.shortForm)
     if (conf.getBoolean("spark.logLineage", false)) {
       logInfo("RDD's recursive dependencies:\n" + rdd.toDebugString)
     }
-    logDebug("runJob 1")
     dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, resultHandler, localProperties.get)
-    logDebug("runJob 2")
     progressBar.foreach(_.finishAll())
-    logDebug("runJob 3")
     rdd.doCheckpoint()
-    logDebug("runJob 4")
   }
 
   /**
@@ -2144,13 +2135,8 @@ class SparkContext(config: SparkConf) extends Logging {
       processPartition: Iterator[T] => U,
       resultHandler: (Int, U) => Unit)
   {
-	  logDebug("runJob X1")
     val processFunc = (context: TaskContext, iter: Iterator[T]) => processPartition(iter)
-    logDebug("runJob X2: " + rdd)
-    logDebug("runJob X2: " + rdd.partitions)
-    logDebug("runJob X2: " + rdd.partitions.length)
     runJob[T, U](rdd, processFunc, 0 until rdd.partitions.length, resultHandler)
-    logDebug("runJob X3")
   }
 
   /**
@@ -2351,7 +2337,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
   /** Default level of parallelism to use when not given by user (e.g. parallelize and makeRDD). */
   def defaultParallelism: Int = {
-	if (outcall) return SgxSparkContextFct.defaultParallelism()
+    if (outcall) return SgxSparkContextFct.defaultParallelism()
     assertNotStopped()
     taskScheduler.defaultParallelism
   }
@@ -2370,10 +2356,9 @@ class SparkContext(config: SparkConf) extends Logging {
   private val nextRddId = new AtomicInteger(0)
 
   /** Register a new RDD, returning its RDD ID */
-  private[spark] def newRddId(): Int = {
-	  if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkContextFct.newRddId()
-	  else nextRddId.getAndIncrement()
-  }
+  private[spark] def newRddId(): Int =
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkContextFct.newRddId()
+    else nextRddId.getAndIncrement()
 
   /**
    * Registers listeners specified in spark.extraListeners, then starts the listener bus.
@@ -2439,7 +2424,6 @@ class SparkContext(config: SparkConf) extends Logging {
  * various Spark features.
  */
 object SparkContext extends Logging {
-
   var instance: SparkContext = _
 
   private val VALID_LOG_LEVELS =
