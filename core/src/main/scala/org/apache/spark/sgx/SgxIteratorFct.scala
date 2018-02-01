@@ -15,6 +15,8 @@ import org.apache.spark.sgx.iterator.SgxFakeIterator
 object SgxIteratorFct {
 	def computePartitionwiseSampledRDD[T, U](it: SgxFakeIterator[T], sampler: RandomSampler[T, U]) = new SgxIteratorComputePartitionwiseSampledRDD[T, U](it, sampler).executeInsideEnclave()
 
+	def computeZippedPartitionsRDD2[A, B, Z](a: SgxFakeIterator[A], b: SgxFakeIterator[B], fct: (Iterator[A], Iterator[B]) => Iterator[Z]) = new SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](a, b, fct).executeInsideEnclave()
+
 	def fold[T](id: SgxIteratorProviderIdentifier, v: T, op: (T,T) => T) = new SgxIteratorFold(id, v, op).executeInsideEnclave()
 }
 
@@ -29,6 +31,23 @@ private case class SgxIteratorFold[T](
 			}, Duration.Inf).asInstanceOf[T]
 	}
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
+}
+
+private case class SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](
+	a: SgxFakeIterator[A],
+	b: SgxFakeIterator[B],
+	fct: (Iterator[A], Iterator[B]) => Iterator[Z]) extends SgxExecuteInside[Iterator[Z]] {
+
+	def apply() = {
+		val f = SgxFakeIterator()
+		val g = Await.result( Future {
+		  fct(SgxMain.fakeIterators.remove[Iterator[A]](a.id), SgxMain.fakeIterators.remove[Iterator[B]](b.id))
+		}, Duration.Inf)
+		SgxMain.fakeIterators.put(f.id, g)
+		f
+	}
+
+	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
 private case class SgxIteratorComputePartitionwiseSampledRDD[T, U](

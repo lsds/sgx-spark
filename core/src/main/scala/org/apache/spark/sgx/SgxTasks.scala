@@ -45,8 +45,6 @@ object SgxAccumulatorV2Fct {
 		name: Option[String] = None) = new SgxTaskAccumulatorRegister(acc, name).executeInsideEnclave()
 }
 
-
-
 case class SgxFirstTask[U: ClassTag, T: ClassTag](
 	fct: (Int, Iterator[T]) => Iterator[U],
 	partIndex: Int,
@@ -79,23 +77,6 @@ case class SgxOtherTask[U, T](
 case class SgxFct0[Z](fct: () => Z) extends SgxExecuteInside[Z] {
 	def apply() = Await.result(Future { fct() }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
-}
-
-case class SgxComputeTaskZippedPartitionsRDD2[A, B, Z](
-	fct: (Iterator[A], Iterator[B]) => Iterator[Z],
-	a: SgxFakeIterator[A],
-	b: SgxFakeIterator[B]) extends SgxExecuteInside[Iterator[Z]] {
-
-	def apply() = {
-		val f = SgxFakeIterator()
-		val g = Await.result( Future {
-		  fct(SgxMain.fakeIterators.remove[Iterator[A]](a.id), SgxMain.fakeIterators.remove[Iterator[B]](b.id))
-		}, Duration.Inf)
-		SgxMain.fakeIterators.put(f.id, g)
-		f
-	}
-
-	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
 case class SgxTaskExternalSorterInsertAllCreateKey[K](

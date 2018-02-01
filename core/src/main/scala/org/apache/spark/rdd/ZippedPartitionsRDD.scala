@@ -25,7 +25,7 @@ import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContex
 import org.apache.spark.util.Utils
 
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxComputeTaskZippedPartitionsRDD2
+import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 private[spark] class ZippedPartitionsPartition(
@@ -94,7 +94,7 @@ private[spark] class ZippedPartitionsRDD2[A: ClassTag, B: ClassTag, V: ClassTag]
       val it1 = rdd1.iterator(partitions(0), context)
       val it2 = rdd2.iterator(partitions(1), context)
       if (it1.isInstanceOf[SgxFakeIterator[A]] && it2.isInstanceOf[SgxFakeIterator[B]])
-        new SgxComputeTaskZippedPartitionsRDD2(f, it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]]).executeInsideEnclave()
+        SgxIteratorFct.computeZippedPartitionsRDD2(it1.asInstanceOf[SgxFakeIterator[A]], it2.asInstanceOf[SgxFakeIterator[B]], f)
       else f(it1, it2)
     }
     else
