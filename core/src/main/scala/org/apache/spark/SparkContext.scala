@@ -81,8 +81,8 @@ class SparkContext(config: SparkConf) extends Logging {
 
   private val outcall = SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE
   if (outcall) {
-	  SgxSparkContextFct.create(config)
-	  SparkContext.instance = this
+    SgxSparkContextFct.create(config)
+    SparkContext.instance = this
   }
 
   // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active

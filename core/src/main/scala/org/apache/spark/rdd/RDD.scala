@@ -297,11 +297,15 @@ abstract class RDD[T: ClassTag](
    * subclasses of RDD.
    */
   final def iterator(split: Partition, context: TaskContext): Iterator[T] = {
-//    if (storageLevel != StorageLevel.NONE) {
-//      getOrCompute(split, context)
-//    } else {
+    // SGX. TODO: Fix this (there should be no switch necessary here)
+    if (SgxSettings.SGX_ENABLED) {
       computeOrReadCheckpoint(split, context)
-//    }
+    } else
+    if (storageLevel != StorageLevel.NONE) {
+      getOrCompute(split, context)
+    } else {
+      computeOrReadCheckpoint(split, context)
+    }
   }
 
   /**
@@ -1114,13 +1118,11 @@ abstract class RDD[T: ClassTag](
     val cleanOp = sc.clean(op)
     val zeroValueC = jobResult
     val foldPartition = (iter: Iterator[T]) => {
-      // SGX: execute folding inside worker enclaves
-      // DO NOT ADD LOG MESSAGES HERE! THIS WON'T SERIALIZE
       if (SgxSettings.SGX_ENABLED) SgxIteratorFct.fold(SgxFactory.newSgxIteratorProvider[T](iter, false).identifier, zeroValueC, cleanOp)
       else
       iter.fold(zeroValueC)(cleanOp)
     }
-    // TODO: move execution of mergeResult into enclave
+    // TODO: move execution of mergeResult (below) into enclave
     val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
     sc.runJob(this, foldPartition, mergeResult)
     jobResult

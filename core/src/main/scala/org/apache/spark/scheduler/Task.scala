@@ -23,7 +23,6 @@ import java.util.Properties
 import org.apache.spark._
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config.APP_CALLER_CONTEXT
-import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryMode, TaskMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.util._
@@ -64,7 +63,7 @@ private[spark] abstract class Task[T](
       SparkEnv.get.closureSerializer.newInstance().serialize(TaskMetrics.registered).array(),
     val jobId: Option[Int] = None,
     val appId: Option[String] = None,
-    val appAttemptId: Option[String] = None) extends Serializable with Logging {
+    val appAttemptId: Option[String] = None) extends Serializable {
 
   @transient lazy val metrics: TaskMetrics =
     SparkEnv.get.closureSerializer.newInstance().deserialize(ByteBuffer.wrap(serializedTaskMetrics))
@@ -110,10 +109,7 @@ private[spark] abstract class Task[T](
       Option(attemptNumber)).setCurrentContext()
 
     try {
-      if (SgxSettings.SGX_ENABLED) {
-    	  logDebug("Initializing SGX")
-    	  SgxFactory.runSgxBroadcastProvider()
-      }
+      if (SgxSettings.SGX_ENABLED) SgxFactory.runSgxBroadcastProvider()
       runTask(context)
     } catch {
       case e: Throwable =>

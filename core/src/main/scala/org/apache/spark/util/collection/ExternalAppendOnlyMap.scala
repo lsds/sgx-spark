@@ -43,7 +43,6 @@ class SgxUpdate[C,K,V](createCombiner: V => C, mergeValue: (C, V) => C, curEntry
   }
 }
 
-
 /**
  * :: DeveloperApi ::
  * An append-only map that spills sorted content to disk when there is insufficient space for it
@@ -168,8 +167,7 @@ class ExternalAppendOnlyMap[K, V, C](
       if (maybeSpill(currentMap, estimatedSize)) {
         currentMap = new SizeTrackingAppendOnlyMap[K, C]
       }
-      if (SgxSettings.SGX_ENABLED)
-      currentMap.changeValue(curEntry._1, new SgxUpdate[C,K,V](createCombiner, mergeValue, curEntry).update)
+      if (SgxSettings.SGX_ENABLED) currentMap.changeValue(curEntry._1, new SgxUpdate[C,K,V](createCombiner, mergeValue, curEntry).update)
       else
       currentMap.changeValue(curEntry._1, update)
       addElementsRead()

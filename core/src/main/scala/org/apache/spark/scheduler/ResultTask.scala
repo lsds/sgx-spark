@@ -25,7 +25,6 @@ import java.util.Properties
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.internal.Logging
 
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.iterator.SgxFakeIterator
@@ -67,7 +66,7 @@ private[spark] class ResultTask[T, U](
     appAttemptId: Option[String] = None)
   extends Task[U](stageId, stageAttemptId, partition.index, localProperties, serializedTaskMetrics,
     jobId, appId, appAttemptId)
-  with Serializable with Logging {
+  with Serializable {
 
   @transient private[this] val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
@@ -95,24 +94,12 @@ private[spark] class ResultTask[T, U](
       // then we must turn it into an SgxIteratorConsumer and access the
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
-        case f: SgxFakeIterator[T] => {
-//          func(context, f.access(true))
-          val (x1,x2) = f.access(true).duplicate
-          x1.forall(p => { logDebug("Accessing value " + p); true } )
-          func(context, x2)
-        }
-      	case i: Iterator[T] => {
-      	  val (i1,i2) = i.duplicate
-      	  i1.forall(p => { logDebug("Accessing value " + p); true } )
-          func(context, i2)
-      	}
+        case f: SgxFakeIterator[T] => func(context, f.access(true))
+      	case i: Iterator[T] => func(context, i)
       }
     }
-    else {
-      val (i1,i2) = rdd.iterator(partition, context).duplicate
-      i1.forall(p => { logDebug("Accessing value " + p); true } )
-      func(context, i2)
-    }
+    else
+    func(context, rdd.iterator(partition, context))
   }
 
   // This is only callable on the driver side.

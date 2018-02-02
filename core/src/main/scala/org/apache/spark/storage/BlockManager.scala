@@ -1478,16 +1478,16 @@ private[spark] class BlockManager(
    * Remove all blocks belonging to the given broadcast.
    */
   def removeBroadcast(broadcastId: Long, tellMaster: Boolean): Int = {
-	  // FK 30/01/18.
-	  // TODO. There was some concurrency issues with this code.
-	  // The broadcast variable was removed even though it was used at some later point in time
+     // FK 30/01/18.
+     // TODO. There was some concurrency issues with this code.
+     // The broadcast variable was removed even though it was used at some later point in time
 //    logDebug(s"Removing broadcast $broadcastId")
 //    val blocksToRemove = blockInfoManager.entries.map(_._1).collect {
 //      case bid @ BroadcastBlockId(`broadcastId`, _) => bid
 //    }
 //    blocksToRemove.foreach { blockId => removeBlock(blockId, tellMaster) }
 //    blocksToRemove.size
-	  0
+    0
   }
 
   /**

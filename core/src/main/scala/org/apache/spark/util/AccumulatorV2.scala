@@ -43,7 +43,7 @@ private[spark] case class AccumulatorMetadata(
  * `OUT` should be a type that can be read atomically (e.g., Int, Long), or thread-safely
  * (e.g., synchronized collections) because it will be read from other threads.
  */
-abstract class AccumulatorV2[IN, OUT] extends Logging with Serializable {
+abstract class AccumulatorV2[IN, OUT] extends Serializable {
   private[spark] var metadata: AccumulatorMetadata = _
   private[this] var atDriverSide = true
   private var registering = false
@@ -56,21 +56,13 @@ abstract class AccumulatorV2[IN, OUT] extends Logging with Serializable {
       throw new IllegalStateException("Cannot register an Accumulator twice.")
     }
 
-    logDebug("registering 1: " + name)
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-    	logDebug("registering 1 if")
-    	registering = true
-    	this.metadata = SgxAccumulatorV2Fct.register(this, name)
-    	registering = false
-    } else {
-		logDebug("registering 1 else")
-		val x = AccumulatorContext.newId()
-		logDebug("id: " + x)
-		logDebug("name: " + name)
-		logDebug("count: " + countFailedValues)
-    	this.metadata = AccumulatorMetadata(x, name, countFailedValues)
+      registering = true
+      this.metadata = SgxAccumulatorV2Fct.register(this, name)
+      registering = false
     }
-    logDebug("registering 2: " + this.metadata.id)
+    else
+    this.metadata = AccumulatorMetadata(AccumulatorContext.newId(), name, countFailedValues)
     AccumulatorContext.register(this)
     sc.cleaner.foreach(_.registerAccumulatorForCleanup(this))
   }
@@ -81,10 +73,8 @@ abstract class AccumulatorV2[IN, OUT] extends Logging with Serializable {
    * @note All accumulators must be registered before use, or it will throw exception.
    */
   final def isRegistered: Boolean =
-  {
-	registering || SgxSettings.SGX_ENABLED ||
+    registering || SgxSettings.SGX_ENABLED ||
     metadata != null && AccumulatorContext.get(metadata.id).isDefined
-  }
 
   private def assertMetadataNotNull(): Unit = {
     if (!registering && metadata == null) {
@@ -104,8 +94,7 @@ abstract class AccumulatorV2[IN, OUT] extends Logging with Serializable {
    * Returns the name of this accumulator, can only be called after registration.
    */
   final def name: Option[String] = {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE && registering) return None
-
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE && registering) return None
     assertMetadataNotNull()
 
     if (atDriverSide) {
@@ -181,7 +170,6 @@ abstract class AccumulatorV2[IN, OUT] extends Logging with Serializable {
 
   // Called by Java when serializing an object
   final protected def writeReplace(): Any = {
-	  logDebug("writeReplace("+name+","+metadata+","+( if (metadata != null) metadata.id else "null")+")")
     if (atDriverSide) {
       if (!isRegistered) {
         throw new UnsupportedOperationException(
