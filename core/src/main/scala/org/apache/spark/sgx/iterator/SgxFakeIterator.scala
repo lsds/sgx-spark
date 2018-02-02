@@ -11,12 +11,8 @@ case class SgxFakeIterator[T]() extends Iterator[T] with Serializable {
 	override def hasNext: Boolean =  throw SgxFakeIteratorException(id)
 	override def next: T = throw SgxFakeIteratorException(id)
 
-	def access(providerIsInEnclave: Boolean): Iterator[T] = {
-		val iter = if (providerIsInEnclave) ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
-			else ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id))
-
-		new SgxIteratorConsumer(iter)
-	}
+	def access(): Iterator[T] =
+		new SgxIteratorConsumer(ClientHandle.sendRecv[SgxIteratorProviderIdentifier](MsgAccessFakeIterator(id)))
 
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
 }

@@ -94,7 +94,7 @@ private[spark] class ResultTask[T, U](
       // then we must turn it into an SgxIteratorConsumer and access the
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
-        case f: SgxFakeIterator[T] => func(context, f.access(true))
+        case f: SgxFakeIterator[T] => func(context, f.access())
       	case i: Iterator[T] => func(context, i)
       }
     }

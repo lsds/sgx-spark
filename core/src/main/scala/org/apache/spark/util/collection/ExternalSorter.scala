@@ -185,7 +185,7 @@ private[spark] class ExternalSorter[K, V, C](
     val shouldCombine = aggregator.isDefined
 
     val records = if (SgxSettings.SGX_ENABLED) records2 match {
-      case f: SgxFakeIterator[Product2[K, V]] => f.access(true)
+      case f: SgxFakeIterator[Product2[K, V]] => f.access()
       case i: Iterator[Product2[K, V]] => i
     } else records2
 
