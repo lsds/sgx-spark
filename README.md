@@ -1,3 +1,11 @@
+# Sgx-Spark
+
+Please read the [dedicated Sgx-Spark readme file](SgxREADME.md) for how to
+compile and run Sgx-Spark.
+
+The description below is for the original Apache Spark project.
+This avoids merge conflicts when tracking the upstream project.
+
 # Apache Spark
 
 Spark is a fast and general cluster computing system for Big Data. It provides
