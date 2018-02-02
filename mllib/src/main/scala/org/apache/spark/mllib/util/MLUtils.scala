@@ -35,8 +35,6 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.random.BernoulliCellSampler
 
-import org.apache.spark.sgx.SgxSettings
-
 /**
  * Helper methods to load, save and pre-process data used in MLLib.
  */
@@ -244,10 +242,8 @@ object MLUtils extends Logging {
     (1 to numFolds).map { fold =>
       val sampler = new BernoulliCellSampler[T]((fold - 1) / numFoldsF, fold / numFoldsF,
         complement = false)
-      val validation = if (SgxSettings.SGX_ENABLED) new PartitionwiseSampledRDDSgx(rdd, sampler, true, seed)
-        else new PartitionwiseSampledRDD(rdd, sampler, true, seed)
-      val training = if (SgxSettings.SGX_ENABLED) new PartitionwiseSampledRDDSgx(rdd, sampler.cloneComplement(), true, seed)
-        else new PartitionwiseSampledRDD(rdd, sampler.cloneComplement(), true, seed)
+      val validation = new PartitionwiseSampledRDD(rdd, sampler, true, seed)
+      val training = new PartitionwiseSampledRDD(rdd, sampler.cloneComplement(), true, seed)
       (training, validation)
     }.toArray
   }
