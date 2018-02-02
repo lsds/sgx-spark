@@ -25,6 +25,7 @@ import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarArray;
+import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.array.ByteArrayMethods;
 import org.apache.spark.unsafe.types.UTF8String;
 
@@ -337,6 +338,7 @@ public abstract class WritableColumnVector extends ColumnVector {
 
   @Override
   public Decimal getDecimal(int rowId, int precision, int scale) {
+    if (isNullAt(rowId)) return null;
     if (precision <= Decimal.MAX_INT_DIGITS()) {
       return Decimal.createUnsafe(getInt(rowId), precision, scale);
     } else if (precision <= Decimal.MAX_LONG_DIGITS()) {
@@ -363,6 +365,7 @@ public abstract class WritableColumnVector extends ColumnVector {
 
   @Override
   public UTF8String getUTF8String(int rowId) {
+    if (isNullAt(rowId)) return null;
     if (dictionary == null) {
       return arrayData().getBytesAsUTF8String(getArrayOffset(rowId), getArrayLength(rowId));
     } else {
@@ -380,6 +383,7 @@ public abstract class WritableColumnVector extends ColumnVector {
 
   @Override
   public byte[] getBinary(int rowId) {
+    if (isNullAt(rowId)) return null;
     if (dictionary == null) {
       return arrayData().getBytes(getArrayOffset(rowId), getArrayLength(rowId));
     } else {
@@ -609,7 +613,16 @@ public abstract class WritableColumnVector extends ColumnVector {
   // array offsets and lengths in the current column vector.
   @Override
   public final ColumnarArray getArray(int rowId) {
+    if (isNullAt(rowId)) return null;
     return new ColumnarArray(arrayData(), getArrayOffset(rowId), getArrayLength(rowId));
+  }
+
+  // `WritableColumnVector` puts the key array in the first child column vector, value array in the
+  // second child column vector, and puts the offsets and lengths in the current column vector.
+  @Override
+  public final ColumnarMap getMap(int rowId) {
+    if (isNullAt(rowId)) return null;
+    return new ColumnarMap(getChild(0), getChild(1), getArrayOffset(rowId), getArrayLength(rowId));
   }
 
   public WritableColumnVector arrayData() {
@@ -705,6 +718,11 @@ public abstract class WritableColumnVector extends ColumnVector {
       for (int i = 0; i < childColumns.length; ++i) {
         this.childColumns[i] = reserveNewColumn(capacity, st.fields()[i].dataType());
       }
+    } else if (type instanceof MapType) {
+      MapType mapType = (MapType) type;
+      this.childColumns = new WritableColumnVector[2];
+      this.childColumns[0] = reserveNewColumn(capacity, mapType.keyType());
+      this.childColumns[1] = reserveNewColumn(capacity, mapType.valueType());
     } else if (type instanceof CalendarIntervalType) {
       // Two columns. Months as int. Microseconds as Long.
       this.childColumns = new WritableColumnVector[2];
