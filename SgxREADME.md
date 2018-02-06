@@ -8,7 +8,7 @@ ensure that sgx-lkl executes simple Java applications successfully.
 
 - Remove existing Hadoop Maven files to ensure that we will be using our customised Hadoop library:
 
-    ```# rm -rf ~/.m2/repository/org/apache/hadoop/```
+    `# rm -rf ~/.m2/repository/org/apache/hadoop/`
 
 - Build a modified version of Hadoop. This version has been modified to make simple datatypes serialisable:
 
@@ -23,6 +23,10 @@ ensure that sgx-lkl executes simple Java applications successfully.
 - Make Spark use the modified Hadoop by copying the corresponding Hadoop JAR file into the Sgx-Spark jars directory:
 
     `sgx-spark# cp hadoop-2.6.5-src/hadoop-common-project/hadoop-common/target/hadoop-common-2.6.5.jar assembly/target/scala-2.11/jars/hadoop-common-2.6.5.jar`
+    
+- Build the native library that implements shared memory primitives:
+ 
+    `sgx-spark/C# make install`
 
 # Prepare the Sgx-Spark Alpine Linux images that will be run on top of SGX-LKL
 
