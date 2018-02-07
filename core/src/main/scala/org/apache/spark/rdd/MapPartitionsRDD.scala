@@ -23,6 +23,8 @@ import org.apache.spark.{Partition, TaskContext}
 
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.iterator.SgxFakeIterator
+import org.apache.spark.sgx.iterator.SgxIterator
+import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.SgxIteratorFct
 
@@ -45,8 +47,7 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
         (part, iter) => f(null, part, iter)
       }
       firstParent[T].iterator(split, context) match {
-        case x: SgxIteratorProvider[T] => SgxIteratorFct.computeMapPartitionsRDDId(x.identifier, _f, split.index)
-        case x: SgxFakeIterator[T] => SgxIteratorFct.computeMapPartitionsRDDFake(x, _f, split.index)
+        case x: SgxIterator[T] => SgxIteratorFct.computeMapPartitionsRDD(x.getIdentifier, _f, split.index)
         case x: Iterator[T] => _f(split.index, firstParent[T].iterator(split, context))
       }
     }

@@ -38,7 +38,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 	override def toString() = getClass.getSimpleName + "(consumer=" + consumer + ")"
 }
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator[T] with Logging {
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T]) extends Iterator[T] with Logging {
 
 	logDebug(this + " connecting to: " + id)
 
@@ -48,7 +48,6 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier) extends Iterator
 	val com = id.connect()
 	val objects = new LinkedBlockingQueue[T]()
 	var fillingFuture : Future[Unit] = null
-
 	fill()
 
 	override def hasNext: Boolean = {
