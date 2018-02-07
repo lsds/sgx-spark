@@ -47,7 +47,6 @@ import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, Poi
   SamplingUtils}
 
 import org.apache.spark.sgx.Serialization
-import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxSettings

@@ -2,10 +2,8 @@ package org.apache.spark.sgx
 
 import java.util.concurrent.{Executors, Callable, ExecutorCompletionService}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
 
 import scala.reflect.{classTag, ClassTag}
 

@@ -7,7 +7,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
 import org.apache.spark.sgx.broadcast.SgxBroadcastProviderIdentifier
 import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
-import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 	def call(): Unit = {

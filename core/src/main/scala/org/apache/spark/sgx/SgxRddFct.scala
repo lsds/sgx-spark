@@ -15,7 +15,6 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
-import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 object SgxRddFct {
 

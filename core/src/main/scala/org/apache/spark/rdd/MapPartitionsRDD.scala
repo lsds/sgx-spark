@@ -22,11 +22,8 @@ import scala.reflect.ClassTag
 import org.apache.spark.{Partition, TaskContext}
 
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.iterator.SgxFakeIterator
-import org.apache.spark.sgx.iterator.SgxIterator
-import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
-import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.iterator.SgxIterator
 
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
