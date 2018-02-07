@@ -27,7 +27,7 @@ import org.apache.spark.util.random.RandomSampler
 
 import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.iterator.SgxFakeIterator
+import org.apache.spark.sgx.iterator.SgxIterator
 
 private[spark]
 class PartitionwiseSampledRDDPartition(val prev: Partition, val seed: Long)
@@ -70,9 +70,8 @@ private[spark] class PartitionwiseSampledRDD[T: ClassTag, U: ClassTag](
     val thisSampler = sampler.clone
     thisSampler.setSeed(split.seed)
     if (SgxSettings.SGX_ENABLED) {
-      val it = firstParent[T].iterator(split.prev, context)
-      it match {
-        case x: SgxFakeIterator[T] => SgxIteratorFct.computePartitionwiseSampledRDD(x, thisSampler)
+      firstParent[T].iterator(split.prev, context) match {
+        case x: SgxIterator[T] => SgxIteratorFct.computePartitionwiseSampledRDD(x.getIdentifier, thisSampler)
         case x: Iterator[T] => thisSampler.sample(x)
       }
     }
