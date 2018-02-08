@@ -1117,7 +1117,7 @@ abstract class RDD[T: ClassTag](
     val cleanOp = sc.clean(op)
     val zeroValueC = jobResult
     val foldPartition = (iter: Iterator[T]) => {
-      if (SgxSettings.SGX_ENABLED) SgxIteratorFct.fold(SgxFactory.newSgxIteratorProvider[T](iter, false).identifier, zeroValueC, cleanOp)
+      if (SgxSettings.SGX_ENABLED) SgxIteratorFct.fold(SgxFactory.newSgxIteratorProvider[T](iter, false).getIdentifier, zeroValueC, cleanOp)
       else
       iter.fold(zeroValueC)(cleanOp)
     }

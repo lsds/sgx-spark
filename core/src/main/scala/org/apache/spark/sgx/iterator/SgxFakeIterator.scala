@@ -3,17 +3,19 @@ package org.apache.spark.sgx.iterator
 import org.apache.spark.sgx.ClientHandle
 import org.apache.spark.sgx.SgxMain
 
+import org.apache.spark.internal.Logging
+
 case class SgxFakeIteratorException(id: Long) extends RuntimeException("A FakeIterator is just a placeholder and not supposed to be used. (" + id + ")") {}
 
-case class SgxFakeIterator[T]() extends Iterator[T] with SgxIterator[T] with SgxIteratorIdentifier[T] {
+case class SgxFakeIterator[T]() extends Iterator[T] with SgxIterator[T] with SgxIteratorIdentifier[T] with Logging {
 
 	val id = scala.util.Random.nextLong
 
-	override def hasNext: Boolean =  throw SgxFakeIteratorException(id)
+	override def hasNext: Boolean = throw SgxFakeIteratorException(id)
+
 	override def next: T = throw SgxFakeIteratorException(id)
 
-	def access(): Iterator[T] =
-		new SgxIteratorConsumer(ClientHandle.sendRecv[SgxIteratorProviderIdentifier[T]](MsgAccessFakeIterator(id)))
+	def access(): Iterator[T] = new SgxIteratorConsumer(ClientHandle.sendRecv[SgxIteratorProviderIdentifier[T]](MsgAccessFakeIterator(id)))
 
 	override def getIdentifier = this
 

@@ -24,7 +24,7 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 
 				case x: MsgAccessFakeIterator =>
 					logDebug("Accessing Fake iterator " + x.fakeId)
-					SgxFactory.newSgxIteratorProvider[Any](SgxMain.fakeIterators.remove(x.fakeId), true).identifier
+					SgxFactory.newSgxIteratorProvider[Any](SgxMain.fakeIterators.remove(x.fakeId), true).getIdentifier
 			}
 			logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
 

@@ -15,11 +15,11 @@ import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Callable[Unit] with Logging {
 
-	val com = ShmCommunicationManager.get().newShmCommunicator(false)
+	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
-	val identifier = new SgxIteratorProviderIdentifier[T](com.getMyPort)
+	private val identifier = new SgxIteratorProviderIdentifier[T](com.getMyPort)
 
-	def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
+	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
 
 	override final def hasNext: Boolean = delegate.hasNext
 
@@ -27,7 +27,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	 * Always throws an UnsupportedOperationException. Access this Iterator via the message interface.
 	 * Note: We allow calls to hasNext(), since they are, e.g., used by the superclass' toString() method.
 	 */
-	override final def next(): T = throw new UnsupportedOperationException(s"Access this special Iterator via messages.")
+	override final def next(): T = throw new UnsupportedOperationException("Access this special Iterator via messages.")
 
 	override def getIdentifier = identifier
 
