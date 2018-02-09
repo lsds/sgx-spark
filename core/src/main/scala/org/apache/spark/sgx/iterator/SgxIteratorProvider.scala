@@ -3,6 +3,10 @@ package org.apache.spark.sgx.iterator
 import java.util.concurrent.Callable
 
 import scala.collection.mutable.Queue
+import scala.util.control.Breaks._
+
+import org.apache.commons.lang3.SerializationUtils
+import org.apache.commons.lang3.SerializationException
 
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.internal.Logging
@@ -41,9 +45,21 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 				case num: MsgIteratorReqNextN => {
 					val q = Queue[T]()
 					if (delegate.isInstanceOf[NextIterator[T]] && delegate.hasNext) {
-						// No prefetching here. Calling next() multiple times on NextIterator and
-						// results in all elements being the same :/)
-						q += delegate.next
+						for (_ <- 1 to num.num if delegate.hasNext) {
+							val n = delegate.next
+							// Need to clone the object. Otherwise the same object will be sent multiple times.
+							// It seems that this is due to optimizations in the implementation of class NextIterator.
+							// If cloning is not possible, just add this one object and send it individually.
+							// This should actually never be the case, as the object _must_ be sent to a consumer.
+							try {
+								q += SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T]
+							}
+							catch {
+								case e: SerializationException =>
+									q += n
+									break
+							}
+						}
 					} else {
 						for (_ <- 1 to num.num if delegate.hasNext) {
 							q += delegate.next
