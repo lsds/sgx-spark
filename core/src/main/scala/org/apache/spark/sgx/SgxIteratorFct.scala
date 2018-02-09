@@ -33,12 +33,12 @@ private case class SgxIteratorComputeMapPartitionsRDD[U, T](
 	partIndex: Int)
 	extends SgxExecuteInside[Iterator[U]] {
 
-	def apply() = {
-		val f = SgxFakeIterator()
-		val g = Await.result(Future { fct(partIndex, id.getIterator) }, Duration.Inf)
-		SgxMain.fakeIterators.put(f.id, g)
-		f
-	}
+	def apply() = SgxFakeIterator(
+		Await.result(Future {
+			fct(partIndex, id.getIterator)
+		}, Duration.Inf)
+	)
+
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + ", partIndex=" + partIndex + ", id=" + id + ")"
 }
 
@@ -46,12 +46,11 @@ private case class SgxIteratorComputePartitionwiseSampledRDD[T, U](
 	it: SgxIteratorIdentifier[T],
 	sampler: RandomSampler[T, U]) extends SgxExecuteInside[Iterator[U]] {
 
-	def apply() = {
-		val f = SgxFakeIterator()
-		val g = Await.result( Future { sampler.sample(it.getIterator) }, Duration.Inf)
-		SgxMain.fakeIterators.put(f.id, g)
-		f
-	}
+	def apply() = SgxFakeIterator(
+		Await.result( Future {
+			sampler.sample(it.getIterator)
+		}, Duration.Inf)
+	)
 
 	override def toString = this.getClass.getSimpleName + "(sampler=" + sampler + ", it=" + it + ")"
 }
@@ -61,12 +60,11 @@ private case class SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](
 	b: SgxIteratorIdentifier[B],
 	fct: (Iterator[A], Iterator[B]) => Iterator[Z]) extends SgxExecuteInside[Iterator[Z]] {
 
-	def apply() = {
-		val f = SgxFakeIterator()
-		val g = Await.result( Future { fct(a.getIterator, b.getIterator) }, Duration.Inf)
-		SgxMain.fakeIterators.put(f.id, g)
-		f
-	}
+	def apply() = SgxFakeIterator(
+		Await.result( Future {
+			fct(a.getIterator, b.getIterator)
+		}, Duration.Inf)
+	)
 
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }

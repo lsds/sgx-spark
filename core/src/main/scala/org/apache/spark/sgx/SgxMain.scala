@@ -14,7 +14,6 @@ class Waiter() extends Callable[Unit] {
 }
 
 object SgxMain extends Callable[Unit] with Logging {
-	val fakeIterators = new IdentifierManager[Iterator[Any]]()
 	val rddIds = new IdentifierManager[Any]()
 	var sparkContext: SparkContext = _
 
