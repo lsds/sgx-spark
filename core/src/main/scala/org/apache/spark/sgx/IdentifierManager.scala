@@ -7,9 +7,10 @@ import org.apache.spark.internal.Logging
 class IdentifierManager[T]() extends Logging {
 	private val identifiers = new TLongObjectHashMap[T]()
 
-	def put(id: Long, obj: T): Unit = this.synchronized {
+	def put[U <: T](id: Long, obj: U): U = this.synchronized {
 		logDebug("put("+id+","+obj+")")
 		identifiers.put(id, obj)
+		obj
 	}
 
 	def get(id: Long): T = this.synchronized {

@@ -18,10 +18,6 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 
-private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxExecuteInside[T] {
-	override def toString = this.getClass.getSimpleName + "(rddId=" + _rddId + ")"
-}
-
 object SgxRddFct {
 
 	def collect[T](rddId: Int) =
@@ -83,6 +79,10 @@ object SgxRddFct {
 		new Zip[T,U](rddId1, rddId2).executeInsideEnclave()
 }
 
+private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxExecuteInside[T] {
+	override def toString = this.getClass.getSimpleName + "(rddId=" + _rddId + ")"
+}
+
 private case class Collect[T](rddId: Int) extends SgxExecuteInside[Array[T]] {
 	def apply() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
@@ -101,7 +101,6 @@ private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 	def apply() = Await.result( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).combineByKeyWithClassTag(createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -115,7 +114,6 @@ private case class FlatMap[T,U:ClassTag](rddId: Int, f: T => TraversableOnce[U])
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].flatMap(f)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -131,7 +129,6 @@ private case class Map[T,U:ClassTag](rddId: Int, f: T => U) extends SgxTaskRDD[R
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].map(f)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -139,7 +136,6 @@ private case class MapPartitions[T,U:ClassTag](rddId: Int, f: Iterator[T] => Ite
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].mapPartitions(f)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -147,7 +143,6 @@ private case class MapPartitionsWithIndex[T,U:ClassTag](rddId: Int, f: (Int, Ite
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].mapPartitionsWithIndex(f)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -155,7 +150,6 @@ private case class MapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) ext
 	def apply() = Await.result( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).mapValues(f)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -169,7 +163,6 @@ private case class Persist[T](rddId: Int, level: StorageLevel) extends SgxTaskRD
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].persist(level)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -177,7 +170,6 @@ private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Dou
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 }
 
@@ -197,7 +189,6 @@ private case class Zip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxTaskRD
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[T]].zip(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[U]])
 		SgxMain.rddIds.put(r.id, r)
-		r
 	}, Duration.Inf)
 
 	override def toString = this.getClass.getSimpleName + "(rddId1=" + rddId1 + ", rddId2=" + rddId2 + ")"

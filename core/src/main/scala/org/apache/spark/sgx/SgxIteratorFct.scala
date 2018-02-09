@@ -23,7 +23,7 @@ object SgxIteratorFct {
 	def computeZippedPartitionsRDD2[A, B, Z](a: SgxIteratorIdentifier[A], b: SgxIteratorIdentifier[B], fct: (Iterator[A], Iterator[B]) => Iterator[Z]) =
 		new SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](a, b, fct).executeInsideEnclave()
 
-	def fold[T](id: SgxIteratorProviderIdentifier[T], v: T, op: (T,T) => T) =
+	def fold[T](id: SgxIteratorIdentifier[T], v: T, op: (T,T) => T) =
 		new SgxIteratorFold(id, v, op).executeInsideEnclave()
 }
 
@@ -72,14 +72,13 @@ private case class SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](
 }
 
 private case class SgxIteratorFold[T](
-	id: SgxIteratorProviderIdentifier[T],
+	id: SgxIteratorIdentifier[T],
 	v: T,
 	op: (T,T) => T) extends SgxExecuteInside[T] {
 
-	def apply() = {
-		Await.result(Future {
-			new SgxIteratorConsumer[T](id).fold(v)(op)
-			}, Duration.Inf).asInstanceOf[T]
-	}
+	def apply() = Await.result(Future {
+		id.getIterator.fold(v)(op)
+	}, Duration.Inf).asInstanceOf[T]
+
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
 }
