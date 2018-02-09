@@ -18,10 +18,14 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 
+private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxExecuteInside[T] {
+	override def toString = this.getClass.getSimpleName + "(rddId=" + _rddId + ")"
+}
+
 object SgxRddFct {
 
 	def collect[T](rddId: Int) =
-		new SgxTaskRDDCollect[T](rddId).executeInsideEnclave()
+		new Collect[T](rddId).executeInsideEnclave()
 
 	def combineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 		rddId: Int,
@@ -31,67 +35,68 @@ object SgxRddFct {
 		partitioner: Partitioner,
 		mapSideCombine: Boolean,
 		serializer: Serializer) =
-			new SgxTaskRDDCombineByKeyWithClassTag[C,V,K](rddId, createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer).executeInsideEnclave()
+			new CombineByKeyWithClassTag[C,V,K](rddId, createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer).executeInsideEnclave()
 
 	def count[T](rddId: Int) =
-		new SgxTaskRDDCount[T](rddId).executeInsideEnclave()
+		new Count[T](rddId).executeInsideEnclave()
 
 	def flatMap[T,U: ClassTag](rddId: Int, f: T => TraversableOnce[U]) =
-		new SgxTaskRDDFlatMap(rddId, f).executeInsideEnclave()
+		new FlatMap(rddId, f).executeInsideEnclave()
 
 	def fold[T](rddId: Int, v: T, op: (T,T) => T) =
-		new SgxTaskRDDFold(rddId, v, op).executeInsideEnclave()
+		new Fold(rddId, v, op).executeInsideEnclave()
 
 	def map[T,U:ClassTag](rddId: Int, f: T => U) =
-		new SgxTaskRDDMap(rddId, f).executeInsideEnclave()
+		new Map(rddId, f).executeInsideEnclave()
 
 	def mapPartitions[T,U:ClassTag](
 		rddId: Int,
 		f: Iterator[T] => Iterator[U],
 		preservesPartitioning: Boolean) =
-			new SgxTaskRDDMapPartitions(rddId, f, preservesPartitioning).executeInsideEnclave()
+			new MapPartitions(rddId, f, preservesPartitioning).executeInsideEnclave()
 
 	def mapPartitionsWithIndex[T,U:ClassTag](
 		rddId: Int,
 		f: (Int, Iterator[T]) => Iterator[U],
 		preservesPartitioning: Boolean) =
-			new SgxTaskRDDMapPartitionsWithIndex(rddId, f, preservesPartitioning).executeInsideEnclave()
+			new MapPartitionsWithIndex(rddId, f, preservesPartitioning).executeInsideEnclave()
 
 	def mapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) =
-		new SgxTaskRDDMapValues[U,V,K](rddId, f).executeInsideEnclave()
+		new MapValues[U,V,K](rddId, f).executeInsideEnclave()
 
 	def partitions[T](rddId: Int) =
-		new SgxTaskRDDPartitions[T](rddId).executeInsideEnclave()
+		new Partitions[T](rddId).executeInsideEnclave()
 
 	def persist[T](rddId: Int, level: StorageLevel) =
-		new SgxTaskRDDPersist[T](rddId, level).executeInsideEnclave()
+		new Persist[T](rddId, level).executeInsideEnclave()
 
 	def sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) =
-		new SgxTaskRDDSample[T](rddId, withReplacement, fraction, seed).executeInsideEnclave()
+		new Sample[T](rddId, withReplacement, fraction, seed).executeInsideEnclave()
 
 	def saveAsTextFile[T](rddId: Int, path: String) =
-		new SgxTaskRDDSaveAsTextFile[T](rddId, path).executeInsideEnclave()
+		new SaveAsTextFile[T](rddId, path).executeInsideEnclave()
 
 	def unpersist[T](rddId: Int) =
-		new SgxTaskRDDUnpersist[T](rddId).executeInsideEnclave()
+		new Unpersist[T](rddId).executeInsideEnclave()
 
 	def zip[T,U:ClassTag](rddId1: Int, rddId2: Int) =
-		new SgxTaskRDDZip[T,U](rddId1, rddId2).executeInsideEnclave()
+		new Zip[T,U](rddId1, rddId2).executeInsideEnclave()
 }
 
-private case class SgxTaskRDDCollect[T](rddId: Int) extends SgxExecuteInside[Array[T]] {
-	def apply() = Await.result( Future { SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect() }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+private case class Collect[T](rddId: Int) extends SgxExecuteInside[Array[T]] {
+	def apply() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
+	}, Duration.Inf)
 }
 
-private case class SgxTaskRDDCombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
+private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
       rddId: Int,
       createCombiner: V => C,
       mergeValue: (C, V) => C,
       mergeCombiners: (C, C) => C,
       partitioner: Partitioner,
       mapSideCombine: Boolean,
-      serializer: Serializer) extends SgxExecuteInside[RDD[(K, C)]] {
+      serializer: Serializer) extends SgxTaskRDD[RDD[(K, C)]](rddId) {
 
 	def apply() = Await.result( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).combineByKeyWithClassTag(createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer)
@@ -100,105 +105,95 @@ private case class SgxTaskRDDCombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:Cl
 	}, Duration.Inf)
 }
 
-private case class SgxTaskRDDCount[T](rddId: Int) extends SgxExecuteInside[Long] {
-	def apply() = Await.result( Future { SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count()}, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+private case class Count[T](rddId: Int) extends SgxTaskRDD[Long](rddId) {
+	def apply() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count()
+	}, Duration.Inf)
 }
 
-private case class SgxTaskRDDFlatMap[T,U:ClassTag](rddId: Int, f: T => TraversableOnce[U]) extends SgxExecuteInside[RDD[U]] {
+private case class FlatMap[T,U:ClassTag](rddId: Int, f: T => TraversableOnce[U]) extends SgxTaskRDD[RDD[U]](rddId) {
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].flatMap(f)
 		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDFold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxExecuteInside[T] {
-	def apply() = Await.result( Future { SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].fold(v)(op) }, Duration.Inf)
+private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[T](rddId) {
+	def apply() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].fold(v)(op)
+	}, Duration.Inf)
+
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDMap[T,U:ClassTag](rddId: Int, f: T => U) extends SgxExecuteInside[RDD[U]] {
+private case class Map[T,U:ClassTag](rddId: Int, f: T => U) extends SgxTaskRDD[RDD[U]](rddId) {
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].map(f)
 		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDMapPartitions[T,U:ClassTag](rddId: Int, f: Iterator[T] => Iterator[U], preservesPartitioning: Boolean) extends SgxExecuteInside[RDD[U]] {
+private case class MapPartitions[T,U:ClassTag](rddId: Int, f: Iterator[T] => Iterator[U], preservesPartitioning: Boolean) extends SgxTaskRDD[RDD[U]](rddId) {
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].mapPartitions(f)
 		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDMapPartitionsWithIndex[T,U:ClassTag](rddId: Int, f: (Int, Iterator[T]) => Iterator[U], preservesPartitioning: Boolean) extends SgxExecuteInside[RDD[U]] {
+private case class MapPartitionsWithIndex[T,U:ClassTag](rddId: Int, f: (Int, Iterator[T]) => Iterator[U], preservesPartitioning: Boolean) extends SgxTaskRDD[RDD[U]](rddId) {
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].mapPartitionsWithIndex(f)
 		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) extends SgxExecuteInside[RDD[(K, U)]] {
+private case class MapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) extends SgxTaskRDD[RDD[(K, U)]](rddId) {
 	def apply() = Await.result( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).mapValues(f)
 		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDPartitions[T](rddId: Int) extends SgxExecuteInside[Array[Partition]] {
-	def apply() = Await.result( Future { SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].partitions }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+private case class Partitions[T](rddId: Int) extends SgxTaskRDD[Array[Partition]](rddId) {
+	def apply() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].partitions
+	}, Duration.Inf)
 }
 
-private case class SgxTaskRDDPersist[T](rddId: Int, level: StorageLevel) extends SgxExecuteInside[RDD[T]] {
+private case class Persist[T](rddId: Int, level: StorageLevel) extends SgxTaskRDD[RDD[T]](rddId) {
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].persist(level)
 		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDSample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) extends SgxExecuteInside[RDD[T]] {
+private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) extends SgxTaskRDD[RDD[T]](rddId) {
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
 		SgxMain.rddIds.put(r.id, r)
 		r
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDSaveAsTextFile[T](rddId: Int, path: String) extends SgxExecuteInside[Unit] {
+private case class SaveAsTextFile[T](rddId: Int, path: String) extends SgxTaskRDD[Unit](rddId) {
 	def apply() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].saveAsTextFile(path)
 	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
 }
 
-private case class SgxTaskRDDUnpersist[T](rddId: Int) extends SgxExecuteInside[Unit] {
-	def apply() = Await.result( Future { SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].unpersist() }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
+private case class Unpersist[T](rddId: Int) extends SgxTaskRDD[Unit](rddId) {
+	def apply() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].unpersist()
+	}, Duration.Inf)
 }
 
-private case class SgxTaskRDDZip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxExecuteInside[RDD[(T,U)]] {
+private case class Zip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxTaskRDD[RDD[(T,U)]](-1) {
 	def apply() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[T]].zip(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[U]])
 		SgxMain.rddIds.put(r.id, r)
