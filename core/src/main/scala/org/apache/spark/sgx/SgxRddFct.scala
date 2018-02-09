@@ -69,9 +69,6 @@ object SgxRddFct {
 	def sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) =
 		new SgxTaskRDDSample[T](rddId, withReplacement, fraction, seed).executeInsideEnclave()
 
-	def saveAsHadoopDataset[V:ClassTag,K:ClassTag](rddId: Int, conf: JobConf) =
-		new SgxTaskRDDSaveAsHadoopDataset[V,K](rddId, conf).executeInsideEnclave()
-
 	def saveAsTextFile[T](rddId: Int, path: String) =
 		new SgxTaskRDDSaveAsTextFile[T](rddId, path).executeInsideEnclave()
 
@@ -183,14 +180,6 @@ private case class SgxTaskRDDSample[T](rddId: Int, withReplacement: Boolean, fra
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
 		SgxMain.rddIds.put(r.id, r)
 		r
-	}, Duration.Inf)
-
-	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"
-}
-
-private case class SgxTaskRDDSaveAsHadoopDataset[V:ClassTag,K:ClassTag](rddId: Int, conf: JobConf) extends SgxExecuteInside[Unit] {
-	def apply() = Await.result( Future {
-		new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).saveAsHadoopDataset(conf)
 	}, Duration.Inf)
 
 	override def toString = this.getClass.getSimpleName + "(rddId=" + rddId + ")"

@@ -52,7 +52,7 @@ import org.apache.spark.sgx.SgxRddFct
 class PairRDDFunctions[K, V](self: RDD[(K, V)])
     (implicit kt: ClassTag[K], vt: ClassTag[V], ord: Ordering[K] = null)
   extends Logging with Serializable {
-logDebug("save X2")
+
   /**
    * :: Experimental ::
    * Generic function to combine the elements for each key using a custom set of aggregation
@@ -960,9 +960,7 @@ logDebug("save X2")
    */
   def saveAsHadoopFile[F <: OutputFormat[K, V]](
       path: String)(implicit fm: ClassTag[F]): Unit = self.withScope {
-	  logDebug("save X3")
     saveAsHadoopFile(path, keyClass, valueClass, fm.runtimeClass.asInstanceOf[Class[F]])
-    logDebug("save X4")
   }
 
   /**
@@ -1038,13 +1036,10 @@ logDebug("save X2")
       conf: JobConf = new JobConf(self.context.hadoopConfiguration),
       codec: Option[Class[_ <: CompressionCodec]] = None): Unit = self.withScope {
     // Rename this as hadoopConf internally to avoid shadowing (see SPARK-2038).
-	  logDebug("save 2")
     val hadoopConf = conf
-    logDebug("save 3")
     hadoopConf.setOutputKeyClass(keyClass)
     hadoopConf.setOutputValueClass(valueClass)
     conf.setOutputFormat(outputFormatClass)
-    logDebug("save 4")
     for (c <- codec) {
       hadoopConf.setCompressMapOutput(true)
       hadoopConf.set("mapreduce.output.fileoutputformat.compress", "true")
@@ -1053,12 +1048,12 @@ logDebug("save X2")
       hadoopConf.set("mapreduce.output.fileoutputformat.compress.type",
         CompressionType.BLOCK.toString)
     }
-logDebug("save 5")
+
     // Use configured output committer if already set
     if (conf.getOutputCommitter == null) {
       hadoopConf.setOutputCommitter(classOf[FileOutputCommitter])
     }
-logDebug("save 6")
+
     // When speculation is on and output committer class name contains "Direct", we should warn
     // users that they may loss data if they are using a direct output committer.
     val speculationEnabled = self.conf.getBoolean("spark.speculation", false)
@@ -1071,7 +1066,7 @@ logDebug("save 6")
           "committer that does not have this behavior (e.g. FileOutputCommitter)."
       logWarning(warningMessage)
     }
-logDebug("save 7")
+
     FileOutputFormat.setOutputPath(hadoopConf,
       SparkHadoopWriterUtils.createPathFromString(path, hadoopConf))
     saveAsHadoopDataset(hadoopConf)
@@ -1102,7 +1097,6 @@ logDebug("save 7")
    * MapReduce job.
    */
   def saveAsHadoopDataset(conf: JobConf): Unit = self.withScope {
-//	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.saveAsHadoopDataset[V,K](self.id, conf)
     val config = new HadoopMapRedWriteConfigUtil[K, V](new SerializableJobConf(conf))
     SparkHadoopWriter.write(
       rdd = self,
