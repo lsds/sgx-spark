@@ -263,13 +263,23 @@ abstract class RDD[T: ClassTag](
   final def partitions: Array[Partition] = {
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.partitions(this.id)
     checkpointRDD.map(_.partitions).getOrElse {
+    	logDebug("partitions 0")
       if (partitions_ == null) {
+    	  logDebug("partitions 1")
+    	  try {
         partitions_ = getPartitions
+    	  } catch {
+    	 	  case e:Exception => logDebug("Exception: " + e.getStackTraceString)
+    	  }
+        logDebug("partitions 2")
         partitions_.zipWithIndex.foreach { case (partition, index) =>
+        	logDebug("partitions 3")
           require(partition.index == index,
             s"partitions($index).partition == ${partition.index}, but it should equal $index")
         }
+    	   logDebug("partitions 4")
       }
+    	logDebug("partitions 5")
       partitions_
     }
   }
@@ -396,6 +406,7 @@ abstract class RDD[T: ClassTag](
    *  RDD, and then flattening the results.
    */
   def flatMap[U: ClassTag](f: T => TraversableOnce[U]): RDD[U] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.flatMap(this.id, f)
     val cleanF = sc.clean(f)
     new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.flatMap(cleanF))
   }
@@ -1517,6 +1528,7 @@ abstract class RDD[T: ClassTag](
     //
     // Therefore, here we provide an explicit Ordering `null` to make sure the compiler generate
     // same bytecodes for `saveAsTextFile`.
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.saveAsTextFile[T](this.id, path)
     val nullWritableClassTag = implicitly[ClassTag[NullWritable]]
     val textClassTag = implicitly[ClassTag[Text]]
     val r = this.mapPartitions { iter =>
@@ -1885,7 +1897,7 @@ abstract class RDD[T: ClassTag](
  * For example, [[RDD.rddToPairRDDFunctions]] converts an RDD into a [[PairRDDFunctions]] for
  * key-value-pair RDDs, and enabling extra functionalities such as `PairRDDFunctions.reduceByKey`.
  */
-object RDD {
+object RDD extends Logging {
 
   private[spark] val CHECKPOINT_ALL_MARKED_ANCESTORS =
     "spark.checkpoint.checkpointAllMarkedAncestors"
@@ -1897,7 +1909,10 @@ object RDD {
 
   implicit def rddToPairRDDFunctions[K, V](rdd: RDD[(K, V)])
     (implicit kt: ClassTag[K], vt: ClassTag[V], ord: Ordering[K] = null): PairRDDFunctions[K, V] = {
-    new PairRDDFunctions(rdd)
+	  logDebug("save X0 ")
+    val x = new PairRDDFunctions(rdd)
+    logDebug("save X1")
+    x
   }
 
   implicit def rddToAsyncRDDActions[T: ClassTag](rdd: RDD[T]): AsyncRDDActions[T] = {
