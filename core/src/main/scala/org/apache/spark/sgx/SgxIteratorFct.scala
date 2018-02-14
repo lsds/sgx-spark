@@ -15,25 +15,25 @@ import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 object SgxIteratorFct {
 	def computeMapPartitionsRDD[U, T](id: SgxIteratorIdentifier[T], fct: (Int, Iterator[T]) => Iterator[U], partIndex: Int) =
-		new SgxIteratorComputeMapPartitionsRDD[U, T](id, fct, partIndex).executeInsideEnclave()
+		new SgxIteratorComputeMapPartitionsRDD[U, T](id, fct, partIndex).send()
 
 	def computePartitionwiseSampledRDD[T, U](it: SgxIteratorIdentifier[T], sampler: RandomSampler[T, U]) =
-		new SgxIteratorComputePartitionwiseSampledRDD[T, U](it, sampler).executeInsideEnclave()
+		new SgxIteratorComputePartitionwiseSampledRDD[T, U](it, sampler).send()
 
 	def computeZippedPartitionsRDD2[A, B, Z](a: SgxIteratorIdentifier[A], b: SgxIteratorIdentifier[B], fct: (Iterator[A], Iterator[B]) => Iterator[Z]) =
-		new SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](a, b, fct).executeInsideEnclave()
+		new SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](a, b, fct).send()
 
 	def fold[T](id: SgxIteratorIdentifier[T], v: T, op: (T,T) => T) =
-		new SgxIteratorFold(id, v, op).executeInsideEnclave()
+		new SgxIteratorFold(id, v, op).send()
 }
 
 private case class SgxIteratorComputeMapPartitionsRDD[U, T](
 	id: SgxIteratorIdentifier[T],
 	fct: (Int, Iterator[T]) => Iterator[U],
 	partIndex: Int)
-	extends SgxExecuteInside[Iterator[U]] {
+	extends SgxMessage[Iterator[U]] {
 
-	def apply() = SgxFakeIterator(
+	def execute() = SgxFakeIterator(
 		Await.result(Future {
 			fct(partIndex, id.getIterator)
 		}, Duration.Inf)
@@ -44,9 +44,9 @@ private case class SgxIteratorComputeMapPartitionsRDD[U, T](
 
 private case class SgxIteratorComputePartitionwiseSampledRDD[T, U](
 	it: SgxIteratorIdentifier[T],
-	sampler: RandomSampler[T, U]) extends SgxExecuteInside[Iterator[U]] {
+	sampler: RandomSampler[T, U]) extends SgxMessage[Iterator[U]] {
 
-	def apply() = SgxFakeIterator(
+	def execute() = SgxFakeIterator(
 		Await.result( Future {
 			sampler.sample(it.getIterator)
 		}, Duration.Inf)
@@ -58,9 +58,9 @@ private case class SgxIteratorComputePartitionwiseSampledRDD[T, U](
 private case class SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](
 	a: SgxIteratorIdentifier[A],
 	b: SgxIteratorIdentifier[B],
-	fct: (Iterator[A], Iterator[B]) => Iterator[Z]) extends SgxExecuteInside[Iterator[Z]] {
+	fct: (Iterator[A], Iterator[B]) => Iterator[Z]) extends SgxMessage[Iterator[Z]] {
 
-	def apply() = SgxFakeIterator(
+	def execute() = SgxFakeIterator(
 		Await.result( Future {
 			fct(a.getIterator, b.getIterator)
 		}, Duration.Inf)
@@ -72,9 +72,9 @@ private case class SgxIteratorComputeZippedPartitionsRDD2[A, B, Z](
 private case class SgxIteratorFold[T](
 	id: SgxIteratorIdentifier[T],
 	v: T,
-	op: (T,T) => T) extends SgxExecuteInside[T] {
+	op: (T,T) => T) extends SgxMessage[T] {
 
-	def apply() = Await.result(Future {
+	def execute() = Await.result(Future {
 		id.getIterator.fold(v)(op)
 	}, Duration.Inf).asInstanceOf[T]
 

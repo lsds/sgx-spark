@@ -15,7 +15,7 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 			logDebug("Received: " + recv)
 
 			val result = recv match {
-				case x: SgxExecuteInside[_] => x.apply()
+				case x: SgxMessage[_] => x.execute()
 
 				case x: SgxBroadcastProviderIdentifier =>
 					logDebug("Accessing broadcast provider " + x)
