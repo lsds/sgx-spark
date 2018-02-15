@@ -629,7 +629,7 @@ class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends Ve
 
   override def toDense = {
 	if (SgxSettings.IS_ENCLAVE) decrypt[VectorWithNorm].toDense
-	else new SgxTaskVectorsToDense(this).executeInsideEnclave
+	else new SgxTaskVectorsToDense(this).send
   }
 
   def decrypt[U]: U = {
