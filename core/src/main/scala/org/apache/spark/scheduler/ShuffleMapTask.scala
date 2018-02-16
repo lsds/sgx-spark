@@ -29,6 +29,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.ShuffleWriter
 
+import org.apache.spark.sgx.Serialization
+
 /**
  * A ShuffleMapTask divides the elements of an RDD into multiple buckets (based on a partitioner
  * specified in the ShuffleDependency).

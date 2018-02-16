@@ -23,6 +23,7 @@ package org.apache.spark.util.collection
 private[spark] class SizeTrackingAppendOnlyMap[K, V]
   extends AppendOnlyMap[K, V] with SizeTracker
 {
+
   override def update(key: K, value: V): Unit = {
     super.update(key, value)
     super.afterUpdate()

@@ -34,6 +34,7 @@ import org.apache.spark.storage.{BlockId, DiskBlockObjectWriter}
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.SgxIteratorFct
 
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
@@ -184,8 +185,17 @@ private[spark] class ExternalSorter[K, V, C](
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
 
-    val records = if (SgxSettings.SGX_ENABLED) records2 match {
-      case f: SgxFakeIterator[Product2[K, V]] => f.access()
+     val records = if (SgxSettings.SGX_ENABLED) records2 match {
+      case f: SgxFakeIterator[Product2[K, V]] => {
+        if (shouldCombine) {
+          val mergeValue = aggregator.get.mergeValue
+          val createCombiner = aggregator.get.createCombiner
+          SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](f, mergeValue, createCombiner)
+    	} else {
+
+    	}
+        f.access() // REMOVE
+      }
       case i: Iterator[Product2[K, V]] => i
     } else records2
 
@@ -214,6 +224,37 @@ private[spark] class ExternalSorter[K, V, C](
         maybeSpillCollection(usingMap = false)
       }
     }
+
+//    val records = if (SgxSettings.SGX_ENABLED) records2 match {
+//      case f: SgxFakeIterator[Product2[K, V]] => f.access()
+//      case i: Iterator[Product2[K, V]] => i
+//    } else records2
+//
+//    if (shouldCombine) {
+//      // Combine values in-memory first using our AppendOnlyMap
+//      val mergeValue = aggregator.get.mergeValue
+//      val createCombiner = aggregator.get.createCombiner
+//      var kv: Product2[K, V] = null
+//      val update = (hadValue: Boolean, oldValue: C) => {
+//        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+//      }
+//      while (records.hasNext) {
+//        addElementsRead()
+//        kv = records.next()
+//        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
+//        else
+//        map.changeValue((getPartition(kv._1), kv._1), update)
+//        maybeSpillCollection(usingMap = true)
+//      }
+//    } else {
+//      // Stick values into our buffer
+//      while (records.hasNext) {
+//        addElementsRead()
+//        val kv = records.next()
+//        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
+//        maybeSpillCollection(usingMap = false)
+//      }
+//    }
   }
 
   /**

@@ -25,6 +25,14 @@ import org.apache.spark.annotation.DeveloperApi
 
 import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxFct
+
+import org.apache.spark.sgx.IdentifierManager
+
+private object Maps {
+	val map = new IdentifierManager[AppendOnlyMap[Any,Any]]()
+}
 
 /**
  * :: DeveloperApi ::
@@ -67,6 +75,16 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
   // Triggered by destructiveSortedIterator; the underlying data array may no longer be used
   private var destroyed = false
   private val destructionMessage = "Map state is invalid from destructive sorting!"
+
+  val id =
+	  if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
+	 	SgxFct.appendOnlyMapCreate()
+	  else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+	 	val i = scala.util.Random.nextLong
+	 	Maps.map.put(i, this.asInstanceOf[AppendOnlyMap[Any,Any]])
+	 	i
+	  }
+	  else 0
 
   /** Get the value for a given key */
   def apply(key: K): V = {

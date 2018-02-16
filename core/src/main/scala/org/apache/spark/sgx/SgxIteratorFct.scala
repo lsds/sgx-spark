@@ -24,11 +24,14 @@ object SgxIteratorFct {
 	def computeZippedPartitionsRDD2[A, B, Z](a: SgxIteratorIdentifier[A], b: SgxIteratorIdentifier[B], fct: (Iterator[A], Iterator[B]) => Iterator[Z]) =
 		new ComputeZippedPartitionsRDD2[A, B, Z](a, b, fct).send()
 
-//	def fold[T](id: SgxIteratorIdentifier[T], v: T, op: (T,T) => T) =
-//		new ItFold[T](id, v, op).send()
+	def resultTaskRunTask[T,U](id: SgxIteratorIdentifier[T], func: (TaskContext, Iterator[T]) => U, context: TaskContext) =
+		new ResultTaskRunTask[T,U](id, func, context).send()
 
-	def runTaskFunc[T,U](id: SgxIteratorIdentifier[T], func: (TaskContext, Iterator[T]) => U, context: TaskContext) =
-		new RunTaskFunc[T,U](id, func, context).send()
+	def externalSorterInsertAllCombine[K,V,C](
+			it: SgxIteratorIdentifier[Product2[K, V]],
+			mergeValue: (C, V) => C,
+			createCombiner: V => C) =
+		new ExternalSorterInsertAllCombine[K,V,C](it, mergeValue, createCombiner).send()
 }
 
 private case class ComputeMapPartitionsRDD[U, T](
@@ -73,19 +76,7 @@ private case class ComputeZippedPartitionsRDD2[A, B, Z](
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
 
-//private case class ItFold[T](
-//	id: SgxIteratorIdentifier[T],
-//	v: T,
-//	op: (T,T) => T) extends SgxMessage[T] {
-//
-//	def execute() = Await.result(Future {
-//		id.getIterator.fold(v)(op)
-//	}, Duration.Inf).asInstanceOf[T]
-//
-//	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", id=" + id + ")"
-//}
-
-private case class RunTaskFunc[T,U](
+private case class ResultTaskRunTask[T,U](
 	id: SgxIteratorIdentifier[T],
 	func: (TaskContext, Iterator[T]) => U,
 	context: TaskContext) extends SgxMessage[U] {
@@ -97,3 +88,16 @@ private case class RunTaskFunc[T,U](
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ", func=" + func + ", context=" + context + ")"
 }
 
+private case class ExternalSorterInsertAllCombine[K,V,C](
+	it: SgxIteratorIdentifier[Product2[K, V]],
+	mergeValue: (C, V) => C,
+	createCombiner: V => C) extends SgxMessage[Unit] {
+
+	def execute() = Await.result(Future {
+		logDebug("ExternalSorterInsertAllCombine: " + it)
+		var kv: Product2[K, V] = null
+		val update = (hadValue: Boolean, oldValue: C) => {
+			if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+		}
+	}, Duration.Inf)//.asInstanceOf[U]
+}

@@ -33,9 +33,9 @@ private object Base64StringEncrypt extends Logging {
 			case e: Encryptable =>
 				logDebug("Encryptable")
 				e.encrypt
-			case t: Tuple2[_,_] =>
-				logDebug("Tuple2")
-				new EncryptedTuple2(Encrypt(t._1), Encrypt(t._2))
+//			case t: Tuple2[_,_] =>
+//				logDebug("Tuple2")
+//				new EncryptedTuple2(Encrypt(t._1), Encrypt(t._2))
 			case p: Any =>
 				logDebug("EncryptedObj")
 				new EncryptedObj[String](
