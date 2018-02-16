@@ -1117,11 +1117,7 @@ abstract class RDD[T: ClassTag](
     var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
     val cleanOp = sc.clean(op)
     val zeroValueC = jobResult
-    val foldPartition = (iter: Iterator[T]) => {
-      if (SgxSettings.SGX_ENABLED) SgxIteratorFct.fold(SgxFactory.newSgxIteratorProvider[T](iter, false).getIdentifier, zeroValueC, cleanOp)
-      else
-      iter.fold(zeroValueC)(cleanOp)
-    }
+    val foldPartition = (iter: Iterator[T]) => iter.fold(zeroValueC)(cleanOp)
     // TODO: move execution of mergeResult (below) into enclave
     val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
     sc.runJob(this, foldPartition, mergeResult)
