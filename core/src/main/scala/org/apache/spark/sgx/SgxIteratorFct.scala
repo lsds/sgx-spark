@@ -7,7 +7,10 @@ import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 import org.apache.spark.util.random.RandomSampler
+import org.apache.spark.util.collection.AppendOnlyMap
+import org.apache.spark.util.collection.AppendOnlyMapIdentifier
 
+import org.apache.spark.Partitioner
 import org.apache.spark.TaskContext
 import org.apache.spark.sgx.iterator.SgxIteratorConsumer
 import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
@@ -28,10 +31,13 @@ object SgxIteratorFct {
 		new ResultTaskRunTask[T,U](id, func, context).send()
 
 	def externalSorterInsertAllCombine[K,V,C](
-			it: SgxIteratorIdentifier[Product2[K, V]],
+			records: SgxIteratorIdentifier[Product2[K, V]],
+			mapId: AppendOnlyMapIdentifier,
 			mergeValue: (C, V) => C,
-			createCombiner: V => C) =
-		new ExternalSorterInsertAllCombine[K,V,C](it, mergeValue, createCombiner).send()
+			createCombiner: V => C,
+			shouldPartition: Boolean,
+			partitioner: Option[Partitioner]) =
+		new ExternalSorterInsertAllCombine[K,V,C](records, mapId, mergeValue, createCombiner, shouldPartition, partitioner).send()
 }
 
 private case class ComputeMapPartitionsRDD[U, T](
@@ -89,15 +95,27 @@ private case class ResultTaskRunTask[T,U](
 }
 
 private case class ExternalSorterInsertAllCombine[K,V,C](
-	it: SgxIteratorIdentifier[Product2[K, V]],
+	records2: SgxIteratorIdentifier[Product2[K, V]],
+	mapId: AppendOnlyMapIdentifier,
 	mergeValue: (C, V) => C,
-	createCombiner: V => C) extends SgxMessage[Unit] {
+	createCombiner: V => C,
+	shouldPartition: Boolean,
+	partitioner: Option[Partitioner]) extends SgxMessage[Unit] {
 
 	def execute() = Await.result(Future {
-		logDebug("ExternalSorterInsertAllCombine: " + it)
+		val records = records2.getIterator
+		val map = mapId.getMap[(Int,K),C]
+		logDebug("ExternalSorterInsertAllCombine: " + records2 + ", " + mapId)
 		var kv: Product2[K, V] = null
 		val update = (hadValue: Boolean, oldValue: C) => {
 			if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+		}
+		while (records.hasNext) {
+//			addElementsRead() // make ocall
+        	kv = records.next()
+        	map.changeValue((if (shouldPartition) partitioner.get.getPartition(kv._1) else 0, kv._1), update)
+			logDebug("ExternalSorterInsertAllCombine: changeValue("+(if (shouldPartition) partitioner.get.getPartition(kv._1) else 0)+","+kv._1+") to " + update)
+//			maybeSpillCollection(usingMap = true) // make ocall
 		}
 	}, Duration.Inf)//.asInstanceOf[U]
 }

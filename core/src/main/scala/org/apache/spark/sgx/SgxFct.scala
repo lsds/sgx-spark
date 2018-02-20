@@ -7,6 +7,7 @@ import scala.concurrent.Future
 
 import org.apache.spark.Partitioner
 import org.apache.spark.util.collection.AppendOnlyMap
+import org.apache.spark.util.collection.AppendOnlyMapIdentifier
 
 object SgxFct {
 	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) =
@@ -31,7 +32,7 @@ private case class ExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
-private case class AppendOnlyMapCreate[K,V]() extends SgxMessage[Long] {
+private case class AppendOnlyMapCreate[K,V]() extends SgxMessage[AppendOnlyMapIdentifier] {
 
 	def execute() = Await.result( Future {
 		logDebug("AppendOnlyMapCreate")

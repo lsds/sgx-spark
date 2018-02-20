@@ -185,45 +185,46 @@ private[spark] class ExternalSorter[K, V, C](
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
 
-     val records = if (SgxSettings.SGX_ENABLED) records2 match {
-      case f: SgxFakeIterator[Product2[K, V]] => {
+     if (SgxSettings.SGX_ENABLED) {
+      if (records2.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) {
+    	val it = records2.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
         if (shouldCombine) {
           val mergeValue = aggregator.get.mergeValue
           val createCombiner = aggregator.get.createCombiner
-          SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](f, mergeValue, createCombiner)
+          SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](it, map.id, mergeValue, createCombiner, shouldPartition, partitioner)
     	} else {
-
+throw new Exception("not implemented ExternalSorter.insertAll")
     	}
-        f.access() // REMOVE
+//        f.access() // REMOVE
       }
-      case i: Iterator[Product2[K, V]] => i
-    } else records2
-
-    if (shouldCombine) {
-      // Combine values in-memory first using our AppendOnlyMap
-      val mergeValue = aggregator.get.mergeValue
-      val createCombiner = aggregator.get.createCombiner
-      var kv: Product2[K, V] = null
-      val update = (hadValue: Boolean, oldValue: C) => {
-        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
-      }
-      while (records.hasNext) {
-        addElementsRead()
-        kv = records.next()
-        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
-        else
-        map.changeValue((getPartition(kv._1), kv._1), update)
-        maybeSpillCollection(usingMap = true)
-      }
-    } else {
-      // Stick values into our buffer
-      while (records.hasNext) {
-        addElementsRead()
-        val kv = records.next()
-        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
-        maybeSpillCollection(usingMap = false)
-      }
+//      case i: Iterator[Product2[K, V]] => i
     }
+
+//    if (shouldCombine) {
+//      // Combine values in-memory first using our AppendOnlyMap
+//      val mergeValue = aggregator.get.mergeValue
+//      val createCombiner = aggregator.get.createCombiner
+//      var kv: Product2[K, V] = null
+//      val update = (hadValue: Boolean, oldValue: C) => {
+//        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+//      }
+//      while (records.hasNext) {
+//        addElementsRead()
+//        kv = records.next()
+//        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
+//        else
+//        map.changeValue((getPartition(kv._1), kv._1), update)
+//        maybeSpillCollection(usingMap = true)
+//      }
+//    } else {
+//      // Stick values into our buffer
+//      while (records.hasNext) {
+//        addElementsRead()
+//        val kv = records.next()
+//        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
+//        maybeSpillCollection(usingMap = false)
+//      }
+//    }
 
 //    val records = if (SgxSettings.SGX_ENABLED) records2 match {
 //      case f: SgxFakeIterator[Product2[K, V]] => f.access()
@@ -697,6 +698,7 @@ private[spark] class ExternalSorter[K, V, C](
    * Exposed for testing.
    */
   def partitionedIterator: Iterator[(Int, Iterator[Product2[K, C]])] = {
+	  logDebug("partitionedIterator()")
     val usingMap = aggregator.isDefined
     val collection: WritablePartitionedPairCollection[K, C] = if (usingMap) map else buffer
     if (spills.isEmpty) {
@@ -721,6 +723,7 @@ private[spark] class ExternalSorter[K, V, C](
    * Return an iterator over all the data written to this object, aggregated by our aggregator.
    */
   def iterator: Iterator[Product2[K, C]] = {
+	  logDebug("iterator()")
     isShuffleSort = false
     partitionedIterator.flatMap(pair => pair._2)
   }
