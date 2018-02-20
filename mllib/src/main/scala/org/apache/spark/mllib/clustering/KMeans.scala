@@ -359,12 +359,11 @@ class KMeans private (
   private[clustering] def initKMeansParallel(data: RDD[VectorWithNorm]): Array[VectorWithNorm] = {
     // Initialize empty centers and point costs.
     var costs = data.map(_ => Double.PositiveInfinity)
-    logDebug("costs: " + costs)
 
     // Initialize the first center to a random point.
     val seed = new XORShiftRandom(this.seed).nextInt()
     val sample = data.takeSample(false, 1, seed)
-    logDebug("sample: " +sample.mkString(","))
+
     // Could be empty if data is empty; fail with a better message early:
     require(sample.nonEmpty, s"No samples available from $data")
 
@@ -413,21 +412,11 @@ class KMeans private (
       logDebug("kmeans f1: " + bcCenters.value.mkString("[", ",", "]"))
       logDebug("kmeans f2: " + data)
       logDebug("kmeans f3: " + data.id)
-      logDebug("kmeans f4: " + data.take(1))
-      logDebug("kmeans f5: " + data.take(1).mkString(","))
       val countMap = data.map(KMeans.findClosest(bcCenters.value, _)._1).countByValue()
 
       bcCenters.destroy(blocking = false)
-logDebug("kmeans g1: " + distinctCenters.mkString(","))
-logDebug("kmeans g2: " + distinctCenters.indices)
-logDebug("kmeans g3: " + countMap)
-logDebug("kmeans g4: " + countMap.size)
-logDebug("kmeans g5: " + countMap.keySet.mkString(","))
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
-      logDebug("kmeans h: " + myWeights.mkString(","))
-      val x = LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)
-      logDebug("kmeans i")
-      x
+      LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)
     }
   }
 }

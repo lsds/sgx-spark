@@ -11,4 +11,6 @@ abstract class SgxMessage[R] extends Serializable with Logging {
 	}
 
 	def execute(): R
+
+	override def toString = this.getClass.getSimpleName + "()"
 }

@@ -5,16 +5,24 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+import java.util.Comparator
+
 import org.apache.spark.Partitioner
-import org.apache.spark.util.collection.AppendOnlyMap
-import org.apache.spark.util.collection.AppendOnlyMapIdentifier
+import org.apache.spark.util.collection.PartitionedAppendOnlyMap
+import org.apache.spark.util.collection.PartitionedAppendOnlyMapIdentifier
+import org.apache.spark.util.collection.WritablePartitionedIterator
 
 object SgxFct {
 	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) =
 		new ExternalSorterInsertAllCreateKey[K](partitioner, pair).send()
 
-	def appendOnlyMapCreate[K,V]() =
-		new AppendOnlyMapCreate().send()
+	def partitionedAppendOnlyMapCreate[K,V]() =
+		new PartitionedAppendOnlyMapCreate().send()
+
+	def partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](
+			id: PartitionedAppendOnlyMapIdentifier,
+			keyComparator: Option[Comparator[K]]) =
+		new PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator).send()
 
 	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send()
 
@@ -32,14 +40,22 @@ private case class ExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
-private case class AppendOnlyMapCreate[K,V]() extends SgxMessage[AppendOnlyMapIdentifier] {
+private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[PartitionedAppendOnlyMapIdentifier] {
 
 	def execute() = Await.result( Future {
-		logDebug("AppendOnlyMapCreate")
-		new AppendOnlyMap().id
+		logDebug("PartitionedAppendOnlyMapCreate")
+		new PartitionedAppendOnlyMap().id
 	}, Duration.Inf)
+}
 
-	override def toString = this.getClass.getSimpleName + "()"
+private case class PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](
+	id: PartitionedAppendOnlyMapIdentifier,
+	keyComparator: Option[Comparator[K]]) extends SgxMessage[WritablePartitionedIterator] {
+
+	def execute() = Await.result( Future {
+		logDebug("PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator")
+		id.getMap.destructiveSortedWritablePartitionedIterator(keyComparator)
+	}, Duration.Inf)
 }
 
 private case class SgxFct0[Z](fct: () => Z) extends SgxMessage[Z] {
@@ -51,3 +67,4 @@ private case class SgxFct2[A, B, Z](fct: (A, B) => Z, a: A, b: B) extends SgxMes
 	def execute() = Await.result(Future { fct(a, b) }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "), a=" + a + ", b=" + b + ")"
 }
+

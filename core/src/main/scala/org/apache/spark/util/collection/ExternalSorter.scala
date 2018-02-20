@@ -36,6 +36,8 @@ import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxIteratorFct
 
+import org.apache.spark.sgx.Serialization
+
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
  * pairs of type (K, C). Uses a Partitioner to first group the keys into partitions, and then
@@ -148,7 +150,7 @@ private[spark] class ExternalSorter[K, V, C](
   // user. (A partial ordering means that equal keys have comparator.compare(k, k) = 0, but some
   // non-equal keys also have this, so we need to do a later pass to find truly equal keys).
   // Note that we ignore this if no aggregator and no ordering are given.
-  private val keyComparator: Comparator[K] = ordering.getOrElse(new Comparator[K] {
+  private val keyComparator: Comparator[K] = ordering.getOrElse(new Comparator[K] with Serializable {
     override def compare(a: K, b: K): Int = {
       val h1 = if (a == null) 0 else a.hashCode()
       val h2 = if (b == null) 0 else b.hashCode()
@@ -171,7 +173,7 @@ private[spark] class ExternalSorter[K, V, C](
     file: File,
     blockId: BlockId,
     serializerBatchSizes: Array[Long],
-    elementsPerPartition: Array[Long])
+    elementsPerPartition: Array[Long]) extends Logging
 
   private val spills = new ArrayBuffer[SpilledFile]
 
@@ -184,6 +186,7 @@ private[spark] class ExternalSorter[K, V, C](
   def insertAll(records2: Iterator[Product2[K, V]]): Unit = {
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
+    logDebug("insertAll")
 
      if (SgxSettings.SGX_ENABLED) {
       if (records2.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) {
@@ -528,9 +531,11 @@ throw new Exception("not implemented ExternalSorter.insertAll")
    * An internal class for reading a spilled file partition by partition. Expects all the
    * partitions to be requested in order.
    */
-  private[this] class SpillReader(spill: SpilledFile) {
+  private[this] class SpillReader(spill: SpilledFile) extends Logging{
     // Serializer batch offsets; size will be batchSize.length + 1
     val batchOffsets = spill.serializerBatchSizes.scanLeft(0L)(_ + _)
+
+    logDebug("ExternalSorter: SpillReader")
 
     // Track which partition and which batch stream we're in. These will be the indices of
     // the next element we will read. We'll also store the last partition read so that
@@ -678,6 +683,7 @@ throw new Exception("not implemented ExternalSorter.insertAll")
    * it returns pairs from an on-disk map.
    */
   def destructiveIterator(memoryIterator: Iterator[((Int, K), C)]): Iterator[((Int, K), C)] = {
+	  logDebug("destructiveIterator")
     if (isShuffleSort) {
       memoryIterator
     } else {
@@ -738,6 +744,7 @@ throw new Exception("not implemented ExternalSorter.insertAll")
   def writePartitionedFile(
       blockId: BlockId,
       outputFile: File): Array[Long] = {
+	  logDebug(" writePartitionedFile0")
 
     // Track location of each range in the output file
     val lengths = new Array[Long](numPartitions)
@@ -747,7 +754,12 @@ throw new Exception("not implemented ExternalSorter.insertAll")
     if (spills.isEmpty) {
       // Case where we only have in-memory data
       val collection = if (aggregator.isDefined) map else buffer
+      logDebug("writePartitionedFile1 " + map.id)
+      Serialization.serialize(ordering)
+      Serialization.serialize(aggregator)
+      Serialization.serialize(comparator)
       val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
+      logDebug("writePartitionedFile2 " + it)
       while (it.hasNext) {
         val partitionId = it.nextPartition()
         while (it.hasNext && it.nextPartition() == partitionId) {
@@ -778,6 +790,8 @@ throw new Exception("not implemented ExternalSorter.insertAll")
   }
 
   def stop(): Unit = {
+	  logDebug("ExternalSorter: stop")
+
     spills.foreach(s => s.file.delete())
     spills.clear()
     forceSpillFiles.foreach(s => s.file.delete())
@@ -808,8 +822,10 @@ throw new Exception("not implemented ExternalSorter.insertAll")
    * partitioned iterators from our in-memory collection.
    */
   private[this] class IteratorForPartition(partitionId: Int, data: BufferedIterator[((Int, K), C)])
-    extends Iterator[Product2[K, C]]
+    extends Iterator[Product2[K, C]] with Logging
   {
+
+	  logDebug("ExternalSorter: IteratorForPartition")
     override def hasNext: Boolean = data.hasNext && data.head._1._1 == partitionId
 
     override def next(): Product2[K, C] = {
@@ -822,7 +838,9 @@ throw new Exception("not implemented ExternalSorter.insertAll")
   }
 
   private[this] class SpillableIterator(var upstream: Iterator[((Int, K), C)])
-    extends Iterator[((Int, K), C)] {
+    extends Iterator[((Int, K), C)] with Logging {
+
+	  logDebug("ExternalSorter: SpillableIterator")
 
     private val SPILL_LOCK = new Object()
 

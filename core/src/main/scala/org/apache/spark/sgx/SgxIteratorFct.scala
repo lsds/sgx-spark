@@ -7,8 +7,8 @@ import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 import org.apache.spark.util.random.RandomSampler
-import org.apache.spark.util.collection.AppendOnlyMap
-import org.apache.spark.util.collection.AppendOnlyMapIdentifier
+import org.apache.spark.util.collection.PartitionedAppendOnlyMap
+import org.apache.spark.util.collection.PartitionedAppendOnlyMapIdentifier
 
 import org.apache.spark.Partitioner
 import org.apache.spark.TaskContext
@@ -32,7 +32,7 @@ object SgxIteratorFct {
 
 	def externalSorterInsertAllCombine[K,V,C](
 			records: SgxIteratorIdentifier[Product2[K, V]],
-			mapId: AppendOnlyMapIdentifier,
+			mapId: PartitionedAppendOnlyMapIdentifier,
 			mergeValue: (C, V) => C,
 			createCombiner: V => C,
 			shouldPartition: Boolean,
@@ -96,7 +96,7 @@ private case class ResultTaskRunTask[T,U](
 
 private case class ExternalSorterInsertAllCombine[K,V,C](
 	records2: SgxIteratorIdentifier[Product2[K, V]],
-	mapId: AppendOnlyMapIdentifier,
+	mapId: PartitionedAppendOnlyMapIdentifier,
 	mergeValue: (C, V) => C,
 	createCombiner: V => C,
 	shouldPartition: Boolean,
@@ -104,7 +104,7 @@ private case class ExternalSorterInsertAllCombine[K,V,C](
 
 	def execute() = Await.result(Future {
 		val records = records2.getIterator
-		val map = mapId.getMap[(Int,K),C]
+		val map = mapId.getMap[K,C]
 		logDebug("ExternalSorterInsertAllCombine: " + records2 + ", " + mapId)
 		var kv: Product2[K, V] = null
 		val update = (hadValue: Boolean, oldValue: C) => {
