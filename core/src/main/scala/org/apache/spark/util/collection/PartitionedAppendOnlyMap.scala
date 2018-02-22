@@ -26,7 +26,6 @@ import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
 
 import org.apache.spark.sgx.IdentifierManager
-import org.glassfish.jersey.internal.util.collection.KeyComparator
 
 private object Maps {
 	val map = new IdentifierManager[PartitionedAppendOnlyMap[Any,Any]]()

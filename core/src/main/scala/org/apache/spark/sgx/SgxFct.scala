@@ -12,6 +12,8 @@ import org.apache.spark.util.collection.PartitionedAppendOnlyMap
 import org.apache.spark.util.collection.PartitionedAppendOnlyMapIdentifier
 import org.apache.spark.util.collection.WritablePartitionedIterator
 
+import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
+
 object SgxFct {
 	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) =
 		new ExternalSorterInsertAllCreateKey[K](partitioner, pair).send()
@@ -23,6 +25,9 @@ object SgxFct {
 			id: PartitionedAppendOnlyMapIdentifier,
 			keyComparator: Option[Comparator[K]]) =
 		new PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator).send()
+
+	def writablePartitionedIteratorHasNext(it: SgxWritablePartitionedFakeIterator) =
+		new WritablePartitionedIteratorHasNext(it).send()
 
 	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send()
 
@@ -52,9 +57,20 @@ private case class PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedI
 	id: PartitionedAppendOnlyMapIdentifier,
 	keyComparator: Option[Comparator[K]]) extends SgxMessage[WritablePartitionedIterator] {
 
+	def execute() = SgxWritablePartitionedFakeIterator(
+		Await.result( Future {
+			logDebug("PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator")
+			id.getMap.destructiveSortedWritablePartitionedIterator(keyComparator)
+		}, Duration.Inf)
+	)
+}
+
+private case class WritablePartitionedIteratorHasNext(
+	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Boolean] {
+
 	def execute() = Await.result( Future {
-		logDebug("PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator")
-		id.getMap.destructiveSortedWritablePartitionedIterator(keyComparator)
+		logDebug("WritablePartitionedIteratorHasNext")
+		it.getIterator.hasNext()
 	}, Duration.Inf)
 }
 

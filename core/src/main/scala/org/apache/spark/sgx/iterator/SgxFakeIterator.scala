@@ -3,6 +3,11 @@ package org.apache.spark.sgx.iterator
 import org.apache.spark.sgx.ClientHandle
 import org.apache.spark.sgx.IdentifierManager
 import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxFct
+
+import org.apache.spark.util.collection.WritablePartitionedIterator
+import org.apache.spark.storage.DiskBlockObjectWriter
 
 import org.apache.spark.internal.Logging
 
@@ -31,4 +36,37 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 	override def getIterator = FakeIterators.map.remove[Iterator[T]](id)
 
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
+}
+
+private object WritablePartitionedFakeIterators {
+	val map = new IdentifierManager[WritablePartitionedIterator]()
+}
+
+case class SgxWritablePartitionedFakeIterator(@transient val delegate: WritablePartitionedIterator) extends WritablePartitionedIterator with Logging {
+
+	val id = scala.util.Random.nextLong
+
+	WritablePartitionedFakeIterators.map.put(id, delegate)
+
+	override def writeNext(writer: DiskBlockObjectWriter) = throw SgxFakeIteratorException(id)
+
+	override def hasNext: Boolean = {
+		println("hasNext")
+		if (SgxSettings.IS_DRIVER) {
+			logDebug("hasNext DRIVER")
+			delegate.hasNext()
+		}
+		else if (SgxSettings.IS_WORKER) {
+			logDebug("hasNext WORKER")
+			SgxFct.writablePartitionedIteratorHasNext(this)
+		}
+		else {
+			logDebug("hasNext MISC")
+			throw SgxFakeIteratorException(id)
+		}
+	}
+
+	override def nextPartition() = throw SgxFakeIteratorException(id)
+
+	def getIterator = WritablePartitionedFakeIterators.map.get(id)
 }

@@ -15,8 +15,6 @@ import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.sgx.iterator.SgxIteratorConsumer
-import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 
 object SgxRddFct {
 
