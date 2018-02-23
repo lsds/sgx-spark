@@ -48,10 +48,22 @@ case class SgxWritablePartitionedFakeIterator(@transient val delegate: WritableP
 
 	WritablePartitionedFakeIterators.map.put(id, delegate)
 
-	override def writeNext(writer: DiskBlockObjectWriter) = throw SgxFakeIteratorException(id)
+	override def writeNext(writer: DiskBlockObjectWriter) = {
+		if (SgxSettings.IS_DRIVER) {
+			logDebug("writeNext DRIVER")
+//			delegate.writeNext(writer)
+		}
+		else if (SgxSettings.IS_WORKER) {
+			logDebug("writeNext WORKER")
+//			SgxFct.writablePartitionedIteratorWriteNext(this)
+		}
+		else {
+			logDebug("writeNext MISC")
+			throw SgxFakeIteratorException(id)
+		}
+	}
 
 	override def hasNext: Boolean = {
-		println("hasNext")
 		if (SgxSettings.IS_DRIVER) {
 			logDebug("hasNext DRIVER")
 			delegate.hasNext()
@@ -66,7 +78,20 @@ case class SgxWritablePartitionedFakeIterator(@transient val delegate: WritableP
 		}
 	}
 
-	override def nextPartition() = throw SgxFakeIteratorException(id)
+	override def nextPartition() = {
+		if (SgxSettings.IS_DRIVER) {
+			logDebug("nextPartition DRIVER")
+			delegate.nextPartition()
+		}
+		else if (SgxSettings.IS_WORKER) {
+			logDebug("nextPartition WORKER")
+			SgxFct.writablePartitionedIteratorNextPartition(this)
+		}
+		else {
+			logDebug("nextPartition MISC")
+			throw SgxFakeIteratorException(id)
+		}
+	}
 
 	def getIterator = WritablePartitionedFakeIterators.map.get(id)
 }

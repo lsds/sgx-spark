@@ -29,6 +29,12 @@ object SgxFct {
 	def writablePartitionedIteratorHasNext(it: SgxWritablePartitionedFakeIterator) =
 		new WritablePartitionedIteratorHasNext(it).send()
 
+	def writablePartitionedIteratorWriteNext(it: SgxWritablePartitionedFakeIterator) =
+		new WritablePartitionedIteratorWriteNext(it).send()
+
+	def writablePartitionedIteratorNextPartition(it: SgxWritablePartitionedFakeIterator) =
+		new WritablePartitionedIteratorNextPartition(it).send()
+
 	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send()
 
 	def fct2[A, B, Z](fct: (A, B) => Z, a: A, b: B) = new SgxFct2[A, B, Z](fct, a, b).send()
@@ -48,7 +54,6 @@ private case class ExternalSorterInsertAllCreateKey[K](
 private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[PartitionedAppendOnlyMapIdentifier] {
 
 	def execute() = Await.result( Future {
-		logDebug("PartitionedAppendOnlyMapCreate")
 		new PartitionedAppendOnlyMap().id
 	}, Duration.Inf)
 }
@@ -59,7 +64,6 @@ private case class PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedI
 
 	def execute() = SgxWritablePartitionedFakeIterator(
 		Await.result( Future {
-			logDebug("PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator")
 			id.getMap.destructiveSortedWritablePartitionedIterator(keyComparator)
 		}, Duration.Inf)
 	)
@@ -69,8 +73,23 @@ private case class WritablePartitionedIteratorHasNext(
 	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Boolean] {
 
 	def execute() = Await.result( Future {
-		logDebug("WritablePartitionedIteratorHasNext")
 		it.getIterator.hasNext()
+	}, Duration.Inf)
+}
+
+private case class WritablePartitionedIteratorNextPartition(
+	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Int] {
+
+	def execute() = Await.result( Future {
+		it.getIterator.nextPartition()
+	}, Duration.Inf)
+}
+
+private case class WritablePartitionedIteratorWriteNext(
+	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Unit] {
+
+	def execute() = Await.result( Future {
+		it.getIterator.writeNext(null)
 	}, Duration.Inf)
 }
 

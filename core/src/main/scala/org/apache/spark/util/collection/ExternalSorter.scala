@@ -755,7 +755,7 @@ throw new Exception("not implemented ExternalSorter.insertAll")
       // Case where we only have in-memory data
       val collection = if (aggregator.isDefined) map else buffer
       logDebug("writePartitionedFile1 " + map.id)
-      val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
+      val it = collection.destructiveSortedWritablePartitionedIterator(comparator, writer)
       logDebug("writePartitionedFile2 " + it)
       while (it.hasNext) {
         val partitionId = it.nextPartition()
