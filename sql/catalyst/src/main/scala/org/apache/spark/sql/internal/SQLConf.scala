@@ -393,11 +393,11 @@ object SQLConf {
 
   val ORC_IMPLEMENTATION = buildConf("spark.sql.orc.impl")
     .doc("When native, use the native version of ORC support instead of the ORC library in Hive " +
-      "1.2.1. It is 'hive' by default prior to Spark 2.3.")
+      "1.2.1. It is 'hive' by default.")
     .internal()
     .stringConf
     .checkValues(Set("hive", "native"))
-    .createWithDefault("native")
+    .createWithDefault("hive")
 
   val ORC_VECTORIZED_READER_ENABLED = buildConf("spark.sql.orc.enableVectorizedReader")
     .doc("Enables vectorized orc decoding.")
@@ -414,7 +414,7 @@ object SQLConf {
   val ORC_FILTER_PUSHDOWN_ENABLED = buildConf("spark.sql.orc.filterPushdown")
     .doc("When true, enable filter pushdown for ORC files.")
     .booleanConf
-    .createWithDefault(true)
+    .createWithDefault(false)
 
   val HIVE_VERIFY_PARTITION_PATH = buildConf("spark.sql.hive.verifyPartitionPath")
     .doc("When true, check all the partition paths under the table\'s root directory " +
@@ -1052,7 +1052,7 @@ object SQLConf {
         "for use with pyspark.sql.DataFrame.toPandas, and " +
         "pyspark.sql.SparkSession.createDataFrame when its input is a Pandas DataFrame. " +
         "The following data types are unsupported: " +
-        "MapType, ArrayType of TimestampType, and nested StructType.")
+        "BinaryType, MapType, ArrayType of TimestampType, and nested StructType.")
       .booleanConf
       .createWithDefault(false)
 
