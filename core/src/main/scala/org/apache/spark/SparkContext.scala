@@ -1576,6 +1576,7 @@ class SparkContext(config: SparkConf) extends Logging {
    */
   @DeveloperApi
   def addSparkListener(listener: SparkListenerInterface) {
+	if (outcall) return SgxSparkContextFct.addSparkListener(listener)
     listenerBus.addToSharedQueue(listener)
   }
 

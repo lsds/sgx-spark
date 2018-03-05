@@ -10,8 +10,11 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import org.apache.spark.scheduler.SparkListenerInterface
 
 object SgxSparkContextFct {
+
+	def addSparkListener(listener: SparkListenerInterface) = new SgxSparkContextAddSparkListener(listener).send()
 
 	def broadcast[T: ClassTag](value: T) = new SgxSparkContextBroadcast(value).send()
 
@@ -34,14 +37,16 @@ object SgxSparkContextFct {
 	def textFile(path: String) = new SgxSparkContextTextFile(path).send()
 }
 
+private case class SgxSparkContextAddSparkListener(listener: SparkListenerInterface) extends SgxMessage[Unit] {
+	def execute() = Await.result( Future { SgxMain.sparkContext.addSparkListener(listener) }, Duration.Inf)
+}
+
 private case class SgxSparkContextBroadcast[T: ClassTag](value: T) extends SgxMessage[Broadcast[T]] {
 	def execute() = Await.result( Future { SgxMain.sparkContext.broadcast(value) }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "()"
 }
 
 private case class SgxSparkContextConf() extends SgxMessage[SparkConf] {
 	def execute() = Await.result( Future { SgxMain.sparkContext.conf }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "()"
 }
 
 private case class SgxTaskSparkContextCreate(conf: SparkConf) extends SgxMessage[Unit] {
@@ -51,12 +56,10 @@ private case class SgxTaskSparkContextCreate(conf: SparkConf) extends SgxMessage
 
 private case class SgxSparkContextDefaultParallelism() extends SgxMessage[Int] {
 	def execute() = Await.result( Future { SgxMain.sparkContext.defaultParallelism }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "()"
 }
 
 private case class SgxSparkContextNewRddId() extends SgxMessage[Int] {
 	def execute() = Await.result( Future { SgxMain.sparkContext.newRddId() }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "()"
 }
 
 //private case class SgxTaskSparkContextRunJob[T, U: ClassTag](
@@ -74,7 +77,6 @@ private case class SgxSparkContextNewRddId() extends SgxMessage[Int] {
 
 private case class SgxSparkContextStop() extends SgxMessage[Unit] {
 	def execute() = Await.result( Future { SgxMain.sparkContext.stop() }, Duration.Inf)
-	override def toString = this.getClass.getSimpleName + "()"
 }
 
 private case class SgxSparkContextTextFile(path: String) extends SgxMessage[RDD[String]] {

@@ -956,7 +956,8 @@ object SparkSession {
         // Register a successfully instantiated context to the singleton. This should be at the
         // end of the class definition so that the singleton is updated only if there is no
         // exception in the construction of the instance.
-        sparkContext.addSparkListener(new SparkListener {
+        logDebug("sparkContext=" + sparkContext)
+        sparkContext.addSparkListener(new SparkListener with Serializable {
           override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
             defaultSession.set(null)
           }
