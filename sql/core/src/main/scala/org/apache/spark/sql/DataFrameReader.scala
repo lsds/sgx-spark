@@ -38,6 +38,12 @@ import org.apache.spark.sql.sources.v2._
 import org.apache.spark.sql.types.{StringType, StructType}
 import org.apache.spark.unsafe.types.UTF8String
 
+import org.apache.spark.sgx.IdentifierManager
+import org.apache.spark.sql.sgx.SgxSparkSessionFct
+import org.apache.spark.sgx.SgxSettings
+
+private object FakeDataFrameReaders extends IdentifierManager[DataFrameReader]() { }
+
 /**
  * Interface used to load a [[Dataset]] from external storage systems (e.g. file systems,
  * key-value stores, etc). Use `SparkSession.read` to access this.
@@ -45,7 +51,17 @@ import org.apache.spark.unsafe.types.UTF8String
  * @since 1.4.0
  */
 @InterfaceStability.Stable
-class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
+class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging with Serializable {
+
+  private[this] val id =
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) scala.util.Random.nextLong
+    else 0
+
+  FakeDataFrameReaders.put(id, this)
+
+  def getDataFrameReader = FakeDataFrameReaders.get(id)
+
+  private[this] val options = new scala.collection.mutable.HashMap[String, String]
 
   /**
    * Specifies the input data source format.
@@ -53,6 +69,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * @since 1.4.0
    */
   def format(source: String): DataFrameReader = {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderFormat(this, source)
     this.source = source
     this
   }
@@ -97,6 +114,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * @since 1.4.0
    */
   def option(key: String, value: String): DataFrameReader = {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
     this.extraOptions += (key -> value)
     this
   }
@@ -106,21 +124,27 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    *
    * @since 2.0.0
    */
-  def option(key: String, value: Boolean): DataFrameReader = option(key, value.toString)
+  def option(key: String, value: Boolean): DataFrameReader =
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
+	else option(key, value.toString)
 
   /**
    * Adds an input option for the underlying data source.
    *
    * @since 2.0.0
    */
-  def option(key: String, value: Long): DataFrameReader = option(key, value.toString)
+  def option(key: String, value: Long): DataFrameReader =
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
+	else option(key, value.toString)
 
   /**
    * Adds an input option for the underlying data source.
    *
    * @since 2.0.0
    */
-  def option(key: String, value: Double): DataFrameReader = option(key, value.toString)
+  def option(key: String, value: Double): DataFrameReader =
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
+	else option(key, value.toString)
 
   /**
    * (Scala-specific) Adds input options for the underlying data source.
@@ -171,6 +195,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * @since 1.4.0
    */
   def load(path: String): DataFrame = {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderLoad(this, path)
     option("path", path).load(Seq.empty: _*) // force invocation of `load(...varargs...)`
   }
 
@@ -760,6 +785,11 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
   ///////////////////////////////////////////////////////////////////////////////////////
   // Builder pattern config options
   ///////////////////////////////////////////////////////////////////////////////////////
+
+  logDebug("xx" + sparkSession)
+  logDebug("xx" + sparkSession.sessionState)
+  logDebug("xx" + sparkSession.sessionState.conf)
+  logDebug("xx" + sparkSession.sessionState.conf.defaultDataSourceName)
 
   private var source: String = sparkSession.sessionState.conf.defaultDataSourceName
 
