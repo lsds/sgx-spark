@@ -60,6 +60,12 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.unsafe.types.CalendarInterval
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sgx.IdentifierManager
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sql.sgx.SgxSparkSessionFct
+
+private object FakeDatasets extends IdentifierManager[Any]() { }
+
 private[sql] object Dataset {
   def apply[T: Encoder](sparkSession: SparkSession, logicalPlan: LogicalPlan): Dataset[T] = {
     val dataset = new Dataset(sparkSession, logicalPlan, implicitly[Encoder[T]])
@@ -168,6 +174,14 @@ class Dataset[T] private[sql](
     @DeveloperApi @InterfaceStability.Unstable @transient val queryExecution: QueryExecution,
     encoder: Encoder[T])
   extends Serializable {
+
+  private[this] val id =
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) scala.util.Random.nextLong
+    else 0
+
+  FakeDatasets.put(id, this)
+
+  def getDataset = FakeDatasets.get(id).asInstanceOf[Dataset[T]]
 
   queryExecution.assertAnalyzed()
 
@@ -2971,10 +2985,13 @@ class Dataset[T] private[sql](
    * @since 1.6.0
    */
   lazy val rdd: RDD[T] = {
-    val objectType = exprEnc.deserializer.dataType
-    rddQueryExecution.toRdd.mapPartitions { rows =>
-      rows.map(_.get(0, objectType).asInstanceOf[T])
-    }
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkSessionFct.datasetRdd(this)
+	else {
+      val objectType = exprEnc.deserializer.dataType
+      rddQueryExecution.toRdd.mapPartitions { rows =>
+        rows.map(_.get(0, objectType).asInstanceOf[T])
+      }
+	}
   }
 
   /**

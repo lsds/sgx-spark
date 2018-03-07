@@ -59,9 +59,14 @@ class OrderedRDDFunctions[K : Ordering : ClassTag,
   def sortByKey(ascending: Boolean = true, numPartitions: Int = self.partitions.length)
       : RDD[(K, V)] = self.withScope
   {
+	  logDebug("SORT A1")
     val part = new RangePartitioner(numPartitions, self, ascending)
-    new ShuffledRDD[K, V, V](self, part)
-      .setKeyOrdering(if (ascending) ordering else ordering.reverse)
+	   logDebug("SORT A2")
+    val x = new ShuffledRDD[K, V, V](self, part)
+    logDebug("SORT A3")
+      val y =x.setKeyOrdering(if (ascending) ordering else ordering.reverse)
+      logDebug("SORT A4")
+      y
   }
 
   /**

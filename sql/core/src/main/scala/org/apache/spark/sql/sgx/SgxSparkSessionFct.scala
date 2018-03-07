@@ -8,8 +8,10 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.SparkConf
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.DataFrameReader
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SparkSession.Builder
 
@@ -46,6 +48,10 @@ object SgxSparkSessionFct {
 	def dataFrameReaderOption(reader: DataFrameReader, key: String, value: Long) = DataFrameReaderOptionLong(reader, key, value).send()
 
 	def dataFrameReaderOption(reader: DataFrameReader, key: String, value: Double) = DataFrameReaderOptionDouble(reader, key, value).send()
+
+	// DataSet
+
+	def datasetRdd[T](dataset: Dataset[T]) = DatasetRdd(dataset).send()
 
 	// SparkSession
 
@@ -111,6 +117,15 @@ private[sql] case class DataFrameReaderOptionLong(reader: DataFrameReader, key: 
 
 private[sql] case class DataFrameReaderOptionDouble(reader: DataFrameReader, key: String, value: Double) extends SgxMessage[DataFrameReader] {
 	def execute() = Await.result( Future { reader.getDataFrameReader.option(key, value) }, Duration.Inf)
+}
+
+
+/*
+ * DataSet
+ */
+
+private[sql] case class DatasetRdd[T](dataset: Dataset[T]) extends SgxMessage[RDD[T]] {
+	def execute() = Await.result( Future { dataset.getDataset.rdd }, Duration.Inf)
 }
 
 

@@ -36,6 +36,9 @@ object SgxRddFct {
 	def count[T](rddId: Int) =
 		new Count[T](rddId).send()
 
+	def filter[T](rddId: Int, f: T => Boolean) =
+		new Filter(rddId, f).send()
+
 	def flatMap[T,U: ClassTag](rddId: Int, f: T => TraversableOnce[U]) =
 		new FlatMap(rddId, f).send()
 
@@ -72,6 +75,13 @@ object SgxRddFct {
 	def saveAsTextFile[T](rddId: Int, path: String) =
 		new SaveAsTextFile[T](rddId, path).send()
 
+//	def sortBy[T,K](
+//		f: (T) => K,
+//		ascending: Boolean = true,
+//		numPartitions: Int = this.partitions.length)
+//		(implicit ord: Ordering[K], ctag: ClassTag[K]) =
+//			new SortBy[T,K](f, ascending, numPartitions)(ord, ctag).send()
+
 	def unpersist[T](rddId: Int) =
 		new Unpersist[T](rddId).send()
 
@@ -107,6 +117,13 @@ private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 private case class Count[T](rddId: Int) extends SgxTaskRDD[Long](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count()
+	}, Duration.Inf)
+}
+
+private case class Filter[T](rddId: Int, f: T => Boolean) extends SgxTaskRDD[RDD[T]](rddId) {
+	def execute() = Await.result( Future {
+		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].filter(f)
+		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
@@ -178,6 +195,13 @@ private case class SaveAsTextFile[T](rddId: Int, path: String) extends SgxTaskRD
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].saveAsTextFile(path)
 	}, Duration.Inf)
 }
+
+//private case class SortBy[T,K](f: (T) => K, ascending: Boolean = true, numPartitions: Int = this.partitions.length) (implicit ord: Ordering[K], ctag: ClassTag[K]) extends SgxTaskRDD[RDD[T]](rddId) {
+//	def execute() = Await.result( Future {
+//		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sortBy(f, ascending, numPartitions)(ord, ctag)
+//		SgxMain.rddIds.put(r.id, r)
+//	}, Duration.Inf)
+//}
 
 private case class Unpersist[T](rddId: Int) extends SgxTaskRDD[Unit](rddId) {
 	def execute() = Await.result( Future {
