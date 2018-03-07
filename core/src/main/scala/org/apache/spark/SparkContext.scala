@@ -2365,7 +2365,8 @@ class SparkContext(config: SparkConf) extends Logging {
 
   /** Register a new RDD, returning its RDD ID */
   private[spark] def newRddId(): Int =
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkContextFct.newRddId()
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) //SgxSparkContextFct.newRddId()
+    	throw new Exception("Creation of this RDD should happen outside of the enclave")
     else nextRddId.getAndIncrement()
 
   /**

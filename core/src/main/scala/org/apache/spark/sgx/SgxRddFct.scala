@@ -11,6 +11,7 @@ import org.apache.hadoop.mapred.JobConf
 import org.apache.spark.Partition
 import org.apache.spark.Partitioner
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.OrderedRDDFunctions
 import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -81,6 +82,12 @@ object SgxRddFct {
 //		numPartitions: Int = this.partitions.length)
 //		(implicit ord: Ordering[K], ctag: ClassTag[K]) =
 //			new SortBy[T,K](f, ascending, numPartitions)(ord, ctag).send()
+
+	def sortByKey[
+			K : Ordering : ClassTag,
+			V: ClassTag,
+			P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) =
+		new SortByKey[K,V,P](rddId, ascending, numPartitions).send()
 
 	def unpersist[T](rddId: Int) =
 		new Unpersist[T](rddId).send()
@@ -202,6 +209,17 @@ private case class SaveAsTextFile[T](rddId: Int, path: String) extends SgxTaskRD
 //		SgxMain.rddIds.put(r.id, r)
 //	}, Duration.Inf)
 //}
+
+private case class SortByKey[
+		K : Ordering : ClassTag,
+		V: ClassTag,
+		P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) extends SgxTaskRDD[RDD[(K,V)]](rddId) {
+
+	def execute() = Await.result( Future {
+		val r = new OrderedRDDFunctions[K,V,P](SgxMain.rddIds.get(rddId).asInstanceOf[RDD[P]]).sortByKey(ascending, numPartitions)
+		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
 
 private case class Unpersist[T](rddId: Int) extends SgxTaskRDD[Unit](rddId) {
 	def execute() = Await.result( Future {
