@@ -12,9 +12,15 @@ import org.apache.spark.util.collection.PartitionedAppendOnlyMap
 import org.apache.spark.util.collection.PartitionedAppendOnlyMapIdentifier
 import org.apache.spark.util.collection.WritablePartitionedIterator
 
+import org.apache.spark.storage.DiskBlockObjectWriter
+
 import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
 
 object SgxFct {
+
+//def diskBlockObjectWriterWriteKeyValue(writer: DiskBlockObjectWriter, key: Any, value: Any) =
+//	new DiskBlockObjectWriterWriteKeyValue(writer, key, value).send()
+
 	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) =
 		new ExternalSorterInsertAllCreateKey[K](partitioner, pair).send()
 
@@ -26,13 +32,16 @@ object SgxFct {
 			keyComparator: Option[Comparator[K]]) =
 		new PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator).send()
 
-	def writablePartitionedIteratorHasNext(it: SgxWritablePartitionedFakeIterator) =
+	def writablePartitionedIteratorGetNext[K,V,T](it: SgxWritablePartitionedFakeIterator[K,V]) =
+		new WritablePartitionedIteratorGetNext[K,V,T](it).send()
+
+	def writablePartitionedIteratorHasNext[K,V](it: SgxWritablePartitionedFakeIterator[K,V]) =
 		new WritablePartitionedIteratorHasNext(it).send()
 
-	def writablePartitionedIteratorWriteNext(it: SgxWritablePartitionedFakeIterator) =
-		new WritablePartitionedIteratorWriteNext(it).send()
+	def writablePartitionedIteratorWriteNext[K,V](it: SgxWritablePartitionedFakeIterator[K,V], writer: DiskBlockObjectWriter) =
+		new WritablePartitionedIteratorWriteNext(it, writer).send()
 
-	def writablePartitionedIteratorNextPartition(it: SgxWritablePartitionedFakeIterator) =
+	def writablePartitionedIteratorNextPartition[K,V](it: SgxWritablePartitionedFakeIterator[K,V]) =
 		new WritablePartitionedIteratorNextPartition(it).send()
 
 	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send()
@@ -62,36 +71,56 @@ private case class PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedI
 	id: PartitionedAppendOnlyMapIdentifier,
 	keyComparator: Option[Comparator[K]]) extends SgxMessage[WritablePartitionedIterator] {
 
-	def execute() = SgxWritablePartitionedFakeIterator(
+	def execute() = SgxWritablePartitionedFakeIterator[K,V](
 		Await.result( Future {
 			id.getMap.destructiveSortedWritablePartitionedIterator(keyComparator)
 		}, Duration.Inf)
 	)
 }
 
-private case class WritablePartitionedIteratorHasNext(
-	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Boolean] {
+private case class WritablePartitionedIteratorHasNext[K,V](
+	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Boolean] {
 
 	def execute() = Await.result( Future {
 		it.getIterator.hasNext()
 	}, Duration.Inf)
 }
 
-private case class WritablePartitionedIteratorNextPartition(
-	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Int] {
+private case class WritablePartitionedIteratorNextPartition[K,V](
+	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Int] {
 
 	def execute() = Await.result( Future {
 		it.getIterator.nextPartition()
 	}, Duration.Inf)
 }
 
-private case class WritablePartitionedIteratorWriteNext(
-	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Unit] {
+private case class WritablePartitionedIteratorWriteNext[K,V](
+	it: SgxWritablePartitionedFakeIterator[K,V],
+	writer: DiskBlockObjectWriter) extends SgxMessage[Unit] {
 
 	def execute() = Await.result( Future {
-		it.getIterator.writeNext(null)
+		it.getIterator.writeNext(writer)
 	}, Duration.Inf)
 }
+
+private case class WritablePartitionedIteratorGetNext[K,V,T](
+	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[T] {
+
+	def execute() = Await.result( Future {
+		it.getIterator.getNext[T]()
+	}, Duration.Inf)
+}
+
+//private case class DiskBlockObjectWriterWriteKeyValue(
+//	writer: DiskBlockObjectWriter,
+//	key: Any,
+//	value: Any) extends SgxMessage[Unit] {
+//
+//	def execute() = Await.result( Future {
+//		writer.get.write(key, value)
+//	}, Duration.Inf)
+//}
+
 
 private case class SgxFct0[Z](fct: () => Z) extends SgxMessage[Z] {
 	def execute() = Await.result(Future { fct() }, Duration.Inf)

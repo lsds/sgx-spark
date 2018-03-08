@@ -20,6 +20,9 @@ package org.apache.spark.util.collection
 import java.util.Comparator
 
 import org.apache.spark.storage.DiskBlockObjectWriter
+import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
 
 /**
  * A common interface for size-tracking collections of key-value pairs that
@@ -53,13 +56,28 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
       private[this] var cur = if (it.hasNext) it.next() else null
 
       def writeNext(writer: DiskBlockObjectWriter): Unit = {
-        writer.write(cur._1._2, cur._2)
+    	  println("this is writeNext0: " + writer.getClass.getSimpleName)
+    	  println("this is writeNext1: " + cur._1 + ", " + cur._2)
+//    	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+//    		val c = it.get
+//    		writer.write(c._1._2, c._2)
+////    		SgxFct.diskBlockObjectWriterWriteKeyValue(writer, cur._1._2, cur._2)
+//    	}
+//        else
+        	writer.write(cur._1._2, cur._2)
+        println("this is writeNext2: " + cur._1 + ", " + cur._2)
         cur = if (it.hasNext) it.next() else null
       }
 
       def hasNext(): Boolean = cur != null
 
       def nextPartition(): Int = cur._1._1
+
+      def getNext[T]() = {
+    	  val c = cur.asInstanceOf[T]
+    	  cur = if (it.hasNext) it.next() else null
+    	  c
+      }
     }
   }
 }
@@ -101,5 +119,7 @@ private[spark] trait WritablePartitionedIterator {
   def hasNext(): Boolean
 
   def nextPartition(): Int
+
+  def getNext[T](): T
 }
 

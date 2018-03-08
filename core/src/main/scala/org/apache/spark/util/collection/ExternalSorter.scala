@@ -755,11 +755,13 @@ throw new Exception("not implemented ExternalSorter.insertAll")
       // Case where we only have in-memory data
       val collection = if (aggregator.isDefined) map else buffer
       logDebug("writePartitionedFile1 " + map.id)
-      val it = collection.destructiveSortedWritablePartitionedIterator(comparator, writer)
+      val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
       logDebug("writePartitionedFile2 " + it)
       while (it.hasNext) {
         val partitionId = it.nextPartition()
         while (it.hasNext && it.nextPartition() == partitionId) {
+        	logDebug("writePartitionedFile3 " + it)
+        	logDebug("writePartitionedFile3 " + writer)
           it.writeNext(writer)
         }
         val segment = writer.commitAndGet()
@@ -862,6 +864,8 @@ throw new Exception("not implemented ExternalSorter.insertAll")
           def hasNext(): Boolean = cur != null
 
           def nextPartition(): Int = cur._1._1
+
+          def getNext[T]() = cur.asInstanceOf[T]
         }
         logInfo(s"Task ${context.taskAttemptId} force spilling in-memory map to disk and " +
           s" it will release ${org.apache.spark.util.Utils.bytesToString(getUsed())} memory")

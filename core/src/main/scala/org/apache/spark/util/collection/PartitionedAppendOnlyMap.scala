@@ -27,12 +27,10 @@ import org.apache.spark.sgx.SgxSettings
 
 import org.apache.spark.sgx.IdentifierManager
 
-private object Maps {
-	val map = new IdentifierManager[PartitionedAppendOnlyMap[Any,Any]]()
-}
+private object Maps extends IdentifierManager[PartitionedAppendOnlyMap[Any,Any]]() {}
 
 case class PartitionedAppendOnlyMapIdentifier(id: Long) extends Serializable {
-	def getMap[K,V] = Maps.map.get(id).asInstanceOf[PartitionedAppendOnlyMap[K,V]]
+	def getMap[K,V] = Maps.get(id).asInstanceOf[PartitionedAppendOnlyMap[K,V]]
 }
 
 /**
@@ -47,7 +45,7 @@ private[spark] class PartitionedAppendOnlyMap[K, V]
 	 	SgxFct.partitionedAppendOnlyMapCreate()
 	  else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
 	 	val i = scala.util.Random.nextLong
-	 	Maps.map.put(i, this.asInstanceOf[PartitionedAppendOnlyMap[Any,Any]])
+	 	Maps.put(i, this.asInstanceOf[PartitionedAppendOnlyMap[Any,Any]])
 	 	new PartitionedAppendOnlyMapIdentifier(i)
 	  }
 	  else new PartitionedAppendOnlyMapIdentifier(0)
