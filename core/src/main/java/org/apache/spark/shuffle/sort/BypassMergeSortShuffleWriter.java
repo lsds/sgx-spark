@@ -48,6 +48,9 @@ import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.storage.*;
 import org.apache.spark.util.Utils;
 
+import org.apache.spark.sgx.iterator.SgxFakeIterator;
+import org.apache.spark.sgx.SgxSettings;
+
 /**
  * This class implements sort-based shuffle's hash-style shuffle fallback path. This write path
  * writes incoming records to separate files, one file per reduce partition, then concatenates these
@@ -120,8 +123,14 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
   }
 
   @Override
-  public void write(Iterator<Product2<K, V>> records) throws IOException {
+  public void write(Iterator<Product2<K, V>> records2) throws IOException {
     assert (partitionWriters == null);
+
+    Iterator<Product2<K, V>> records = records2;
+    if (SgxSettings.SGX_ENABLED() && (records2 instanceof SgxFakeIterator)) {
+    	records = ((SgxFakeIterator<Product2<K, V>>) records2).access();
+    }
+    
     if (!records.hasNext()) {
       partitionLengths = new long[numPartitions];
       shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, null);

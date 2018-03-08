@@ -641,7 +641,7 @@ abstract class RDD[T: ClassTag](
       ascending: Boolean = true,
       numPartitions: Int = this.partitions.length)
       (implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T] = withScope {
-	 logDebug("SORT 1") 
+	 logDebug("SORT 1")
     val x= this.keyBy[K](f)
     logDebug("SORT 2")
     val y = x.sortByKey(ascending, numPartitions)
@@ -997,7 +997,7 @@ abstract class RDD[T: ClassTag](
    * Return an RDD that contains all matching values by applying `f`.
    */
   def collect[U: ClassTag](f: PartialFunction[T, U]): RDD[U] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")  
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     val cleanF = sc.clean(f)
     filter(cleanF.isDefinedAt).map(cleanF)
   }
