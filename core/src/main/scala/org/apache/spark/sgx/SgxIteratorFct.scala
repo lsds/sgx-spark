@@ -30,6 +30,9 @@ object SgxIteratorFct {
 	def resultTaskRunTask[T,U](id: SgxIteratorIdentifier[T], func: (TaskContext, Iterator[T]) => U, context: TaskContext) =
 		new ResultTaskRunTask[T,U](id, func, context).send()
 
+	def resultTaskRunTaskAfterShuffle[T,U](id: SgxIteratorIdentifier[T], func: (TaskContext, Iterator[T]) => U, context: TaskContext) =
+		new ResultTaskRunTaskAfterShuffle[T,U](id, func, context).send()
+
 	def externalSorterInsertAllCombine[K,V,C](
 			records: SgxIteratorIdentifier[Product2[K, V]],
 			mapId: PartitionedAppendOnlyMapIdentifier,
@@ -89,6 +92,20 @@ private case class ResultTaskRunTask[T,U](
 
 	def execute() = Await.result(Future {
 		func(context, id.getIterator)
+	}, Duration.Inf).asInstanceOf[U]
+
+	override def toString = this.getClass.getSimpleName + "(id=" + id + ", func=" + func + ", context=" + context + ")"
+}
+
+private case class ResultTaskRunTaskAfterShuffle[T,U](
+	id: SgxIteratorIdentifier[T],
+	func: (TaskContext, Iterator[T]) => U,
+	context: TaskContext) extends SgxMessage[U] {
+
+	def execute() = Await.result(Future {
+//		id.getIterator.foreach(x => logDebug("xxxx " + x.asInstanceOf[Pair[Encrypted,Any]]._1.decrypt))
+//		id.getIterator.asInstanceOf[Iteratator[Pair[Encrypted,Any]]].map(_._1.decrypt)
+		func(context, id.getIterator.asInstanceOf[Iterator[Pair[Encrypted,Any]]].map(_._1.decrypt[Pair[Pair[Any,Any],Any]]).map(c => (c._1._2, c._2)).asInstanceOf[Iterator[T]])
 	}, Duration.Inf).asInstanceOf[U]
 
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ", func=" + func + ", context=" + context + ")"

@@ -54,7 +54,8 @@ case class SgxWritablePartitionedFakeIterator[K,V](@transient val delegate: Writ
 		else if (SgxSettings.IS_WORKER) {
 			logDebug("writeNext WORKER: " + writer)
 			val cur = SgxFct.writablePartitionedIteratorGetNext[K,V,((Int,K),V)](this)
-			writer.write(cur._1._2, cur._2)
+//			writer.write(cur._1._2, cur._2)
+			writer.write(cur, null)
 		}
 		else {
 			logDebug("writeNext MISC")

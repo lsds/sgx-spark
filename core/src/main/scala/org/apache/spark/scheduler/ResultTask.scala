@@ -30,6 +30,8 @@ import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.Serialization
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.SgxFactory
+
 import org.apache.spark.internal.Logging
 
 /**
@@ -97,8 +99,13 @@ private[spark] class ResultTask[T, U](
       // then we must turn it into an SgxIteratorConsumer and access the
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
-        case f: SgxFakeIterator[T] => SgxIteratorFct.resultTaskRunTask(f, func, null)
-      	case i: Iterator[T] => func(context, i)
+        case f: SgxFakeIterator[T] =>
+        	logDebug("yyyya")
+        	SgxIteratorFct.resultTaskRunTask(f, func, null)
+      	case i: Iterator[T] =>
+      		logDebug("yyyyb")
+//      		func(context, i)
+      		SgxIteratorFct.resultTaskRunTaskAfterShuffle(SgxFactory.newSgxIteratorProvider(i, true).getIdentifier, func, null)
       }
     }
     else

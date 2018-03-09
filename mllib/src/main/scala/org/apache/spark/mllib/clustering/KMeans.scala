@@ -413,7 +413,7 @@ class KMeans private (
       logDebug("kmeans f2: " + data)
       logDebug("kmeans f3: " + data.id)
       val countMap = data.map(KMeans.findClosest(bcCenters.value, _)._1).countByValue()
-
+	logDebug("kmeans countMap: " + countMap.mkString(","))
       bcCenters.destroy(blocking = false)
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
       LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)

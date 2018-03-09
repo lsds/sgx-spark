@@ -22,6 +22,8 @@ import java.util.Comparator
 import org.apache.spark.storage.DiskBlockObjectWriter
 import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.Encrypt
+import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
 
 /**
@@ -76,7 +78,7 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
       def getNext[T]() = {
     	  val c = cur.asInstanceOf[T]
     	  cur = if (it.hasNext) it.next() else null
-    	  c
+    	  Encrypt(c)
       }
     }
   }
@@ -120,6 +122,6 @@ private[spark] trait WritablePartitionedIterator {
 
   def nextPartition(): Int
 
-  def getNext[T](): T
+  def getNext[T](): Encrypted
 }
 

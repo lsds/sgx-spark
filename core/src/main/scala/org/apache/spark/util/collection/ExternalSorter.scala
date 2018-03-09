@@ -37,6 +37,7 @@ import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxIteratorFct
 
 import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.Encrypt
 
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
@@ -865,7 +866,9 @@ throw new Exception("not implemented ExternalSorter.insertAll")
 
           def nextPartition(): Int = cur._1._1
 
-          def getNext[T]() = cur.asInstanceOf[T]
+          def getNext[T]() = {
+        	  Encrypt(cur.asInstanceOf[T])
+          }
         }
         logInfo(s"Task ${context.taskAttemptId} force spilling in-memory map to disk and " +
           s" it will release ${org.apache.spark.util.Utils.bytesToString(getUsed())} memory")

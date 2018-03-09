@@ -104,7 +104,7 @@ private case class WritablePartitionedIteratorWriteNext[K,V](
 }
 
 private case class WritablePartitionedIteratorGetNext[K,V,T](
-	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[T] {
+	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Encrypted] {
 
 	def execute() = Await.result( Future {
 		it.getIterator.getNext[T]()
