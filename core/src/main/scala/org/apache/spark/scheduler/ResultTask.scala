@@ -100,12 +100,10 @@ private[spark] class ResultTask[T, U](
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] =>
-        	logDebug("yyyya")
         	SgxIteratorFct.resultTaskRunTask(f, func, null)
       	case i: Iterator[T] =>
-      		logDebug("yyyyb " + i + " ("+i.getClass.getName+")")
-//      		func(context, i)
-      		SgxIteratorFct.resultTaskRunTaskAfterShuffle(SgxFactory.newSgxIteratorProvider(i, true).getIdentifier, func, null)
+      		func(context, i)
+//      		SgxIteratorFct.resultTaskRunTaskAfterShuffle(SgxFactory.newSgxIteratorProvider(i, true).getIdentifier, func, null)
       }
     }
     else

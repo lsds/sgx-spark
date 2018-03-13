@@ -15,10 +15,14 @@ case class Record(
 		client: String,
 		latitude: Double,
 		longitude: Double) extends Serializable {
+  
+  import scala.math.Ordered.orderingToOrdered
 
 	def this(a: Array[String]) =
 		this(a(0).toLong, a(1), a(2), a(3), a(4).toLong, a(5).toLong, a(6), a(7), a(8).toDouble, a(9).toDouble)
 
+//	def compare(that: Record): Int = (this.client, this.contract, this.meter) compare (that.client, that.contract, that.meter)	
+		
 	override def toString = s"${getClass.getSimpleName}($id, $meterHash, $typ, $local, $contract, $meter, $model, $client, $latitude, $longitude)"
 
 }
@@ -34,7 +38,7 @@ object Example1 extends Logging {
 			.textFile(args(0))
 			.map(line => new Record(line.split(";")))
 			.filter(r => r.longitude != 0 && r.latitude != 0)
-//			.sortBy(r => (r.client, r.contract, r.meter))
+			.sortBy(r => (r.client, r.contract, r.meter), true)
 			.collect()
 			.foreach(x => logDebug(x.toString()))
 

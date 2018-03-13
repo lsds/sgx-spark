@@ -30,8 +30,10 @@ object MyWordCount extends Logging {
         x + y
       }
     }
+    .collect()
+    .foreach(x => logDebug(x.toString()))
 
     // Save the word count back out to a text file, causing evaluation.
-    counts.saveAsTextFile(outputFile)
+//    counts.saveAsTextFile(outputFile)
   }
 }
