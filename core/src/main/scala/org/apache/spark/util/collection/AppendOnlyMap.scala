@@ -25,6 +25,8 @@ import org.apache.spark.annotation.DeveloperApi
 
 import org.apache.spark.internal.Logging
 
+import org.apache.spark.sgx.SgxSettings
+
 
 
 /**
@@ -130,7 +132,9 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
    * for key, if any, or null otherwise. Returns the newly updated value.
    */
   def changeValue(key: K, updateFunc: (Boolean, V) => V): V = {
-	  logDebug("changeValue: ("+key+","+updateFunc+")")
+	if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) {
+	  throw new RuntimeException("Move this functionality inside enclave")
+	}
     assert(!destroyed, destructionMessage)
     val k = key.asInstanceOf[AnyRef]
     if (k.eq(null)) {

@@ -257,14 +257,7 @@ class KMeans private (
         if (initializationMode == KMeans.RANDOM) {
           initRandom(data)
         } else {
-        	try {
-		          val x = initKMeansParallel(data)
-		          x
-		} catch {
-			case e: Exception => logDebug(e.getMessage + "\n" + e.getStackTraceString)
-			initKMeansParallel(data)
-		}
-		initKMeansParallel(data)
+		  initKMeansParallel(data)
         }
     }
     val initTimeInSeconds = (System.nanoTime() - initStartTime) / 1e9
@@ -284,7 +277,7 @@ class KMeans private (
       val bcCenters = sc.broadcast(centers)
 
       // Find the new centers
-      val newCenters = data.mapPartitions { points =>
+      val x = data.mapPartitions { points =>
         val thisCenters = bcCenters.value
         val dims = thisCenters.head.vector.size
 
@@ -298,16 +291,26 @@ class KMeans private (
           axpy(1.0, point.vector, sum)
           counts(bestCenter) += 1
         }
-
-        counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
-      }.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
+logDebug("AAAA 0")
+        val x= counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
+        logDebug("AAAA 1")
+x
+      }
+logDebug("AAAA 2")
+      val y= x.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
+    	  logDebug("AAAA 3")
         axpy(1.0, sum2, sum1)
         (sum1, count1 + count2)
-      }.mapValues { case (sum, count) =>
+      }
+logDebug("AAAA 4")
+      val z = y.mapValues { case (sum, count) =>
+    	  logDebug("AAAA 5")
         scal(1.0 / count, sum)
         new VectorWithNorm(sum)
-      }.collectAsMap()
-
+      }
+logDebug("AAAA 6")
+      val newCenters = z.collectAsMap()
+logDebug("AAAA 7")
       bcCenters.destroy(blocking = false)
 
       // Update the cluster centers and costs
@@ -413,7 +416,7 @@ class KMeans private (
       logDebug("kmeans f2: " + data)
       logDebug("kmeans f3: " + data.id)
       val countMap = data.map(KMeans.findClosest(bcCenters.value, _)._1).countByValue()
-	logDebug("kmeans countMap: " + countMap.mkString(","))
+      logDebug("kmeans f4: " + countMap.mkString(","))
       bcCenters.destroy(blocking = false)
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
       LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)

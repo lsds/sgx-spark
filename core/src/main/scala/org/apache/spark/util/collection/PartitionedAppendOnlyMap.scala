@@ -27,11 +27,11 @@ import org.apache.spark.sgx.SgxSettings
 
 import org.apache.spark.sgx.IdentifierManager
 
-private object Maps extends IdentifierManager[PartitionedAppendOnlyMap[Any,Any]]() {}
+//private object PartitionedAppendOnlyMaps extends IdentifierManager[PartitionedAppendOnlyMap[Any,Any]]() {}
 
-case class PartitionedAppendOnlyMapIdentifier(id: Long) extends Serializable {
-	def getMap[K,V] = Maps.get(id).asInstanceOf[PartitionedAppendOnlyMap[K,V]]
-}
+//case class PartitionedAppendOnlyMapIdentifier(id: Long) extends Serializable {
+//	def getMap[K,V] = PartitionedAppendOnlyMaps.get(id).asInstanceOf[PartitionedAppendOnlyMap[K,V]]
+//}
 
 /**
  * Implementation of WritablePartitionedPairCollection that wraps a map in which the keys are tuples
@@ -40,15 +40,16 @@ case class PartitionedAppendOnlyMapIdentifier(id: Long) extends Serializable {
 private[spark] class PartitionedAppendOnlyMap[K, V]
   extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] {
 
-  val id =
+  override def sgxinit() = {
 	  if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
-	 	SgxFct.partitionedAppendOnlyMapCreate()
+	 	  SgxFct.partitionedAppendOnlyMapCreate()
 	  else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-	 	val i = scala.util.Random.nextLong
-	 	Maps.put(i, this.asInstanceOf[PartitionedAppendOnlyMap[Any,Any]])
-	 	new PartitionedAppendOnlyMapIdentifier(i)
+  	 	val i = scala.util.Random.nextLong
+  	 	SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
+  	 	new SizeTrackingAppendOnlyMapIdentifier(i)
 	  }
-	  else new PartitionedAppendOnlyMapIdentifier(0)
+	  else new SizeTrackingAppendOnlyMapIdentifier(0)
+  }
 
   def partitionedDestructiveSortedIterator(keyComparator: Option[Comparator[K]])
     : Iterator[((Int, K), V)] = {

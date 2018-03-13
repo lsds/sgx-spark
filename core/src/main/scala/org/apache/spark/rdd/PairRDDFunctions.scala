@@ -79,7 +79,9 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       mapSideCombine: Boolean = true,
       serializer: Serializer = null)(implicit ct: ClassTag[C]): RDD[(K, C)] = self.withScope {
     require(mergeCombiners != null, "mergeCombiners must be defined") // required as of Spark 0.9.0
+    logDebug("AAAA combineByKeyWithClassTag 0")
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.combineByKeyWithClassTag[C,V,K](self.id, createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer)
+    logDebug("AAAA combineByKeyWithClassTag 1")
     if (keyClass.isArray) {
       if (mapSideCombine) {
         throw new SparkException("Cannot use map-side combining with array keys.")
@@ -92,17 +94,21 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       self.context.clean(createCombiner),
       self.context.clean(mergeValue),
       self.context.clean(mergeCombiners))
-    if (self.partitioner == Some(partitioner)) {
+    val x = if (self.partitioner == Some(partitioner)) {
+    	logDebug("AAAA combineByKeyWithClassTag b1")
       self.mapPartitions(iter => {
         val context = TaskContext.get()
         new InterruptibleIterator(context, aggregator.combineValuesByKey(iter, context))
       }, preservesPartitioning = true)
     } else {
+    	logDebug("AAAA combineByKeyWithClassTag b2")
       new ShuffledRDD[K, V, C](self, partitioner)
         .setSerializer(serializer)
         .setAggregator(aggregator)
         .setMapSideCombine(mapSideCombine)
     }
+    logDebug("AAAA combineByKeyWithClassTag 2")
+    x
   }
 
   /**
@@ -308,6 +314,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * to a "combiner" in MapReduce.
    */
   def reduceByKey(partitioner: Partitioner, func: (V, V) => V): RDD[(K, V)] = self.withScope {
+	  logDebug("AAAA reducebykey")
     combineByKeyWithClassTag[V]((v: V) => v, func, func, partitioner)
   }
 
@@ -327,6 +334,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * parallelism level.
    */
   def reduceByKey(func: (V, V) => V): RDD[(K, V)] = self.withScope {
+	  logDebug("AAAA reducebykey")
     reduceByKey(defaultPartitioner(self), func)
   }
 
@@ -744,10 +752,15 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * all the data is loaded into the driver's memory.
    */
   def collectAsMap(): Map[K, V] = self.withScope {
+	  logDebug("collectAsMap 0")
     val data = self.collect()
+    logDebug("collectAsMap 1")
     val map = new mutable.HashMap[K, V]
+	   logDebug("collectAsMap 2")
     map.sizeHint(data.length)
+    logDebug("collectAsMap 3")
     data.foreach { pair => map.put(pair._1, pair._2) }
+	   logDebug("collectAsMap 4")
     map
   }
 

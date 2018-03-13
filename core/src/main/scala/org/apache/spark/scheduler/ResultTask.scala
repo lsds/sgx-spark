@@ -103,7 +103,7 @@ private[spark] class ResultTask[T, U](
         	logDebug("yyyya")
         	SgxIteratorFct.resultTaskRunTask(f, func, null)
       	case i: Iterator[T] =>
-      		logDebug("yyyyb")
+      		logDebug("yyyyb " + i + " ("+i.getClass.getName+")")
 //      		func(context, i)
       		SgxIteratorFct.resultTaskRunTaskAfterShuffle(SgxFactory.newSgxIteratorProvider(i, true).getIdentifier, func, null)
       }

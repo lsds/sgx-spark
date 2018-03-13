@@ -21,12 +21,22 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 				consumer.close
 			}
 			else consumer.objects.addAll({
-				if (SgxSettings.IS_ENCLAVE)
-					(list.map { n => n.decrypt[T] }).asJava
-				else {
-					(list.map { n => n.asInstanceOf[T] }).asJava
+				if (SgxSettings.IS_ENCLAVE) {
+					val l = list.map(n => n.decrypt[T])
+					logDebug("xxx "+ (l.size > 0))
+					logDebug("xxx "+ (l.front.isInstanceOf[Pair[Any,Any]]))
+					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._1))
+					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._2))
+					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._1.isInstanceOf[Encrypted]))
+					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]))
+					if (l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+					  logDebug("xxx map")
+					  l.map(c => {val y = c.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]; logDebug("xxx " + y); y})
+					} else l
+//				  list.map(n => n.decrypt[T])
 				}
-			})
+				else list.map(n => n.asInstanceOf[T])
+			}.asJava)
 
 		}
 		logDebug("new objects: " + consumer.objects)

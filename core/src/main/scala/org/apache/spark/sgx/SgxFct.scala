@@ -9,12 +9,16 @@ import java.util.Comparator
 
 import org.apache.spark.Partitioner
 import org.apache.spark.util.collection.PartitionedAppendOnlyMap
-import org.apache.spark.util.collection.PartitionedAppendOnlyMapIdentifier
+import org.apache.spark.util.collection.SizeTrackingAppendOnlyMap
+import org.apache.spark.util.collection.SizeTrackingAppendOnlyMapIdentifier
 import org.apache.spark.util.collection.WritablePartitionedIterator
 
 import org.apache.spark.storage.DiskBlockObjectWriter
 
 import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
+import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
+import org.apache.spark.sgx.iterator.SgxFakeIterator
+import org.apache.spark.sgx.iterator.SgxIterator
 
 object SgxFct {
 
@@ -26,11 +30,17 @@ object SgxFct {
 
 	def partitionedAppendOnlyMapCreate[K,V]() =
 		new PartitionedAppendOnlyMapCreate().send()
+		
+  def externalAppendOnlyMapIterator[K,V](id: SizeTrackingAppendOnlyMapIdentifier) =
+    new ExternalAppendOnlyMapIterator[K,V](id).send
 
 	def partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](
-			id: PartitionedAppendOnlyMapIdentifier,
+			id: SizeTrackingAppendOnlyMapIdentifier,
 			keyComparator: Option[Comparator[K]]) =
 		new PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator).send()
+
+	def sizeTrackingAppendOnlyMapCreate[K,V]() =
+		new SizeTrackingAppendOnlyMapCreate().send()
 
 	def writablePartitionedIteratorGetNext[K,V,T](it: SgxWritablePartitionedFakeIterator[K,V]) =
 		new WritablePartitionedIteratorGetNext[K,V,T](it).send()
@@ -60,7 +70,7 @@ private case class ExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
-private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[PartitionedAppendOnlyMapIdentifier] {
+private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[SizeTrackingAppendOnlyMapIdentifier] {
 
 	def execute() = Await.result( Future {
 		new PartitionedAppendOnlyMap().id
@@ -68,14 +78,29 @@ private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[Part
 }
 
 private case class PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](
-	id: PartitionedAppendOnlyMapIdentifier,
+	id: SizeTrackingAppendOnlyMapIdentifier,
 	keyComparator: Option[Comparator[K]]) extends SgxMessage[WritablePartitionedIterator] {
 
 	def execute() = SgxWritablePartitionedFakeIterator[K,V](
 		Await.result( Future {
-			id.getMap.destructiveSortedWritablePartitionedIterator(keyComparator)
+			id.getMap.asInstanceOf[PartitionedAppendOnlyMap[K,V]].destructiveSortedWritablePartitionedIterator(keyComparator)
 		}, Duration.Inf)
 	)
+}
+
+private case class SizeTrackingAppendOnlyMapCreate[K,V]() extends SgxMessage[SizeTrackingAppendOnlyMapIdentifier] {
+
+	def execute() = Await.result( Future {
+		new SizeTrackingAppendOnlyMap().id
+	}, Duration.Inf)
+}
+
+private case class ExternalAppendOnlyMapIterator[K,V](
+    id: SizeTrackingAppendOnlyMapIdentifier) extends SgxMessage[Iterator[(K,V)]] {
+  	
+  def execute() = Await.result( Future {
+    SgxFakeIterator[(K,V)](id.getMap.iterator)
+	}, Duration.Inf)
 }
 
 private case class WritablePartitionedIteratorHasNext[K,V](

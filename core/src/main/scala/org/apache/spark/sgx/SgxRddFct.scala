@@ -81,7 +81,7 @@ private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
 	override def toString = this.getClass.getSimpleName + "(rddId=" + _rddId + ")"
 }
 
-private case class Collect[T](rddId: Int) extends SgxMessage[Array[T]] {
+private case class Collect[T](rddId: Int) extends SgxTaskRDD[Array[T]](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
 	}, Duration.Inf)
