@@ -34,7 +34,7 @@ object Example1 extends Logging {
 			.textFile(args(0))
 			.map(line => new Record(line.split(";")))
 			.filter(r => r.longitude != 0 && r.latitude != 0)
-			.sortBy(r => (r.client, r.contract, r.meter))
+//			.sortBy(r => (r.client, r.contract, r.meter))
 			.collect()
 			.foreach(x => logDebug(x.toString()))
 
