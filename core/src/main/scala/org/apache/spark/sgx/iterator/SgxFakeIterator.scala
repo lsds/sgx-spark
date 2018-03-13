@@ -40,11 +40,7 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 	    
 	    override def next = {
 	      val n = i.next()
-	  //					val l = list.map(n => n.decrypt[T])
-//					if (l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
-//					  l.map(c => c.asInstanceOf[Pair[Any,SgxFakePairIndicator]]._1.asInstanceOf[T])
-//					} else l
-	      val x= if (n != null && n.isInstanceOf[Pair[Any,Any]] && n.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+	      val x = if (n != null && n.isInstanceOf[Pair[Any,Any]] && n.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
 	        n.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
 	      } else n
 	      logDebug("next: " + x)

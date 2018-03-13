@@ -22,9 +22,9 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 					x.connect()
 					true
 			}
-			logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
-
-			if (result != null) com.sendOne(result)
+			
+      logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
+      if (result != null) com.sendOne(result)			
 		}
 
 		com.close()

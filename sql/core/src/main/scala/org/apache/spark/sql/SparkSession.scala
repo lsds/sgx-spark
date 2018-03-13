@@ -46,6 +46,10 @@ import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.util.ExecutionListenerManager
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sql.sgx.SgxSparkSessionFct
+import org.apache.spark.sgx.IdentifierManager
+import org.apache.spark.sgx.SgxSettings
+
 
 /**
  * The entry point to programming Spark with the Dataset and DataFrame API.
@@ -91,6 +95,14 @@ class SparkSession private(
   SQLConf.setSQLConfGetter(() => {
     SparkSession.getActiveSession.map(_.sessionState.conf).getOrElse(SQLConf.getFallbackConf)
   })
+
+  val id =
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) scala.util.Random.nextLong
+    else 0
+
+  FakeSparkSessions.put(id, this)
+
+  def getSparkSession = FakeSparkSessions.get(id)
 
   /**
    * The version of Spark on which this application is running.
@@ -648,7 +660,9 @@ class SparkSession private(
    *
    * @since 2.0.0
    */
-  def read: DataFrameReader = new DataFrameReader(self)
+  def read: DataFrameReader =
+	  if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkSessionFct.sparkSessionRead(self)
+	  else new DataFrameReader(self)
 
   /**
    * Returns a `DataStreamReader` that can be used to read streaming data in as a `DataFrame`.
@@ -761,6 +775,9 @@ class SparkSession private(
 
 }
 
+private object FakeBuilders extends IdentifierManager[SparkSession.Builder]() { }
+
+private object FakeSparkSessions extends IdentifierManager[SparkSession]() { }
 
 @InterfaceStability.Stable
 object SparkSession {
@@ -769,13 +786,21 @@ object SparkSession {
    * Builder for [[SparkSession]].
    */
   @InterfaceStability.Stable
-  class Builder extends Logging {
+  class Builder extends Logging with Serializable {
+
+    private[this] val id =
+      if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) scala.util.Random.nextLong
+      else 0
+
+    FakeBuilders.put(id, this)
+
+    def getBuilder = FakeBuilders.get(id)
 
     private[this] val options = new scala.collection.mutable.HashMap[String, String]
 
-    private[this] val extensions = new SparkSessionExtensions
+    @transient private[this] val extensions = new SparkSessionExtensions
 
-    private[this] var userSuppliedContext: Option[SparkContext] = None
+    @transient private[this] var userSuppliedContext: Option[SparkContext] = None
 
     private[spark] def sparkContext(sparkContext: SparkContext): Builder = synchronized {
       userSuppliedContext = Option(sparkContext)
@@ -797,6 +822,7 @@ object SparkSession {
      * @since 2.0.0
      */
     def config(key: String, value: String): Builder = synchronized {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.builderConfig(this, key, value)
       options += key -> value
       this
     }
@@ -808,6 +834,7 @@ object SparkSession {
      * @since 2.0.0
      */
     def config(key: String, value: Long): Builder = synchronized {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.builderConfig(this, key, value)
       options += key -> value.toString
       this
     }
@@ -819,6 +846,7 @@ object SparkSession {
      * @since 2.0.0
      */
     def config(key: String, value: Double): Builder = synchronized {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.builderConfig(this, key, value)
       options += key -> value.toString
       this
     }
@@ -830,6 +858,7 @@ object SparkSession {
      * @since 2.0.0
      */
     def config(key: String, value: Boolean): Builder = synchronized {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.builderConfig(this, key, value)
       options += key -> value.toString
       this
     }
@@ -840,6 +869,7 @@ object SparkSession {
      * @since 2.0.0
      */
     def config(conf: SparkConf): Builder = synchronized {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.builderConfig(this, conf)
       conf.getAll.foreach { case (k, v) => options += k -> v }
       this
     }
@@ -895,6 +925,8 @@ object SparkSession {
      * @since 2.0.0
      */
     def getOrCreate(): SparkSession = synchronized {
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.builderGetOrCreate(this)
+
       // Get the session from current thread's active session.
       var session = activeThreadSession.get()
       if ((session ne null) && !session.sparkContext.isStopped) {
@@ -956,7 +988,8 @@ object SparkSession {
         // Register a successfully instantiated context to the singleton. This should be at the
         // end of the class definition so that the singleton is updated only if there is no
         // exception in the construction of the instance.
-        sparkContext.addSparkListener(new SparkListener {
+        logDebug("sparkContext=" + sparkContext)
+        sparkContext.addSparkListener(new SparkListener with Serializable {
           override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
             defaultSession.set(null)
           }
@@ -972,7 +1005,9 @@ object SparkSession {
    *
    * @since 2.0.0
    */
-  def builder(): Builder = new Builder
+  def builder(): Builder =
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.newBuilder()
+	else new Builder
 
   /**
    * Changes the SparkSession that will be returned in this thread and its children when

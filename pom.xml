@@ -89,18 +89,14 @@
     <module>common/unsafe</module>
     <module>common/tags</module>
     <module>core</module>
-<!--
     <module>graphx</module>
--->
     <module>mllib</module>
     <module>mllib-local</module>
     <module>tools</module>
     <module>streaming</module>
-<!--
     <module>sql/catalyst</module>
     <module>sql/core</module>
     <module>sql/hive</module>
--->
     <module>assembly</module>
     <module>examples</module>
     <module>repl</module>
@@ -1766,6 +1762,10 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.orc</groupId>

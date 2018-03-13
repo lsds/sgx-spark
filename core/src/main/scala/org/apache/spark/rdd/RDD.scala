@@ -405,6 +405,7 @@ abstract class RDD[T: ClassTag](
    * Return a new RDD containing only the elements that satisfy a predicate.
    */
   def filter(f: T => Boolean): RDD[T] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.filter(this.id, f)
     val cleanF = sc.clean(f)
     new MapPartitionsRDD[T, T](
       this,
@@ -620,6 +621,7 @@ abstract class RDD[T: ClassTag](
    * times (use `.distinct()` to eliminate them).
    */
   def union(other: RDD[T]): RDD[T] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     sc.union(this, other)
   }
 
@@ -639,9 +641,14 @@ abstract class RDD[T: ClassTag](
       ascending: Boolean = true,
       numPartitions: Int = this.partitions.length)
       (implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T] = withScope {
-    this.keyBy[K](f)
-        .sortByKey(ascending, numPartitions)
-        .values
+	 logDebug("SORT 1")
+    val x= this.keyBy[K](f)
+    logDebug("SORT 2")
+    val y = x.sortByKey(ascending, numPartitions)
+    logDebug("SORT 3")
+    val z =y    .values
+    logDebug("SORT 4")
+    z
   }
 
   /**
@@ -651,6 +658,7 @@ abstract class RDD[T: ClassTag](
    * @note This method performs a shuffle internally.
    */
   def intersection(other: RDD[T]): RDD[T] = withScope {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation: intersection")
     this.map(v => (v, null)).cogroup(other.map(v => (v, null)))
         .filter { case (_, (leftGroup, rightGroup)) => leftGroup.nonEmpty && rightGroup.nonEmpty }
         .keys
@@ -798,6 +806,7 @@ abstract class RDD[T: ClassTag](
       separateWorkingDir: Boolean = false,
       bufferSize: Int = 8192,
       encoding: String = Codec.defaultCharsetCodec.name): RDD[String] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     new PipedRDD(this, command, env,
       if (printPipeContext ne null) sc.clean(printPipeContext) else null,
       if (printRDDElement ne null) sc.clean(printRDDElement) else null,
@@ -988,6 +997,7 @@ abstract class RDD[T: ClassTag](
    * Return an RDD that contains all matching values by applying `f`.
    */
   def collect[U: ClassTag](f: PartialFunction[T, U]): RDD[U] = withScope {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     val cleanF = sc.clean(f)
     filter(cleanF.isDefinedAt).map(cleanF)
   }
@@ -1015,6 +1025,7 @@ abstract class RDD[T: ClassTag](
   def subtract(
       other: RDD[T],
       p: Partitioner)(implicit ord: Ordering[T] = null): RDD[T] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     if (partitioner == Some(p)) {
       // Our partitioner knows how to handle T (which, since we have a partitioner, is
       // really (K, V)) so make a new Partitioner that will de-tuple our fake tuples
@@ -1037,6 +1048,7 @@ abstract class RDD[T: ClassTag](
    * associative binary operator.
    */
   def reduce(f: (T, T) => T): T = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     val cleanF = sc.clean(f)
     val reducePartition: Iterator[T] => Option[T] = iter => {
       if (iter.hasNext) {
@@ -1212,6 +1224,7 @@ abstract class RDD[T: ClassTag](
   def countApprox(
       timeout: Long,
       confidence: Double = 0.95): PartialResult[BoundedDouble] = withScope {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     require(0.0 <= confidence && confidence <= 1.0, s"confidence ($confidence) must be in [0,1]")
     val countElements: (TaskContext, Iterator[T]) => Long = { (ctx, iter) =>
       var result = 0L
@@ -1284,6 +1297,7 @@ abstract class RDD[T: ClassTag](
    *           If `sp` equals 0, the sparse representation is skipped.
    */
   def countApproxDistinct(p: Int, sp: Int): Long = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     require(p >= 4, s"p ($p) must be >= 4")
     require(sp <= 32, s"sp ($sp) must be <= 32")
     require(sp == 0 || p <= sp, s"p ($p) cannot be greater than sp ($sp)")
@@ -1310,6 +1324,7 @@ abstract class RDD[T: ClassTag](
    *                   It must be greater than 0.000017.
    */
   def countApproxDistinct(relativeSD: Double = 0.05): Long = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     require(relativeSD > 0.000017, s"accuracy ($relativeSD) must be greater than 0.000017")
     val p = math.ceil(2.0 * math.log(1.054 / relativeSD) / math.log(2)).toInt
     countApproxDistinct(if (p < 4) 4 else p, 0)
@@ -1363,6 +1378,7 @@ abstract class RDD[T: ClassTag](
    * an exception if called on an RDD of `Nothing` or `Null`.
    */
   def take(num: Int): Array[T] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     val scaleUpFactor = Math.max(conf.getInt("spark.rdd.limit.scaleUpFactor", 4), 2)
     if (num == 0) {
       new Array[T](0)
@@ -1565,6 +1581,7 @@ abstract class RDD[T: ClassTag](
 
   /** A private method for tests, to look at the contents of each partition */
   private[spark] def collectPartitions(): Array[Array[T]] = withScope {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
     sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
   }
 
