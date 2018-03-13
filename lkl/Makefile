@@ -1,5 +1,5 @@
 # CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
-SGX_LKL=/data/fkelbert/sgx-lkl-sim
+SGX_LKL=/home/awilliams/sgx-lkl
 
 ALPINE_MAJOR=3.6
 ALPINE_VERSION=3.6.2
@@ -46,6 +46,9 @@ alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
 	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.*-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
 #	sudo cp    ../ring_buff/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
 	sudo cp    ../C/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
+
+        # Copy spark-bench jars
+	sudo  cp ../spark-bench_2.1.1_0.3.0-RELEASE/lib/*jar $(MOUNTPOINT)/$(SPARK_DIR)/lib
 
 	sudo mkdir -p $(MOUNTPOINT)/opt
 	sudo tar -xf $(JVM) -C $(MOUNTPOINT)/opt
