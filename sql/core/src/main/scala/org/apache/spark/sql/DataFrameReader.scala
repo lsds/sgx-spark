@@ -38,6 +38,12 @@ import org.apache.spark.sql.sources.v2._
 import org.apache.spark.sql.types.{StringType, StructType}
 import org.apache.spark.unsafe.types.UTF8String
 
+import org.apache.spark.sgx.IdentifierManager
+import org.apache.spark.sql.sgx.SgxSparkSessionFct
+import org.apache.spark.sgx.SgxSettings
+
+private object FakeDataFrameReaders extends IdentifierManager[DataFrameReader]() { }
+
 /**
  * Interface used to load a [[Dataset]] from external storage systems (e.g. file systems,
  * key-value stores, etc). Use `SparkSession.read` to access this.
@@ -45,7 +51,17 @@ import org.apache.spark.unsafe.types.UTF8String
  * @since 1.4.0
  */
 @InterfaceStability.Stable
-class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
+class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging with Serializable {
+
+  private[this] val id =
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) scala.util.Random.nextLong
+    else 0
+
+  FakeDataFrameReaders.put(id, this)
+
+  def getDataFrameReader = FakeDataFrameReaders.get(id)
+
+  private[this] val options = new scala.collection.mutable.HashMap[String, String]
 
   /**
    * Specifies the input data source format.
@@ -53,6 +69,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * @since 1.4.0
    */
   def format(source: String): DataFrameReader = {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderFormat(this, source)
     this.source = source
     this
   }
@@ -97,6 +114,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * @since 1.4.0
    */
   def option(key: String, value: String): DataFrameReader = {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
     this.extraOptions += (key -> value)
     this
   }
@@ -106,21 +124,27 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    *
    * @since 2.0.0
    */
-  def option(key: String, value: Boolean): DataFrameReader = option(key, value.toString)
+  def option(key: String, value: Boolean): DataFrameReader =
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
+	else option(key, value.toString)
 
   /**
    * Adds an input option for the underlying data source.
    *
    * @since 2.0.0
    */
-  def option(key: String, value: Long): DataFrameReader = option(key, value.toString)
+  def option(key: String, value: Long): DataFrameReader =
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
+	else option(key, value.toString)
 
   /**
    * Adds an input option for the underlying data source.
    *
    * @since 2.0.0
    */
-  def option(key: String, value: Double): DataFrameReader = option(key, value.toString)
+  def option(key: String, value: Double): DataFrameReader =
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderOption(this, key, value)
+	else option(key, value.toString)
 
   /**
    * (Scala-specific) Adds input options for the underlying data source.
@@ -171,6 +195,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * @since 1.4.0
    */
   def load(path: String): DataFrame = {
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkSessionFct.dataFrameReaderLoad(this, path)
     option("path", path).load(Seq.empty: _*) // force invocation of `load(...varargs...)`
   }
 
@@ -368,12 +393,12 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * <li>`mode` (default `PERMISSIVE`): allows a mode for dealing with corrupt records
    * during parsing.
    *   <ul>
-   *     <li>`PERMISSIVE` : sets other fields to `null` when it meets a corrupted record, and puts
-   *     the malformed string into a field configured by `columnNameOfCorruptRecord`. To keep
-   *     corrupt records, an user can set a string type field named `columnNameOfCorruptRecord`
-   *     in an user-defined schema. If a schema does not have the field, it drops corrupt records
-   *     during parsing. When inferring a schema, it implicitly adds a `columnNameOfCorruptRecord`
-   *     field in an output schema.</li>
+   *     <li>`PERMISSIVE` : when it meets a corrupted record, puts the malformed string into a
+   *     field configured by `columnNameOfCorruptRecord`, and sets other fields to `null`. To
+   *     keep corrupt records, an user can set a string type field named
+   *     `columnNameOfCorruptRecord` in an user-defined schema. If a schema does not have the
+   *     field, it drops corrupt records during parsing. When inferring a schema, it implicitly
+   *     adds a `columnNameOfCorruptRecord` field in an output schema.</li>
    *     <li>`DROPMALFORMED` : ignores the whole corrupted records.</li>
    *     <li>`FAILFAST` : throws an exception when it meets corrupted records.</li>
    *   </ul>
@@ -573,12 +598,14 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    * <li>`mode` (default `PERMISSIVE`): allows a mode for dealing with corrupt records
    *    during parsing. It supports the following case-insensitive modes.
    *   <ul>
-   *     <li>`PERMISSIVE` : sets other fields to `null` when it meets a corrupted record, and puts
-   *     the malformed string into a field configured by `columnNameOfCorruptRecord`. To keep
+   *     <li>`PERMISSIVE` : when it meets a corrupted record, puts the malformed string into a
+   *     field configured by `columnNameOfCorruptRecord`, and sets other fields to `null`. To keep
    *     corrupt records, an user can set a string type field named `columnNameOfCorruptRecord`
    *     in an user-defined schema. If a schema does not have the field, it drops corrupt records
-   *     during parsing. When a length of parsed CSV tokens is shorter than an expected length
-   *     of a schema, it sets `null` for extra fields.</li>
+   *     during parsing. A record with less/more tokens than schema is not a corrupted record to
+   *     CSV. When it meets a record having fewer tokens than the length of the schema, sets
+   *     `null` to extra fields. When the record has more tokens than the length of the schema,
+   *     it drops extra tokens.</li>
    *     <li>`DROPMALFORMED` : ignores the whole corrupted records.</li>
    *     <li>`FAILFAST` : throws an exception when it meets corrupted records.</li>
    *   </ul>
@@ -758,6 +785,11 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
   ///////////////////////////////////////////////////////////////////////////////////////
   // Builder pattern config options
   ///////////////////////////////////////////////////////////////////////////////////////
+
+  logDebug("xx" + sparkSession)
+  logDebug("xx" + sparkSession.sessionState)
+  logDebug("xx" + sparkSession.sessionState.conf)
+  logDebug("xx" + sparkSession.sessionState.conf.defaultDataSourceName)
 
   private var source: String = sparkSession.sessionState.conf.defaultDataSourceName
 

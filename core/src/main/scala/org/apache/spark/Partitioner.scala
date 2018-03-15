@@ -30,6 +30,10 @@ import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.util.{CollectionsUtils, Utils}
 import org.apache.spark.util.random.SamplingUtils
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxSparkEnvFct
+
 /**
  * An object that defines how the elements in a key-value pair RDD are partitioned by key.
  * Maps each key to a partition ID, from 0 to `numPartitions - 1`.
@@ -139,7 +143,7 @@ class RangePartitioner[K : Ordering : ClassTag, V](
     rdd: RDD[_ <: Product2[K, V]],
     private var ascending: Boolean = true,
     val samplePointsPerPartitionHint: Int = 20)
-  extends Partitioner {
+  extends Partitioner with Logging {
 
   // A constructor declared in order to maintain backward compatibility for Java, when we add the
   // 4th constructor parameter samplePointsPerPartitionHint. See SPARK-22160.
@@ -247,41 +251,46 @@ class RangePartitioner[K : Ordering : ClassTag, V](
     result
   }
 
-  @throws(classOf[IOException])
-  private def writeObject(out: ObjectOutputStream): Unit = Utils.tryOrIOException {
-    val sfactory = SparkEnv.get.serializer
-    sfactory match {
-      case js: JavaSerializer => out.defaultWriteObject()
-      case _ =>
-        out.writeBoolean(ascending)
-        out.writeObject(ordering)
-        out.writeObject(binarySearch)
+  // Comment to work with SGX.
+  // The commented code was introduced by commit 66135a341d9f8baecc149d13ae5511f14578c395
 
-        val ser = sfactory.newInstance()
-        Utils.serializeViaNestedStream(out, ser) { stream =>
-          stream.writeObject(scala.reflect.classTag[Array[K]])
-          stream.writeObject(rangeBounds)
-        }
-    }
-  }
-
-  @throws(classOf[IOException])
-  private def readObject(in: ObjectInputStream): Unit = Utils.tryOrIOException {
-    val sfactory = SparkEnv.get.serializer
-    sfactory match {
-      case js: JavaSerializer => in.defaultReadObject()
-      case _ =>
-        ascending = in.readBoolean()
-        ordering = in.readObject().asInstanceOf[Ordering[K]]
-        binarySearch = in.readObject().asInstanceOf[(Array[K], K) => Int]
-
-        val ser = sfactory.newInstance()
-        Utils.deserializeViaNestedStream(in, ser) { ds =>
-          implicit val classTag = ds.readObject[ClassTag[Array[K]]]()
-          rangeBounds = ds.readObject[Array[K]]()
-        }
-    }
-  }
+//  @throws(classOf[IOException])
+//  private def writeObject(out: ObjectOutputStream): Unit = Utils.tryOrIOException {
+//    val sfactory = SparkEnv.get.serializer
+//    sfactory match {
+//      case js: JavaSerializer => out.defaultWriteObject()
+//      case _ =>
+//        out.writeBoolean(ascending)
+//        out.writeObject(ordering)
+//        out.writeObject(binarySearch)
+//
+//        val ser = sfactory.newInstance()
+//        Utils.serializeViaNestedStream(out, ser) { stream =>
+//          stream.writeObject(scala.reflect.classTag[Array[K]])
+//          stream.writeObject(rangeBounds)
+//        }
+//    }
+//  }
+//
+//  @throws(classOf[IOException])
+//  private def readObject(in: ObjectInputStream): Unit = Utils.tryOrIOException {
+//    val sfactory = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkEnvFct.getSerializer
+//      else SparkEnv.get.serializer
+//
+//    sfactory match {
+//      case js: JavaSerializer => in.defaultReadObject()
+//      case _ =>
+//        ascending = in.readBoolean()
+//        ordering = in.readObject().asInstanceOf[Ordering[K]]
+//        binarySearch = in.readObject().asInstanceOf[(Array[K], K) => Int]
+//
+//        val ser = sfactory.newInstance()
+//        Utils.deserializeViaNestedStream(in, ser) { ds =>
+//          implicit val classTag = ds.readObject[ClassTag[Array[K]]]()
+//          rangeBounds = ds.readObject[Array[K]]()
+//        }
+//    }
+//  }
 }
 
 private[spark] object RangePartitioner {

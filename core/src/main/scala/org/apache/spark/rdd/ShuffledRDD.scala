@@ -40,7 +40,7 @@ private[spark] class ShuffledRDDPartition(val idx: Int) extends Partition {
 @DeveloperApi
 class ShuffledRDD[K: ClassTag, V: ClassTag, C: ClassTag](
     @transient var prev: RDD[_ <: Product2[K, V]],
-    part: Partitioner)
+    @transient part: Partitioner)
   extends RDD[(K, C)](prev.context, Nil) {
 
   private var userSpecifiedSerializer: Option[Serializer] = None
