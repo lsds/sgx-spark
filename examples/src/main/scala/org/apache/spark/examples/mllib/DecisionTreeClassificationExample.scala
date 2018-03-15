@@ -37,8 +37,10 @@ object DecisionTreeClassificationExample extends Logging {
     // Load and parse the data file.
     // val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
     val data = MLUtils.loadLibSVMFile(sc, args(0))
+    logDebug("loaded data")
     // Split the data into training and test sets (30% held out for testing)
     val splits = data.randomSplit(Array(0.7, 0.3))
+    logDebug("split data into train and test sets")
     val (trainingData, testData) = (splits(0), splits(1))
 
     // Train a DecisionTree model.
