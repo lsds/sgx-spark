@@ -1,0 +1,3 @@
+[submodule "sgx-lkl"]
+	path = sgx-lkl
+	url = lsds_git@lsds.doc.ic.ac.uk:sereca/sgx-lkl.git
