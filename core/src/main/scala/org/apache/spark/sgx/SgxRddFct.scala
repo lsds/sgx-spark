@@ -43,6 +43,9 @@ object SgxRddFct {
 
 	def flatMap[T,U: ClassTag](rddId: Int, f: T => TraversableOnce[U]) =
 		new FlatMap(rddId, f).send()
+	
+	def flatMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => TraversableOnce[U]) =
+		new FlatMapValues[U,V,K](rddId, f).send()
 
 	def fold[T](rddId: Int, v: T, op: (T,T) => T) =
 		new Fold(rddId, v, op).send()
@@ -148,6 +151,14 @@ private case class FlatMap[T,U:ClassTag](rddId: Int, f: T => TraversableOnce[U])
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
+
+private case class FlatMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => TraversableOnce[U]) extends SgxTaskRDD[RDD[(K, U)]](rddId) {
+	def execute() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).flatMapValues(f)
+		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
+
 
 private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[T](rddId) {
 	def execute() = Await.result( Future {
