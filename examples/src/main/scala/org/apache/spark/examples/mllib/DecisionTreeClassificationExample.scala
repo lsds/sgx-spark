@@ -18,6 +18,8 @@
 // scalastyle:off println
 package org.apache.spark.examples.mllib
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.{SparkConf, SparkContext}
 // $example on$
 import org.apache.spark.mllib.tree.DecisionTree
@@ -25,7 +27,7 @@ import org.apache.spark.mllib.tree.model.DecisionTreeModel
 import org.apache.spark.mllib.util.MLUtils
 // $example off$
 
-object DecisionTreeClassificationExample {
+object DecisionTreeClassificationExample extends Logging {
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName("DecisionTreeClassificationExample")
@@ -33,7 +35,8 @@ object DecisionTreeClassificationExample {
 
     // $example on$
     // Load and parse the data file.
-    val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
+    // val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
+    val data = MLUtils.loadLibSVMFile(sc, args(0))
     // Split the data into training and test sets (30% held out for testing)
     val splits = data.randomSplit(Array(0.7, 0.3))
     val (trainingData, testData) = (splits(0), splits(1))
@@ -55,12 +58,13 @@ object DecisionTreeClassificationExample {
       (point.label, prediction)
     }
     val testErr = labelAndPreds.filter(r => r._1 != r._2).count().toDouble / testData.count()
+    logDebug("decision tree done")
     println(s"Test Error = $testErr")
     println(s"Learned classification tree model:\n ${model.toDebugString}")
 
     // Save and load model
-    model.save(sc, "target/tmp/myDecisionTreeClassificationModel")
-    val sameModel = DecisionTreeModel.load(sc, "target/tmp/myDecisionTreeClassificationModel")
+    model.save(sc, args(1))
+    // val sameModel = DecisionTreeModel.load(sc, "target/tmp/myDecisionTreeClassificationModel")
     // $example off$
 
     sc.stop()
