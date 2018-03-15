@@ -34,6 +34,9 @@ object SgxRddFct {
 
 	def count[T](rddId: Int) =
 		new Count[T](rddId).send()
+		
+	def cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) = 
+	  new Cogroup[K,V,W](rddId1, rddId2, partitioner).send()
 
 	def filter[T](rddId: Int, f: T => Boolean) =
 		new Filter(rddId, f).send()
@@ -122,6 +125,13 @@ private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 private case class Count[T](rddId: Int) extends SgxTaskRDD[Long](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count()
+	}, Duration.Inf)
+}
+
+private case class Cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) extends SgxTaskRDD[RDD[(K, (Iterable[V], Iterable[W]))]](rddId1) {
+	def execute() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[(K, V)]]).cogroup(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[(K, W)]], partitioner)
+		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
