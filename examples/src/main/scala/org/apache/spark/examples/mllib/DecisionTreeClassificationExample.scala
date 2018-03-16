@@ -25,9 +25,64 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.tree.DecisionTree
 import org.apache.spark.mllib.tree.model.DecisionTreeModel
 import org.apache.spark.mllib.util.MLUtils
+import org.apache.spark.rdd.RDD
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.storage.StorageLevel
 // $example off$
 
 object DecisionTreeClassificationExample extends Logging {
+
+  def computeNumFeatures(rdd: RDD[(Double, Array[Int], Array[Double])]): Int = {
+    rdd.map { case (label, indices, values) =>
+      indices.lastOption.getOrElse(0)
+    }.reduce(math.max) + 1
+  }
+
+  def parseLibSVMRecordNoDF(line: String): (Double, Array[Int], Array[Double]) = {
+      val items = line.split(' ')
+      val label = items.head.toDouble
+      val (indices, values) = items.tail.filter(_.nonEmpty).map { item =>
+        val indexAndValue = item.split(':')
+        val index = indexAndValue(0).toInt - 1 // Convert 1-based indices to 0-based.
+        val value = indexAndValue(1).toDouble
+        (index, value)
+      }.unzip
+
+      // check if indices are one-based and in ascending order
+    var previous = -1
+    var i = 0
+    val indicesLength = indices.length
+    while (i < indicesLength) {
+      val current = indices(i)
+      require(current > previous, s"indices should be one-based and in ascending order;"
+        + s""" found current=$current, previous=$previous; line="$line"""")
+      previous = current
+      i += 1
+    }
+    (label, indices.toArray, values.toArray)
+  }
+
+  def parseLibSVMFileNoDF(
+    sc: SparkContext,
+    path: String): RDD[(Double, Array[Int], Array[Double])] = {
+    sc.textFile(path)
+      .map(_.trim)
+      .filter(line => !(line.isEmpty || line.startsWith("#")))
+      .map(parseLibSVMRecordNoDF)
+  }
+
+  def loadLibSVMFileNoDF(
+      sc: SparkContext,
+      path: String): RDD[LabeledPoint] = {
+    val parsed = parseLibSVMFileNoDF(sc, path)
+    // Determine number of features.
+    parsed.persist(StorageLevel.MEMORY_ONLY)
+    val d = computeNumFeatures(parsed)
+
+    parsed.map { case (label, indices, values) =>
+      LabeledPoint(label, Vectors.sparse(d, indices, values))
+    }
+  }
 
   def main(args: Array[String]): Unit = {
     try {
@@ -37,38 +92,66 @@ object DecisionTreeClassificationExample extends Logging {
       // $example on$
       // Load and parse the data file.
       // val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
-      val data = MLUtils.loadLibSVMFile(sc, args(0))
-      logDebug("loaded data")
-      // Split the data into training and test sets (30% held out for testing)
-      val splits = data.randomSplit(Array(0.7, 0.3))
-      logDebug("split data into train and test sets")
-      val (trainingData, testData) = (splits(0), splits(1))
+      val data = sc.textFile(args(0)).map(_.trim)
+        .filter(line => !(line.isEmpty || line.startsWith("#")))
+      print("Got to here")
+      val parsedData = data.map{ line =>
+          val items = line.split(' ')
+          val label = items.head.toDouble
+          val (indices, values) = items.tail.filter(_.nonEmpty).map { item =>
+            val indexAndValue = item.split(':')
+            val index = indexAndValue(0).toInt - 1 // Convert 1-based indices to 0-based.
+            val value = indexAndValue(1).toDouble
+            (index, value)
+          }.unzip
 
-      // Train a DecisionTree model.
-      //  Empty categoricalFeaturesInfo indicates all features are continuous.
-      val numClasses = 2
-      val categoricalFeaturesInfo = Map[Int, Int]()
-      val impurity = "gini"
-      val maxDepth = 5
-      val maxBins = 32
-
-      val model = DecisionTree.trainClassifier(trainingData, numClasses, categoricalFeaturesInfo,
-        impurity, maxDepth, maxBins)
-
-      // Evaluate model on test instances and compute test error
-      val labelAndPreds = testData.map { point =>
-        val prediction = model.predict(point.features)
-        (point.label, prediction)
+          // check if indices are one-based and in ascending order
+        var previous = -1
+        var i = 0
+        val indicesLength = indices.length
+        while (i < indicesLength) {
+          val current = indices(i)
+          require(current > previous, s"indices should be one-based and in ascending order;"
+            + s""" found current=$current, previous=$previous; line="$line"""")
+          previous = current
+          i += 1
+        }
+        (label, indices.toArray, values.toArray)
       }
-      val testErr = labelAndPreds.filter(r => r._1 != r._2).count().toDouble / testData.count()
-      logDebug("decision tree done")
-      println(s"Test Error = $testErr")
-      println(s"Learned classification tree model:\n ${model.toDebugString}")
+      println("Got a little bit further...")
 
-      // Save and load model
-      model.save(sc, args(1))
-      // val sameModel = DecisionTreeModel.load(sc, "target/tmp/myDecisionTreeClassificationModel")
-      // $example off$
+
+      // Split the data into training and test sets (30% held out for testing)
+      // val splits = data.randomSplit(Array(0.7, 0.3))
+      // println("split data into train and test sets")
+      // val (trainingData, testData) = (splits(0), splits(1))
+
+
+      // // Train a DecisionTree model.
+      // //  Empty categoricalFeaturesInfo indicates all features are continuous.
+      // val numClasses = 2
+      // val categoricalFeaturesInfo = Map[Int, Int]()
+      // val impurity = "gini"
+      // val maxDepth = 5
+      // val maxBins = 32
+      //
+      // val model = DecisionTree.trainClassifier(trainingData, numClasses, categoricalFeaturesInfo,
+      //   impurity, maxDepth, maxBins)
+      //
+      // // Evaluate model on test instances and compute test error
+      // val labelAndPreds = testData.map { point =>
+      //   val prediction = model.predict(point.features)
+      //   (point.label, prediction)
+      // }
+      // val testErr = labelAndPreds.filter(r => r._1 != r._2).count().toDouble / testData.count()
+      // logDebug("decision tree done")
+      // println(s"Test Error = $testErr")
+      // println(s"Learned classification tree model:\n ${model.toDebugString}")
+      //
+      // // Save and load model
+      // model.save(sc, args(1))
+      // // val sameModel = DecisionTreeModel.load(sc, "target/tmp/myDecisionTreeClassificationModel")
+      // // $example off$
 
       sc.stop()
     }
