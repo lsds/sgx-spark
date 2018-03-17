@@ -67,25 +67,6 @@ RUN	export MAVEN_OPTS="-Xmx1g" && \
 	mvn package -DskipTests
 
 WORKDIR	${SPARK_DIR}
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl common/sketch
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl common/kvstore
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl common/network-common
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl common/network-shuffle
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl common/unsafe
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl common/tags
-RUN	MAVEN_OPTS="-Xmx2g" build/mvn package -DskipTests -pl core
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl graphx
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl mllib
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl mllib-local
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl tools
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl streaming
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl sql/catalyst
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl sql/core
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl sql/hive
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl assembly
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl examples
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl repl
-RUN	MAVEN_OPTS="-Xmx1024m" build/mvn package -DskipTests -pl launcher
 RUN	MAVEN_OPTS="-Xmx1g" build/mvn -DskipTests package && \
 	cp hadoop-2.6.5-src/hadoop-common-project/hadoop-common/target/hadoop-common-2.6.5.jar assembly/target/scala-2.11/jars/hadoop-common-2.6.5.jar && \
 	rm -rf ${SPARK_DIR}/hadoop-2.6.5-src
@@ -95,8 +76,6 @@ WORKDIR ${SPARK_DIR}/C
 RUN	make install
 
 WORKDIR ${SPARK_DIR}/lkl
-RUN	cat Makefile
-
-RUN	openvpn --mktun --dev tap0 && \
-	openvpn --mktun --dev tap1
+RUN	sed -i 's,^SGX_LKL=.*,SGX_LKL='${SGXLKL_DIR}',g' Makefile
+RUN	head Makefile
 
