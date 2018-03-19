@@ -32,58 +32,6 @@ import org.apache.spark.storage.StorageLevel
 
 object DecisionTreeClassificationExample extends Logging {
 
-  def computeNumFeatures(rdd: RDD[(Double, Array[Int], Array[Double])]): Int = {
-    rdd.map { case (label, indices, values) =>
-      indices.lastOption.getOrElse(0)
-    }.reduce(math.max) + 1
-  }
-
-  def parseLibSVMRecordNoDF(line: String): (Double, Array[Int], Array[Double]) = {
-      val items = line.split(' ')
-      val label = items.head.toDouble
-      val (indices, values) = items.tail.filter(_.nonEmpty).map { item =>
-        val indexAndValue = item.split(':')
-        val index = indexAndValue(0).toInt - 1 // Convert 1-based indices to 0-based.
-        val value = indexAndValue(1).toDouble
-        (index, value)
-      }.unzip
-
-      // check if indices are one-based and in ascending order
-    var previous = -1
-    var i = 0
-    val indicesLength = indices.length
-    while (i < indicesLength) {
-      val current = indices(i)
-      require(current > previous, s"indices should be one-based and in ascending order;"
-        + s""" found current=$current, previous=$previous; line="$line"""")
-      previous = current
-      i += 1
-    }
-    (label, indices.toArray, values.toArray)
-  }
-
-  def parseLibSVMFileNoDF(
-    sc: SparkContext,
-    path: String): RDD[(Double, Array[Int], Array[Double])] = {
-    sc.textFile(path)
-      .map(_.trim)
-      .filter(line => !(line.isEmpty || line.startsWith("#")))
-      .map(parseLibSVMRecordNoDF)
-  }
-
-  def loadLibSVMFileNoDF(
-      sc: SparkContext,
-      path: String): RDD[LabeledPoint] = {
-    val parsed = parseLibSVMFileNoDF(sc, path)
-    // Determine number of features.
-    parsed.persist(StorageLevel.MEMORY_ONLY)
-    val d = computeNumFeatures(parsed)
-
-    parsed.map { case (label, indices, values) =>
-      LabeledPoint(label, Vectors.sparse(d, indices, values))
-    }
-  }
-
   def main(args: Array[String]): Unit = {
     try {
       val conf = new SparkConf().setAppName("DecisionTreeClassificationExample")
@@ -94,7 +42,6 @@ object DecisionTreeClassificationExample extends Logging {
       // val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
       val data = sc.textFile(args(0)).map(_.trim)
         .filter(line => !(line.isEmpty || line.startsWith("#")))
-      print("Got to here")
       val parsedData = data.map{ line =>
           val items = line.split(' ')
           val label = items.head.toDouble
@@ -106,37 +53,43 @@ object DecisionTreeClassificationExample extends Logging {
           }.unzip
 
           // check if indices are one-based and in ascending order
-        var previous = -1
-        var i = 0
-        val indicesLength = indices.length
-        while (i < indicesLength) {
-          val current = indices(i)
-          require(current > previous, s"indices should be one-based and in ascending order;"
-            + s""" found current=$current, previous=$previous; line="$line"""")
-          previous = current
-          i += 1
-        }
-        (label, indices.toArray, values.toArray)
+          var previous = -1
+          var i = 0
+          val indicesLength = indices.length
+          while (i < indicesLength) {
+            val current = indices(i)
+            require(current > previous, s"indices should be one-based and in ascending order;"
+              + s""" found current=$current, previous=$previous; line="$line"""")
+            previous = current
+            i += 1
+          }
+          (label, indices.toArray, values.toArray)
       }
-      println("Got a little bit further...")
+      val d = parsedData.map { case (label, indices, values) =>
+        indices.lastOption.getOrElse(0)
+      }.reduce(math.max) + 1
+
+      val processedData = parsedData.map { case (label, indices, values) =>
+        LabeledPoint(label, Vectors.sparse(d, indices, values))
+      }
 
 
       // Split the data into training and test sets (30% held out for testing)
-      // val splits = data.randomSplit(Array(0.7, 0.3))
-      // println("split data into train and test sets")
-      // val (trainingData, testData) = (splits(0), splits(1))
+      val splits = processedData.randomSplit(Array(0.7, 0.3))
+      val (trainingData, testData) = (splits(0), splits(1))
 
 
-      // // Train a DecisionTree model.
-      // //  Empty categoricalFeaturesInfo indicates all features are continuous.
-      // val numClasses = 2
-      // val categoricalFeaturesInfo = Map[Int, Int]()
-      // val impurity = "gini"
-      // val maxDepth = 5
-      // val maxBins = 32
+      // Train a DecisionTree model.
+      //  Empty categoricalFeaturesInfo indicates all features are continuous.
+      val numClasses = 2
+      val categoricalFeaturesInfo = Map[Int, Int]()
+      val impurity = "gini"
+      val maxDepth = 5
+      val maxBins = 32
       //
-      // val model = DecisionTree.trainClassifier(trainingData, numClasses, categoricalFeaturesInfo,
-      //   impurity, maxDepth, maxBins)
+      val model = DecisionTree.trainClassifier(trainingData, numClasses, categoricalFeaturesInfo,
+        impurity, maxDepth, maxBins)
+      println("Created decision tree classifier")
       //
       // // Evaluate model on test instances and compute test error
       // val labelAndPreds = testData.map { point =>
