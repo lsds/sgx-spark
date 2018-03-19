@@ -24,15 +24,18 @@ object SgxFct {
 
 //def diskBlockObjectWriterWriteKeyValue(writer: DiskBlockObjectWriter, key: Any, value: Any) =
 //	new DiskBlockObjectWriterWriteKeyValue(writer, key, value).send()
-
-	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) =
-		new ExternalSorterInsertAllCreateKey[K](partitioner, pair).send()
-
-	def partitionedAppendOnlyMapCreate[K,V]() =
-		new PartitionedAppendOnlyMapCreate().send()
 		
   def externalAppendOnlyMapIterator[K,V](id: SizeTrackingAppendOnlyMapIdentifier) =
     new ExternalAppendOnlyMapIterator[K,V](id).send
+  
+	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) =
+		new ExternalSorterInsertAllCreateKey[K](partitioner, pair).send()
+
+  def getPartitionFirstOfPair(partitioner: Partitioner, enc: Encrypted) =
+    new GetPartitionFirstOfPair(partitioner, enc).send()
+
+	def partitionedAppendOnlyMapCreate[K,V]() =
+		new PartitionedAppendOnlyMapCreate().send()
 
 	def partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](
 			id: SizeTrackingAppendOnlyMapIdentifier,
@@ -68,6 +71,13 @@ private case class ExternalSorterInsertAllCreateKey[K](
 	}, Duration.Inf)
 
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
+}
+
+private case class GetPartitionFirstOfPair(partitioner: Partitioner, enc: Encrypted) extends SgxMessage[Int] {
+
+  def execute() = Await.result( Future {
+		partitioner.getPartition(enc.decrypt[Pair[Any,Any]]._1)
+	}, Duration.Inf)
 }
 
 private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[SizeTrackingAppendOnlyMapIdentifier] {

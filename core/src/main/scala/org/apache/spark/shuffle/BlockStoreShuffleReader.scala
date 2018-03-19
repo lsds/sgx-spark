@@ -24,6 +24,10 @@ import org.apache.spark.storage.{BlockManager, ShuffleBlockFetcherIterator}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.Encrypted
+import org.apache.spark.sgx.iterator.SgxFakePairIndicator
+
 /**
  * Fetches and reads the partitions in range [startPartition, endPartition) from a shuffle by
  * requesting them from other nodes' block stores.

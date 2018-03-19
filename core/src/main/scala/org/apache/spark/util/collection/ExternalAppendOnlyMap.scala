@@ -39,6 +39,10 @@ import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.Encrypted
+import org.apache.spark.sgx.iterator.SgxFakePairIndicator
+import org.apache.spark.sgx.iterator.SgxIteratorProvider
+import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
 
 /**
  * :: DeveloperApi ::
@@ -132,6 +136,14 @@ class ExternalAppendOnlyMap[K, V, C](
    */
   def insert(key: K, value: V): Unit = {
     insertAll(Iterator((key, value)))
+  }
+  
+  def insertAll(entries: Iterator[(Encrypted,SgxFakePairIndicator)], depNum: Int): Unit = {
+    
+        val (a,b) = entries.duplicate
+    val id = SgxFactory.newSgxIteratorProvider(b, true).getIdentifier.asInstanceOf[SgxIteratorIdentifier[Product2[K,V]]]
+        logDebug("xxxx InsertAll: " + a.next() + ", " + a.next() + "("+id+")")
+    SgxIteratorFct.externalAppendOnlyMapInsertAll[K,V,C](id, currentMap.id, mergeValue, createCombiner, depNum)
   }
 
   /**

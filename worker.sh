@@ -5,7 +5,7 @@ export IS_WORKER=true
 export SGX_USE_SHMEM=true
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
 export SGXLKL_SHMEM_SIZE=10240000
-export PREFETCH=8
+export PREFETCH=128
 export CONNECTIONS=1
 
 java \

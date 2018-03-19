@@ -26,6 +26,8 @@ import org.apache.spark.serializer.{SerializationStream, SerializerInstance, Ser
 import org.apache.spark.util.Utils
 
 import org.apache.spark.sgx.IdentifierManager
+import org.apache.spark.sgx.iterator.SgxFakePairIndicator
+import org.apache.spark.sgx.Encrypted
 
 private object DiskBlockObjectWriters extends IdentifierManager[DiskBlockObjectWriter]() {}
 
@@ -251,6 +253,12 @@ private[spark] class DiskBlockObjectWriter(
     objOut.writeKey(key)
     objOut.writeValue(value)
     recordWritten()
+  }
+  
+  def write(enc: Encrypted) {
+    val f = new SgxFakePairIndicator()
+    logDebug("writing: ("+enc+","+f+")")
+    write(enc, f)
   }
 
   override def write(b: Int): Unit = throw new UnsupportedOperationException()

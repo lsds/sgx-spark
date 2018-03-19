@@ -12,7 +12,7 @@ class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorIdentifi
 		con
 	}
 
-	override def getIterator = new SgxIteratorConsumer[T](this)
+	override def getIterator(context: String) = new SgxIteratorConsumer[T](this, context)
 
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ")"
 }
