@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATADIR=$(pwd)/FaultsLactecAPP
+DATADIR=$(pwd)/FaultsLactecAPP3
 
 export SGX_USE_SHMEM=true
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
@@ -30,4 +30,4 @@ JARS_COLON=$(echo $JARS | tr ' ' ':')
 --conf "spark.executor.extraClassPath=$JARS_COLON" \
 --conf "spark.driver.extraClassPath=$JARS_COLON" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-2.11/jars/spark-examples_2.11-2.3.1-SNAPSHOT.jar $DATADIR/TestCustomer.csv $DATADIR/TestDSM.csv $DATADIR/TestFaults.csv 2017-01-01 2017-12-31  2>&1 | tee outside-driver
+examples/target/scala-2.11/jars/spark-examples_2.11-2.3.1-SNAPSHOT.jar $DATADIR/TestCustomer.csv $DATADIR/TestDSM.csv $DATADIR/TestFaults.csv 2016-01-01 2016-12-31  2>&1 | tee outside-driver

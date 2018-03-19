@@ -166,9 +166,7 @@ class CoGroupedRDD[K: ClassTag](
     val map = createExternalMap(numRdds)
     for ((it, depNum) <- rddIterators) {
       if (SgxSettings.SGX_ENABLED) {
-        val (a,b) = it.duplicate
-        logDebug("xxxx CoGrouped: " + a.next())
-        map.insertAll(b.asInstanceOf[Iterator[(Encrypted,SgxFakePairIndicator)]], depNum)
+        map.insertAll(it.asInstanceOf[Iterator[(Encrypted,SgxFakePairIndicator)]], depNum)
       } else
       map.insertAll(it.map(pair => (pair._1, new CoGroupValue(pair._2, depNum))))
     }

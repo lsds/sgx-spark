@@ -88,17 +88,14 @@ object Example2 extends Logging {
 	// First Join - Join Between pairRDD of Customer and pairRDD of Dsm. 
 	// The result will be an Array structured by ( id, (client, latitude, longitude, contract, meter, local, name))
 	val pairRDDJoin1 = pairRDDC.join(pairRDDD)
-//			val a  =	pairRDDJoin1.map{ case ((local), ((id, client, latitude, longitude, contract, meter), name)) => (id, client, latitude, longitude, contract, meter, local, name)}
-//			val b =	a.keyBy(j => j._1)
-//			val c =	b.mapValues(j => (j._2, j._3, j._4, j._5, j._6, j._7, j._8))
+        .map{ case ((local), ((id, client, latitude, longitude, contract, meter), name)) => (id, client, latitude, longitude, contract, meter, local, name)}
+        .keyBy(j => j._1)
+        .mapValues(j => (j._2, j._3, j._4, j._5, j._6, j._7, j._8))
 			
-			logDebug("Count1: " + pairRDDC.collect.mkString(","))
-			logDebug("Count1: " + pairRDDD.collect.mkString(","))
-			logDebug("Count1: " + pairRDDJoin1.count())
-//			logDebug("Count2: " + a.count())
-//			logDebug("Count3: " + b.count())
-//			logDebug("Count4: " + c.count())
-				/*
+			logDebug("Count1: " + pairRDDC.count)
+			logDebug("Count2: " + pairRDDD.count)
+			logDebug("Count3: " + pairRDDJoin1.count())
+				
 	// Third PairRDD based in TestFaults.csv file, with (customer_id) as key and (date, time, length_time) as value
 	// mapPartitionsWithIndex it's being used considering that the file has got a header
 	val pairRDDF = sc.textFile(args(2))
@@ -108,6 +105,9 @@ object Example2 extends Logging {
 			.keyBy(f => f.customer_id)
 			.mapValues(f => (f.date, f.time, f.length_time))
 
+			logDebug("Count4: " + pairRDDF.count())
+			
+		
 	// Second Join - Join Between First Join and pairRDD of Faults
 	// Within of the first mapValues a function is created to return the total of seconds of faults
 	val pairRDDJoin2 = pairRDDJoin1.join(pairRDDF)
@@ -129,7 +129,7 @@ object Example2 extends Logging {
 				}
 				.collect()
         .foreach(x => logDebug("xxxx " + x))
-*/
+
 	sc.stop()
  
     } catch {

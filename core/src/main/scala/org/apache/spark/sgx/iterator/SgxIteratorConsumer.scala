@@ -25,6 +25,11 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 					val l = list.map(n => n.decrypt[T])
 //					if (l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
 					if (consumer.context == "" && l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+					  try{
+					    new RuntimeException("moep")
+					  } catch {
+					    case e: Exception => logDebug("yyyy " + e.getMessage)
+					  }
 					  l.map(c => {
 					    val y = c.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[Pair[Pair[Any,Any],Any]]
 					    (y._1._2,y._2).asInstanceOf[T]
