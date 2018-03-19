@@ -23,6 +23,9 @@ object SgxRddFct {
 	def collect[T](rddId: Int) =
 		new Collect[T](rddId).send()
 
+	def collectAsMap[K:ClassTag, V:ClassTag](rddId: Int) =
+		new CollectAsMap[K, V](rddId).send()
+
 	def combineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 		rddId: Int,
 		createCombiner: V => C,
@@ -86,6 +89,12 @@ private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
 private case class Collect[T](rddId: Int) extends SgxMessage[Array[T]] {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
+	}, Duration.Inf)
+}
+
+private case class CollectAsMap[K:ClassTag, V:ClassTag](rddId: Int) extends SgxMessage[scala.collection.Map[K, V]] {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]].collectAsMap()
 	}, Duration.Inf)
 }
 
