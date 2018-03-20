@@ -277,7 +277,7 @@ class KMeans private (
       val bcCenters = sc.broadcast(centers)
 
       // Find the new centers
-      val x = data.mapPartitions { points =>
+      val newCenters = data.mapPartitions { points =>
         val thisCenters = bcCenters.value
         val dims = thisCenters.head.vector.size
 
@@ -291,26 +291,17 @@ class KMeans private (
           axpy(1.0, point.vector, sum)
           counts(bestCenter) += 1
         }
-logDebug("AAAA 0")
-        val x= counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
-        logDebug("AAAA 1")
-x
+        counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
       }
-logDebug("AAAA 2")
-      val y= x.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
-    	  logDebug("AAAA 3")
+      .reduceByKey { case ((sum1, count1), (sum2, count2)) =>
         axpy(1.0, sum2, sum1)
         (sum1, count1 + count2)
       }
-logDebug("AAAA 4")
-      val z = y.mapValues { case (sum, count) =>
-    	  logDebug("AAAA 5")
+     .mapValues { case (sum, count) =>
         scal(1.0 / count, sum)
         new VectorWithNorm(sum)
       }
-logDebug("AAAA 6")
-      val newCenters = z.collectAsMap()
-logDebug("AAAA 7")
+      .collectAsMap()
       bcCenters.destroy(blocking = false)
 
       // Update the cluster centers and costs
@@ -412,11 +403,7 @@ logDebug("AAAA 7")
       // candidate by the number of points in the dataset mapping to it and run a local k-means++
       // on the weighted centers to pick k of them
       val bcCenters = data.context.broadcast(distinctCenters)
-      logDebug("kmeans f1: " + bcCenters.value.mkString("[", ",", "]"))
-      logDebug("kmeans f2: " + data)
-      logDebug("kmeans f3: " + data.id)
       val countMap = data.map(KMeans.findClosest(bcCenters.value, _)._1).countByValue()
-      logDebug("kmeans f4: " + countMap.mkString(","))
       bcCenters.destroy(blocking = false)
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
       LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)

@@ -555,7 +555,12 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * (k, v2) is in `other`. Uses the given Partitioner to partition the output RDD.
    */
   def join[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (V, W))] = self.withScope {
-    this.cogroup(other, partitioner).flatMapValues( pair =>
+    logDebug("join0 is HERE")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.join[K,V,W](self.id, other.id, partitioner)
+    logDebug("join1 is HERE")
+    val x = this.cogroup(other, partitioner)
+    x.foreach(y => println("join " + y))
+    x.flatMapValues( pair =>
       for (v <- pair._1.iterator; w <- pair._2.iterator) yield (v, w)
     )
   }
@@ -772,7 +777,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.mapValues[U,V,K](self.id, f)
     val cleanF = self.context.clean(f)
     new MapPartitionsRDD[(K, U), (K, V)](self,
-      (context, pid, iter) => iter.map { case (k, v) => (k, cleanF(v)) },
+      (context, pid, iter) => iter.map { case (k, v) => val x = (k, cleanF(v)); println("mapping ("+k+","+v+") to ("+x+")"); x },
       preservesPartitioning = true)
   }
 
@@ -781,10 +786,13 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * keys; this also retains the original RDD's partitioning.
    */
   def flatMapValues[U](f: V => TraversableOnce[U]): RDD[(K, U)] = self.withScope {
+    logDebug("flatMapValues0 is HERE")
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.flatMapValues[U,V,K](self.id, f)
+    logDebug("flatMapValues1 is HERE")
     val cleanF = self.context.clean(f)
     new MapPartitionsRDD[(K, U), (K, V)](self,
       (context, pid, iter) => iter.flatMap { case (k, v) =>
+        println("flat mapping ("+k+","+v+")")
         cleanF(v).map(x => (k, x))
       },
       preservesPartitioning = true)
@@ -818,13 +826,16 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    */
   def cogroup[W](other: RDD[(K, W)], partitioner: Partitioner)
       : RDD[(K, (Iterable[V], Iterable[W]))] = self.withScope {
+    logDebug("cogroup0 is HERE")
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.cogroup[K,V,W](self.id, other.id, partitioner)
+    logDebug("cogroup1 is HERE")
     if (partitioner.isInstanceOf[HashPartitioner] && keyClass.isArray) {
       throw new SparkException("HashPartitioner cannot partition array keys.")
     }
     val cg = new CoGroupedRDD[K](Seq(self, other), partitioner)
-    cg.mapValues { case Array(vs, w1s) =>
-      (vs.asInstanceOf[Iterable[V]], w1s.asInstanceOf[Iterable[W]])
+    cg.mapValues { case Array(vs, w1s) => {
+      println("mapvalues: ("+vs+","+w1s+")")
+      (vs.asInstanceOf[Iterable[V]], w1s.asInstanceOf[Iterable[W]]) }
     }
   }
 

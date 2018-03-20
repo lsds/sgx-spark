@@ -5,5 +5,5 @@ trait SgxIterator[T] {
 }
 
 trait SgxIteratorIdentifier[T] extends Serializable {
-	def getIterator: Iterator[T]
+	def getIterator(context: String = ""): Iterator[T]
 }

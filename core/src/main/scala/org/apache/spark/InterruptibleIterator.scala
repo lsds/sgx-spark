@@ -18,7 +18,9 @@
 package org.apache.spark
 
 import org.apache.spark.annotation.DeveloperApi
+import org.apache.spark.internal.Logging
 
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 /**
  * :: DeveloperApi ::
  * An iterator that wraps around an existing iterator to provide task killing functionality.
@@ -26,7 +28,11 @@ import org.apache.spark.annotation.DeveloperApi
  */
 @DeveloperApi
 class InterruptibleIterator[+T](val context: TaskContext, val delegate: Iterator[T])
-  extends Iterator[T] {
+  extends Iterator[T] with Logging {
+  
+//  delegate match {
+//    case e: SgxFakeIterator[T] => throw new RuntimeException("You certainly do not want to wrap an SgxFakeIterator")
+//  }
 
   def hasNext: Boolean = {
     // TODO(aarondav/rxin): Check Thread.interrupted instead of context.interrupted if interrupt

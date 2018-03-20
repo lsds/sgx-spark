@@ -1378,8 +1378,8 @@ abstract class RDD[T: ClassTag](
    * an exception if called on an RDD of `Nothing` or `Null`.
    */
   def take(num: Int): Array[T] = withScope {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
-    val scaleUpFactor = Math.max(conf.getInt("spark.rdd.limit.scaleUpFactor", 4), 2)
+	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")//return SgxRddFct.take[T](this.id, num)
+			val scaleUpFactor = Math.max(conf.getInt("spark.rdd.limit.scaleUpFactor", 4), 2)
     if (num == 0) {
       new Array[T](0)
     } else {

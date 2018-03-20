@@ -23,22 +23,18 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 			else consumer.objects.addAll({
 				if (SgxSettings.IS_ENCLAVE) {
 					val l = list.map(n => n.decrypt[T])
-					logDebug("xxx "+ (l.size > 0))
-					logDebug("xxx "+ (l.front.isInstanceOf[Pair[Any,Any]]))
-					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._1))
-					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._2))
-					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._1.isInstanceOf[Encrypted]))
-					logDebug("xxx "+ (l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]))
-					if (l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
-					  logDebug("xxx map")
+//					if (l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+					if (consumer.context == "" && l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+					  try{
+					    new RuntimeException("moep")
+					  } catch {
+					    case e: Exception => logDebug("yyyy " + e.getMessage)
+					  }
 					  l.map(c => {
-//					    val y = c.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
 					    val y = c.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[Pair[Pair[Any,Any],Any]]
-					    val z = (y._1._2,y._2).asInstanceOf[T]
-					    logDebug("xxx " + z);
-					    z})
+					    (y._1._2,y._2).asInstanceOf[T]
+					  })
 					} else l
-//				  list.map(n => n.decrypt[T])
 				}
 				else list.map(n => n.asInstanceOf[T])
 			}.asJava)
@@ -53,7 +49,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 	override def toString() = getClass.getSimpleName + "(consumer=" + consumer + ")"
 }
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T]) extends Iterator[T] with Logging {
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: String = "") extends Iterator[T] with Logging {
 
 	logDebug(this + " connecting to: " + id)
 

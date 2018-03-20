@@ -103,7 +103,6 @@ private[spark] class ResultTask[T, U](
         	SgxIteratorFct.resultTaskRunTask(f, func, null)
       	case i: Iterator[T] =>
       		func(context, i)
-//      		SgxIteratorFct.resultTaskRunTaskAfterShuffle(SgxFactory.newSgxIteratorProvider(i, true).getIdentifier, func, null)
       }
     }
     else

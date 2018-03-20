@@ -59,13 +59,7 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
       private[this] var cur = if (it.hasNext) it.next() else null
 
       def writeNext(writer: DiskBlockObjectWriter): Unit = {
-//    	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-//    		val c = it.get
-//    		writer.write(c._1._2, c._2)
-////    		SgxFct.diskBlockObjectWriterWriteKeyValue(writer, cur._1._2, cur._2)
-//    	}
-//        else
-        	writer.write(cur._1._2, cur._2)
+        writer.write(cur._1._2, cur._2)
         cur = if (it.hasNext) it.next() else null
       }
 

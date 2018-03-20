@@ -29,11 +29,8 @@ import org.apache.spark.internal.Logging
 object KMeansExample extends Logging {
 
   def main(args: Array[String]) {
-logDebug("a")
     val conf = new SparkConf().setAppName("KMeansExample")
-    logDebug("b")
     val sc = new SparkContext(conf)
-logDebug("c")
 
     // $example on$
     // Load and parse the data

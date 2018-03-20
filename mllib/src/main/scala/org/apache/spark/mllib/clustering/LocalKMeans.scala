@@ -43,12 +43,9 @@ private[mllib] object LocalKMeans extends Logging {
     val rand = new Random(seed)
     val dimensions = points(0).vector.size
     val centers = new Array[VectorWithNorm](k)
-logDebug("kmeans j: " + points.mkString("[", ",", "]"))
     // Initialize centers by sampling using the k-means++ procedure.
     centers(0) = pickWeighted(rand, points, weights).toDense
-    logDebug("kmeans j1")
     val costArray = points.map(KMeans.fastSquaredDistance(_, centers(0)))
-logDebug("kmeans k")
     for (i <- 1 until k) {
       val sum = costArray.zip(weights).map(p => p._1 * p._2).sum
       val r = rand.nextDouble() * sum
@@ -72,7 +69,6 @@ logDebug("kmeans k")
       }
 
     }
-logDebug("kmeans l")
     // Run up to maxIterations iterations of Lloyd's algorithm
     val oldClosest = Array.fill(points.length)(-1)
     var iteration = 0
@@ -93,7 +89,6 @@ logDebug("kmeans l")
         }
         i += 1
       }
-logDebug("kmeans m")
       // Update centers
       var j = 0
       while (j < k) {
@@ -108,7 +103,6 @@ logDebug("kmeans m")
       }
       iteration += 1
     }
-logDebug("kmeans n")
     if (iteration == maxIterations) {
       logInfo(s"Local KMeans++ reached the max number of iterations: $maxIterations.")
     } else {
@@ -119,19 +113,13 @@ logDebug("kmeans n")
   }
 
   private def pickWeighted[T](rand: Random, data: Array[T], weights: Array[Double]): T = {
-	  logDebug("pickWeighted1: " + weights.mkString(","))
-	  logDebug("pickWeighted2: " + weights.sum)
     val r = rand.nextDouble() * weights.sum
-    logDebug("pickWeighted3: " + data)
-	   logDebug("pickWeighted4: " + data.length)
     var i = 0
     var curWeight = 0.0
-    logDebug("pickWeighted5: a")
     while (i < data.length && curWeight < r) {
       curWeight += weights(i)
       i += 1
     }
-	   logDebug("pickWeighted6: " + data(i-1))
     data(i - 1)
   }
 }

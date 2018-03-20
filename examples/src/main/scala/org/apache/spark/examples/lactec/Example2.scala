@@ -75,6 +75,7 @@ object Example2 extends Logging {
 			.keyBy(c => c.local)
 			.mapValues(c => (c.id, c.client, c.latitude, c.longitude, c.contract, c.meter))
 	
+			
 	// Second PairRDD based in TestDsm.csv file, with (local) as key and (name) as value
 	// mapPartitionsWithIndex it's being used considering that the file has got a header
         val pairRDDD = sc.textFile(args(1))
@@ -83,14 +84,18 @@ object Example2 extends Logging {
 			.keyBy(d => d.local)
 			.mapValues(d => d.name)
 	
+
 	// First Join - Join Between pairRDD of Customer and pairRDD of Dsm. 
 	// The result will be an Array structured by ( id, (client, latitude, longitude, contract, meter, local, name))
 	val pairRDDJoin1 = pairRDDC.join(pairRDDD)
-				.map{ case ((local), ((id, client, latitude, longitude, contract, meter), name)) => (id, client, latitude, longitude, contract, meter, local, name)}
-				.keyBy(j => j._1)
-				.mapValues(j => (j._2, j._3, j._4, j._5, j._6, j._7, j._8))
-				.collect()
-
+        .map{ case ((local), ((id, client, latitude, longitude, contract, meter), name)) => (id, client, latitude, longitude, contract, meter, local, name)}
+        .keyBy(j => j._1)
+        .mapValues(j => (j._2, j._3, j._4, j._5, j._6, j._7, j._8))
+			
+			logDebug("Count1: " + pairRDDC.count)
+			logDebug("Count2: " + pairRDDD.count)
+			logDebug("Count3: " + pairRDDJoin1.count())
+				
 	// Third PairRDD based in TestFaults.csv file, with (customer_id) as key and (date, time, length_time) as value
 	// mapPartitionsWithIndex it's being used considering that the file has got a header
 	val pairRDDF = sc.textFile(args(2))
@@ -100,12 +105,12 @@ object Example2 extends Logging {
 			.keyBy(f => f.customer_id)
 			.mapValues(f => (f.date, f.time, f.length_time))
 
-	// Parallelized array of First Join to RDD
-	val rddJoin = sc.parallelize(pairRDDJoin1)
-
+			logDebug("Count4: " + pairRDDF.count())
+			
+		
 	// Second Join - Join Between First Join and pairRDD of Faults
 	// Within of the first mapValues a function is created to return the total of seconds of faults
-	val pairRDDJoin2 = rddJoin.join(pairRDDF)
+	val pairRDDJoin2 = pairRDDJoin1.join(pairRDDF)
 				.keyBy(j => (j._1, j._2._1._1, j._2._1._2, j._2._1._3, j._2._1._4, j._2._1._5, j._2._1._6, j._2._1._7))
 				.mapValues(j => ({ val time = j._2._2._3.split(":")
 						  val hour = time(0).toInt * 3600
@@ -123,11 +128,7 @@ object Example2 extends Logging {
 					case (tot, count) => (count, tot)
 				}
 				.collect()
-	
-
-	val x = sc.parallelize(pairRDDJoin2)
-			.collect()
-	x.foreach(x => log.debug(x))
+        .foreach(x => logDebug("xxxx " + x))
 
 	sc.stop()
  

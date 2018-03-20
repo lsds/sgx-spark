@@ -49,6 +49,9 @@ object SgxRddFct {
 
 	def fold[T](rddId: Int, v: T, op: (T,T) => T) =
 		new Fold(rddId, v, op).send()
+	
+	def join[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) =
+	  new Join[K,V,W](rddId1, rddId2, partitioner).send()
 
 	def map[T,U:ClassTag](rddId: Int, f: T => U) =
 		new Map(rddId, f).send()
@@ -92,6 +95,9 @@ object SgxRddFct {
 			V: ClassTag,
 			P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) =
 		new SortByKey[K,V,P](rddId, ascending, numPartitions).send()
+		
+  def take[T](rddId: Int, num: Int) =
+		new Take[T](rddId, num).send()
 
 	def unpersist[T](rddId: Int) =
 		new Unpersist[T](rddId).send()
@@ -168,6 +174,13 @@ private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", rddId=" + rddId + ")"
 }
 
+private case class Join[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) extends SgxTaskRDD[RDD[(K, (V, W))]](rddId1) {
+	def execute() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[(K,V)]]).join(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[(K,W)]], partitioner)
+		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+} 
+
 private case class Map[T,U:ClassTag](rddId: Int, f: T => U) extends SgxTaskRDD[RDD[U]](rddId) {
 	def execute() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].map(f)
@@ -213,6 +226,12 @@ private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Dou
 	def execute() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
 		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
+
+private case class Take[T](rddId: Int, num: Int) extends SgxTaskRDD[Array[T]](rddId) {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num)
 	}, Duration.Inf)
 }
 

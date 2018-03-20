@@ -24,7 +24,22 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 
 	FakeIterators.put(id, delegate)
 
-	override def hasNext: Boolean = throw SgxFakeIteratorException(id)
+	// we need to allow hasNext, as it is being accessed
+	// by Java's instanceof operator.
+	// Will always return true. A potential subsequent call to next()
+	// will then surely throw an Exception
+	override def hasNext: Boolean = {
+//	  try {
+//	    // throw and print the Exception as a warning
+	    throw SgxFakeIteratorException(id)
+//	  }
+//	  catch {
+//	    case e: Exception =>
+//	      logDebug(e.getMessage)
+//	      logDebug(e.getStackTraceString)
+//	  }
+//	  return true
+	}
 
 	override def next: T = throw SgxFakeIteratorException(id)
 
@@ -34,17 +49,15 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 
 	override def getIdentifier = this
 
-	override def getIterator = {
+	override def getIterator(context: String) = {
 	  new Iterator[T] with Logging {
 	    val i = FakeIterators.remove[Iterator[T]](id)
 	    
 	    override def next = {
 	      val n = i.next()
-	      val x = if (n != null && n.isInstanceOf[Pair[Any,Any]] && n.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+	      if (n != null && n.isInstanceOf[Pair[Any,Any]] && n.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
 	        n.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
 	      } else n
-	      logDebug("next: " + x)
-	      x
 	    }
 	    
 	    override def hasNext = i.hasNext
@@ -72,8 +85,7 @@ case class SgxWritablePartitionedFakeIterator[K,V](@transient val delegate: Writ
 		else if (SgxSettings.IS_WORKER) {
 			logDebug("writeNext WORKER: " + writer)
 			val cur = SgxFct.writablePartitionedIteratorGetNext[K,V,((Int,K),V)](this)
-//			writer.write(cur._1._2, cur._2)
-			writer.write(cur, new SgxFakePairIndicator())
+			writer.write(cur)
 		}
 		else {
 			logDebug("writeNext MISC")
