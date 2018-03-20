@@ -139,10 +139,7 @@ class ExternalAppendOnlyMap[K, V, C](
   }
   
   def insertAll(entries: Iterator[(Encrypted,SgxFakePairIndicator)], depNum: Int): Unit = {
-    
-        val (a,b) = entries.duplicate
-    val id = SgxFactory.newSgxIteratorProvider(b, true).getIdentifier.asInstanceOf[SgxIteratorIdentifier[Product2[K,V]]]
-        logDebug("xxxx InsertAll: " + a.next() + ", " + a.next() + "("+id+")")
+    val id = SgxFactory.newSgxIteratorProvider(entries, true).getIdentifier.asInstanceOf[SgxIteratorIdentifier[Product2[K,V]]]
     SgxIteratorFct.externalAppendOnlyMapInsertAll[K,V,C](id, currentMap.id, mergeValue, createCombiner, depNum)
   }
 
