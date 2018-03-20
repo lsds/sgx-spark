@@ -33,9 +33,6 @@ private object Base64StringEncrypt extends Logging {
 			case e: Encryptable =>
 				logDebug("Encryptable")
 				e.encrypt
-//			case t: Tuple2[_,_] =>
-//				logDebug("Tuple2")
-//				new EncryptedTuple2(Encrypt(t._1), Encrypt(t._2))
 			case p: Any =>
 				logDebug("EncryptedObj")
 				new EncryptedObj[String](
@@ -48,13 +45,3 @@ private object Base64StringEncrypt extends Logging {
 	}
 }
 
-class EncryptedTuple2[T1,T2](t1: Encrypted, t2: Encrypted) extends Product2[T1,T2] with Encrypted {
-	def decrypt[U]: U = {
-		if (SgxSettings.IS_ENCLAVE) (t1.decrypt[T1],t2.decrypt[T2]).asInstanceOf[U]
-		else throw new RuntimeException("Must not decrypt outside of enclave")
-	}
-
-	def _1 = t1.decrypt[T1]
-	def _2 = t2.decrypt[T2]
-	def canEqual(that: Any) = decrypt[Product2[T1,T2]].canEqual(that)
-}
