@@ -39,6 +39,9 @@ object SgxRddFct {
 	def count[T](rddId: Int) =
 		new Count[T](rddId).send()
 
+	def filter[T](rddId: Int, f: T => Boolean) =
+		new Filter(rddId, f).send()
+
 	def flatMap[T,U: ClassTag](rddId: Int, f: T => TraversableOnce[U]) =
 		new FlatMap(rddId, f).send()
 
@@ -68,6 +71,9 @@ object SgxRddFct {
 
 	def persist[T](rddId: Int, level: StorageLevel) =
 		new Persist[T](rddId, level).send()
+
+	def reduce[T](rddId: Int, f: (T, T) => T) =
+		new Reduce[T](rddId, f).send()
 
 	def sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) =
 		new Sample[T](rddId, withReplacement, fraction, seed).send()
@@ -116,6 +122,13 @@ private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 private case class Count[T](rddId: Int) extends SgxTaskRDD[Long](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count()
+	}, Duration.Inf)
+}
+
+private case class Filter[T](rddId: Int, f: T => Boolean) extends SgxTaskRDD[RDD[T]](rddId) {
+	def execute() = Await.result( Future {
+		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].filter(f)
+		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
@@ -172,6 +185,12 @@ private case class Persist[T](rddId: Int, level: StorageLevel) extends SgxTaskRD
 	def execute() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].persist(level)
 		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
+
+private case class Reduce[T](rddId: Int, f: (T, T) => T) extends SgxTaskRDD[T](rddId) {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].reduce(f)
 	}, Duration.Inf)
 }
 
