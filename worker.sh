@@ -1,16 +1,18 @@
 #!/bin/bash
 
-export SGX_ENABLED=true
-export IS_WORKER=true
-export SGX_USE_SHMEM=true
-export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
-export SGXLKL_SHMEM_SIZE=10240000
-export PREFETCH=8
-export CONNECTIONS=1
+source variables.sh
 
+if [ "${SPARK_MASTER_HOST}" == "" ]; then
+	echo "Define \${SPARK_MASTER_HOST}"
+	exit 1
+fi 
+
+export IS_WORKER=true
+export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
+
+#--webui-port 8081 \
 java \
--cp conf/:assembly/target/scala-2.11/jars/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\* \
 -Xmx1g org.apache.spark.deploy.worker.Worker \
---webui-port 8081 \
-spark://kiwi01.doc.res.ic.ac.uk:7077 2>&1 | tee outside-worker
+spark://${SPARK_MASTER_HOST}:${SPARK_MASTER_PORT} 2>&1 | tee outside-worker
 

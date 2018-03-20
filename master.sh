@@ -1,11 +1,13 @@
 #!/bin/bash
 
-export SPARK_LOCAL_IP=127.0.0.1
+source ./variables.sh
+
+echo assembly/target/scala-${SCALA_VERSION}/jars/
 
 java \
--cp conf/:assembly/target/scala-2.11/jars/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\* \
 -Xmx1g \
 org.apache.spark.deploy.master.Master \
---host kiwi01.doc.res.ic.ac.uk \
---port 7077 \
---webui-port 8082
+--host $(hostname) \
+--port ${SPARK_MASTER_PORT} \
+--webui-port ${SPARK_MASTER_WEBUI_PORT}

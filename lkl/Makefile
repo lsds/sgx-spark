@@ -1,5 +1,5 @@
 # CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
-SGX_LKL=/data/fkelbert/sgx-lkl-sim
+SGX_LKL=/data/fkelbert/sgx-lkl
 
 ALPINE_MAJOR=3.6
 ALPINE_VERSION=3.6.2
@@ -15,45 +15,49 @@ CLASSPATH_JARS=conf/:assembly/target/scala-2.11/jars/\*
 JVM=jre8-no-segv-nommap.tar.gz
 #JVM=jre8-no-segv-nommap-slowdebug.tar.gz
 
+IMG_NAME=alpine-rootfs.img
+
 .DELETE_ON_ERROR:
 
-all: alpine-rootfs.img test
+all: alpine-rootfs.img
 
 $(ALPINE_TAR): 
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"
 
-alpine-rootfs.img: $(ALPINE_TAR) buildenv.sh
-	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M
-	mkfs.ext4 "$@"
+prepare-image: $(ALPINE_TAR) buildenv.sh 
+	dd if=/dev/zero of="$(IMG_NAME)" count=$(IMAGE_SIZE_MB) bs=1M
+	mkfs.ext4 "$(IMG_NAME)"
+
 	sudo mkdir -p $(MOUNTPOINT)
-	sudo mount -t ext4 -o loop "$@" $(MOUNTPOINT)
+	sudo mount -t ext4 -o loop "$(IMG_NAME)" $(MOUNTPOINT)
 
 	sudo tar -C $(MOUNTPOINT) -xvf $(ALPINE_TAR)
-	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	sudo install buildenv.sh $(MOUNTPOINT)/usr/sbin
-	sudo cp $(SGX_LKL)/apps/jvm/$(JVM) .
-
-	# Copy Scala Library
 	sudo cp scala-library.jar $(MOUNTPOINT)/home
-
-	# Copy enclave jars and files into alpine disk image
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/lib
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars
-	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
-	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
-	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.*-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
-#	sudo cp    ../ring_buff/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
-	sudo cp    ../C/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
-
+	sudo cp    ../C/* $(MOUNTPOINT)/$(SPARK_DIR)/lib	
+	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
+	
 	sudo mkdir -p $(MOUNTPOINT)/opt
 	sudo tar -xf $(JVM) -C $(MOUNTPOINT)/opt
 
 	sudo chroot $(MOUNTPOINT) /bin/sh /usr/sbin/buildenv.sh
 
 	sudo umount $(MOUNTPOINT)
-	sudo chown $(USER) "$@"
+	sudo chown $(USER) "$(IMG_NAME)"
+
+finalize-image:
+	sudo mkdir -p $(MOUNTPOINT)
+	sudo mount -t ext4 -o loop "$(IMG_NAME)" $(MOUNTPOINT)
+	
+	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
+	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
+	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.*-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
+
+	sudo umount $(MOUNTPOINT)
 
 test: start-master start-worker start-enclave start-job
 
