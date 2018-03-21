@@ -11,31 +11,20 @@ import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
 class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 	def call(): Unit = {
 		while(true) {
-			try {
-				val recv = com.recvOne()
-				logDebug("Received: " + recv)
+			val recv = com.recvOne()
+			logDebug("Received: " + recv)
 
-				val result = recv match {
-					case x: SgxMessage[_] => x.execute()
+			val result = recv match {
+				case x: SgxMessage[_] => x.execute()
 
-					case x: SgxBroadcastProviderIdentifier =>
-						logDebug("Accessing broadcast provider " + x)
-						x.connect()
-						true
-
-					case x: MsgAccessFakeIterator[_] =>
-						logDebug("Accessing Fake iterator " + x)
-	//					SgxFactory.newSgxIteratorProvider[Any](SgxMain.fakeIterators.remove(x.fakeId), true).getIdentifier
-						x.fakeIt.provide()
-				}
-				logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
-
-				if (result != null) com.sendOne(result)
-			} catch {
-				case e: Exception =>
-					logDebug(e.getMessage)
-					logDebug(e.getStackTraceString)
+				case x: SgxBroadcastProviderIdentifier =>
+					logDebug("Accessing broadcast provider " + x)
+					x.connect()
+					true
 			}
+			
+      logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
+      if (result != null) com.sendOne(result)			
 		}
 
 		com.close()

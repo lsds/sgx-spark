@@ -1,0 +1,14 @@
+#!/bin/bash
+
+export SCALA_VERSION=2.11
+
+export SPARK_LOCAL_IP=127.0.0.1
+export SPARK_MASTER_PORT=7077
+export SPARK_MASTER_WEBUI_PORT=8082
+
+export SGX_USE_SHMEM=true
+export SGX_ENABLED=true
+export SGXLKL_SHMEM_SIZE=10240000
+export PREFETCH=8
+export CONNECTIONS=1
+

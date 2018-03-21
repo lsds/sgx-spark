@@ -16,8 +16,6 @@ import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.sgx.iterator.SgxIteratorConsumer
-import org.apache.spark.sgx.iterator.SgxIteratorProviderIdentifier
 
 object SgxRddFct {
 
@@ -36,15 +34,24 @@ object SgxRddFct {
 
 	def count[T](rddId: Int) =
 		new Count[T](rddId).send()
+		
+	def cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) = 
+	  new Cogroup[K,V,W](rddId1, rddId2, partitioner).send()
 
 	def filter[T](rddId: Int, f: T => Boolean) =
 		new Filter(rddId, f).send()
 
 	def flatMap[T,U: ClassTag](rddId: Int, f: T => TraversableOnce[U]) =
 		new FlatMap(rddId, f).send()
+	
+	def flatMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => TraversableOnce[U]) =
+		new FlatMapValues[U,V,K](rddId, f).send()
 
 	def fold[T](rddId: Int, v: T, op: (T,T) => T) =
 		new Fold(rddId, v, op).send()
+	
+	def join[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) =
+	  new Join[K,V,W](rddId1, rddId2, partitioner).send()
 
 	def map[T,U:ClassTag](rddId: Int, f: T => U) =
 		new Map(rddId, f).send()
@@ -88,6 +95,9 @@ object SgxRddFct {
 			V: ClassTag,
 			P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) =
 		new SortByKey[K,V,P](rddId, ascending, numPartitions).send()
+		
+  def take[T](rddId: Int, num: Int) =
+		new Take[T](rddId, num).send()
 
 	def unpersist[T](rddId: Int) =
 		new Unpersist[T](rddId).send()
@@ -100,7 +110,7 @@ private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
 	override def toString = this.getClass.getSimpleName + "(rddId=" + _rddId + ")"
 }
 
-private case class Collect[T](rddId: Int) extends SgxMessage[Array[T]] {
+private case class Collect[T](rddId: Int) extends SgxTaskRDD[Array[T]](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
 	}, Duration.Inf)
@@ -127,6 +137,13 @@ private case class Count[T](rddId: Int) extends SgxTaskRDD[Long](rddId) {
 	}, Duration.Inf)
 }
 
+private case class Cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) extends SgxTaskRDD[RDD[(K, (Iterable[V], Iterable[W]))]](rddId1) {
+	def execute() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[(K, V)]]).cogroup(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[(K, W)]], partitioner)
+		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
+
 private case class Filter[T](rddId: Int, f: T => Boolean) extends SgxTaskRDD[RDD[T]](rddId) {
 	def execute() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].filter(f)
@@ -141,6 +158,14 @@ private case class FlatMap[T,U:ClassTag](rddId: Int, f: T => TraversableOnce[U])
 	}, Duration.Inf)
 }
 
+private case class FlatMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => TraversableOnce[U]) extends SgxTaskRDD[RDD[(K, U)]](rddId) {
+	def execute() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).flatMapValues(f)
+		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
+
+
 private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[T](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].fold(v)(op)
@@ -148,6 +173,13 @@ private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[
 
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", rddId=" + rddId + ")"
 }
+
+private case class Join[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) extends SgxTaskRDD[RDD[(K, (V, W))]](rddId1) {
+	def execute() = Await.result( Future {
+		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[(K,V)]]).join(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[(K,W)]], partitioner)
+		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+} 
 
 private case class Map[T,U:ClassTag](rddId: Int, f: T => U) extends SgxTaskRDD[RDD[U]](rddId) {
 	def execute() = Await.result( Future {
@@ -194,6 +226,12 @@ private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Dou
 	def execute() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
 		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
+
+private case class Take[T](rddId: Int, num: Int) extends SgxTaskRDD[Array[T]](rddId) {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num)
 	}, Duration.Inf)
 }
 

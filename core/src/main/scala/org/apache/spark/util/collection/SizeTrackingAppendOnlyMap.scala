@@ -17,12 +17,36 @@
 
 package org.apache.spark.util.collection
 
+import org.apache.spark.sgx.IdentifierManager
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxFct
+
+private object SizeTrackingAppendOnlyMaps extends IdentifierManager[SizeTrackingAppendOnlyMap[Any,Any]]() {}
+
+case class SizeTrackingAppendOnlyMapIdentifier(id: Long) extends Serializable {
+	def getMap[K,V] = SizeTrackingAppendOnlyMaps.get(id).asInstanceOf[SizeTrackingAppendOnlyMap[K,V]]
+}
+
 /**
  * An append-only map that keeps track of its estimated size in bytes.
  */
 private[spark] class SizeTrackingAppendOnlyMap[K, V]
   extends AppendOnlyMap[K, V] with SizeTracker
 {
+
+  val id = sgxinit()
+  
+  def sgxinit() = {  
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
+   	  SgxFct.sizeTrackingAppendOnlyMapCreate()
+    else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+   	  val i = scala.util.Random.nextLong
+   	  SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
+   	  new SizeTrackingAppendOnlyMapIdentifier(i)
+    }
+    else new SizeTrackingAppendOnlyMapIdentifier(0)
+  }
+
   override def update(key: K, value: V): Unit = {
     super.update(key, value)
     super.afterUpdate()

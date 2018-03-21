@@ -49,7 +49,11 @@ import org.apache.spark.storage.*;
 import org.apache.spark.util.Utils;
 
 import org.apache.spark.sgx.iterator.SgxFakeIterator;
+import org.apache.spark.sgx.iterator.SgxFakeIteratorException;
+import org.apache.spark.sgx.iterator.SgxFakePairIndicator;
+import org.apache.spark.sgx.Encrypted;
 import org.apache.spark.sgx.SgxSettings;
+import org.apache.spark.sgx.SgxFct;
 
 /**
  * This class implements sort-based shuffle's hash-style shuffle fallback path. This write path
@@ -127,10 +131,14 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     assert (partitionWriters == null);
 
     Iterator<Product2<K, V>> records = records2;
-    if (SgxSettings.SGX_ENABLED() && (records2 instanceof SgxFakeIterator)) {
-    	records = ((SgxFakeIterator<Product2<K, V>>) records2).access();
+    if (SgxSettings.SGX_ENABLED()) {
+    	try {
+    		records2.hasNext();
+    	} catch (SgxFakeIteratorException e) {    		
+        	records = ((SgxFakeIterator<Product2<K, V>>) records2).access();    		
+    	}    	
     }
-    
+
     if (!records.hasNext()) {
       partitionLengths = new long[numPartitions];
       shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, null);
@@ -155,9 +163,15 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - openStartTime);
 
     while (records.hasNext()) {
-      final Product2<K, V> record = records.next();
-      final K key = record._1();
-      partitionWriters[partitioner.getPartition(key)].write(key, record._2());
+      final Object r = records.next();
+      if (SgxSettings.SGX_ENABLED() && r instanceof Encrypted) {
+      	partitionWriters[SgxFct.getPartitionFirstOfPair(partitioner, (Encrypted) r)].write(r, new SgxFakePairIndicator());
+      }
+      else if (r instanceof Product2) {
+    	final Product2<K, V> record = (Product2<K, V>) r;
+    	final K key = record._1();
+    	partitionWriters[partitioner.getPartition(key)].write(key, record._2());
+      }
     }
 
     for (int i = 0; i < numPartitions; i++) {

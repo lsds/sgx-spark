@@ -19,7 +19,13 @@ package org.apache.spark.util.collection
 
 import java.util.Comparator
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.storage.DiskBlockObjectWriter
+import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.Encrypt
+import org.apache.spark.sgx.Encrypted
+import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
 
 /**
  * A common interface for size-tracking collections of key-value pairs that
@@ -49,7 +55,7 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
   def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]])
     : WritablePartitionedIterator = {
     val it = partitionedDestructiveSortedIterator(keyComparator)
-    new WritablePartitionedIterator {
+    new WritablePartitionedIterator with Logging {
       private[this] var cur = if (it.hasNext) it.next() else null
 
       def writeNext(writer: DiskBlockObjectWriter): Unit = {
@@ -60,6 +66,13 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
       def hasNext(): Boolean = cur != null
 
       def nextPartition(): Int = cur._1._1
+
+      def getNext[T]() = {
+    	  val c = cur.asInstanceOf[T]
+    	  cur = if (it.hasNext) it.next() else null
+    	  logDebug("getNext: " + cur)
+    	  Encrypt(c)
+      }
     }
   }
 }
@@ -101,4 +114,7 @@ private[spark] trait WritablePartitionedIterator {
   def hasNext(): Boolean
 
   def nextPartition(): Int
+
+  def getNext[T](): Encrypted
 }
+

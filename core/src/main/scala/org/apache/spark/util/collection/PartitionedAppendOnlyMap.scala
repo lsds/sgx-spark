@@ -21,12 +21,35 @@ import java.util.Comparator
 
 import org.apache.spark.util.collection.WritablePartitionedPairCollection._
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.SgxSettings
+
+import org.apache.spark.sgx.IdentifierManager
+
+//private object PartitionedAppendOnlyMaps extends IdentifierManager[PartitionedAppendOnlyMap[Any,Any]]() {}
+
+//case class PartitionedAppendOnlyMapIdentifier(id: Long) extends Serializable {
+//	def getMap[K,V] = PartitionedAppendOnlyMaps.get(id).asInstanceOf[PartitionedAppendOnlyMap[K,V]]
+//}
+
 /**
  * Implementation of WritablePartitionedPairCollection that wraps a map in which the keys are tuples
  * of (partition ID, K)
  */
 private[spark] class PartitionedAppendOnlyMap[K, V]
   extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] {
+
+  override def sgxinit() = {
+	  if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
+	 	  SgxFct.partitionedAppendOnlyMapCreate()
+	  else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+  	 	val i = scala.util.Random.nextLong
+  	 	SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
+  	 	new SizeTrackingAppendOnlyMapIdentifier(i)
+	  }
+	  else new SizeTrackingAppendOnlyMapIdentifier(0)
+  }
 
   def partitionedDestructiveSortedIterator(keyComparator: Option[Comparator[K]])
     : Iterator[((Int, K), V)] = {
@@ -36,5 +59,12 @@ private[spark] class PartitionedAppendOnlyMap[K, V]
 
   def insert(partition: Int, key: K, value: V): Unit = {
     update((partition, key), value)
+  }
+
+  override def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]])
+    : WritablePartitionedIterator = {
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
+      SgxFct.partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator)
+    else super.destructiveSortedWritablePartitionedIterator(keyComparator)
   }
 }

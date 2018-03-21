@@ -257,7 +257,7 @@ class KMeans private (
         if (initializationMode == KMeans.RANDOM) {
           initRandom(data)
         } else {
-          initKMeansParallel(data)
+		  initKMeansParallel(data)
         }
     }
     val initTimeInSeconds = (System.nanoTime() - initStartTime) / 1e9
@@ -291,16 +291,17 @@ class KMeans private (
           axpy(1.0, point.vector, sum)
           counts(bestCenter) += 1
         }
-
         counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
-      }.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
+      }
+      .reduceByKey { case ((sum1, count1), (sum2, count2)) =>
         axpy(1.0, sum2, sum1)
         (sum1, count1 + count2)
-      }.mapValues { case (sum, count) =>
+      }
+     .mapValues { case (sum, count) =>
         scal(1.0 / count, sum)
         new VectorWithNorm(sum)
-      }.collectAsMap()
-
+      }
+      .collectAsMap()
       bcCenters.destroy(blocking = false)
 
       // Update the cluster centers and costs
@@ -356,6 +357,7 @@ class KMeans private (
     // Initialize the first center to a random point.
     val seed = new XORShiftRandom(this.seed).nextInt()
     val sample = data.takeSample(false, 1, seed)
+
     // Could be empty if data is empty; fail with a better message early:
     require(sample.nonEmpty, s"No samples available from $data")
 
@@ -376,7 +378,6 @@ class KMeans private (
         math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
       }.persist(StorageLevel.MEMORY_AND_DISK)
       val sumCosts = costs.sum()
-
       bcNewCenters.unpersist(blocking = false)
       preCosts.unpersist(blocking = false)
 
@@ -384,8 +385,10 @@ class KMeans private (
         val rand = new XORShiftRandom(seed ^ (step << 16) ^ index)
         pointCosts.filter { case (_, c) => rand.nextDouble() < 2.0 * c * k / sumCosts }.map(_._1)
       }.collect()
+
       newCenters = chosen.map(_.toDense)
       centers ++= newCenters
+
       step += 1
     }
 
@@ -393,7 +396,6 @@ class KMeans private (
     bcNewCentersList.foreach(_.destroy(false))
 
     val distinctCenters = centers.map(_.vector).distinct.map(new VectorWithNorm(_))
-
     if (distinctCenters.size <= k) {
       distinctCenters.toArray
     } else {
@@ -402,9 +404,7 @@ class KMeans private (
       // on the weighted centers to pick k of them
       val bcCenters = data.context.broadcast(distinctCenters)
       val countMap = data.map(KMeans.findClosest(bcCenters.value, _)._1).countByValue()
-
       bcCenters.destroy(blocking = false)
-
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
       LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)
     }

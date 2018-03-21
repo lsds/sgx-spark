@@ -23,8 +23,11 @@ import com.google.common.hash.Hashing
 
 import org.apache.spark.annotation.DeveloperApi
 
-import org.apache.spark.sgx.SgxFct
+import org.apache.spark.internal.Logging
+
 import org.apache.spark.sgx.SgxSettings
+
+
 
 /**
  * :: DeveloperApi ::
@@ -41,7 +44,7 @@ import org.apache.spark.sgx.SgxSettings
  */
 @DeveloperApi
 class AppendOnlyMap[K, V](initialCapacity: Int = 64)
-  extends Iterable[(K, V)] with Serializable {
+  extends Iterable[(K, V)] with Serializable with Logging {
 
   import AppendOnlyMap._
 
@@ -129,15 +132,18 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
    * for key, if any, or null otherwise. Returns the newly updated value.
    */
   def changeValue(key: K, updateFunc: (Boolean, V) => V): V = {
+	if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) {
+	  throw new RuntimeException("Move this functionality inside enclave")
+	}
     assert(!destroyed, destructionMessage)
     val k = key.asInstanceOf[AnyRef]
     if (k.eq(null)) {
       if (!haveNullValue) {
         incrementSize()
       }
-      if (SgxSettings.SGX_ENABLED)
-      nullValue = SgxFct.fct2[Boolean,V,V](updateFunc, haveNullValue, nullValue)
-      else
+//      if (SgxSettings.SGX_ENABLED)
+//      nullValue = SgxFct.fct2[Boolean,V,V](updateFunc, haveNullValue, nullValue)
+//      else
       nullValue = updateFunc(haveNullValue, nullValue)
       haveNullValue = true
       return nullValue
@@ -147,15 +153,19 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
     while (true) {
       val curKey = data(2 * pos)
       if (curKey.eq(null)) {
-        val newValue = if (SgxSettings.SGX_ENABLED) SgxFct.fct2[Boolean,V,V](updateFunc, false, null.asInstanceOf[V])
-        else updateFunc(false, null.asInstanceOf[V])
+        val newValue =
+//        	if (SgxSettings.SGX_ENABLED) SgxFct.fct2[Boolean,V,V](updateFunc, false, null.asInstanceOf[V])
+//        else
+        	updateFunc(false, null.asInstanceOf[V])
         data(2 * pos) = k
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         incrementSize()
         return newValue
       } else if (k.eq(curKey) || k.equals(curKey)) {
-        val newValue = if (SgxSettings.SGX_ENABLED) SgxFct.fct2[Boolean,V,V](updateFunc, true, data(2 * pos + 1).asInstanceOf[V])
-        else updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
+        val newValue =
+//        	if (SgxSettings.SGX_ENABLED) SgxFct.fct2[Boolean,V,V](updateFunc, true, data(2 * pos + 1).asInstanceOf[V])
+//        else
+        	updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         return newValue
       } else {

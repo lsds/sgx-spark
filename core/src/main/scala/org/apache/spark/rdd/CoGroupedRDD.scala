@@ -29,6 +29,12 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.util.Utils
 import org.apache.spark.util.collection.{CompactBuffer, ExternalAppendOnlyMap}
 
+import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.Encrypted
+import org.apache.spark.sgx.iterator.SgxFakePairIndicator
+
 /**
  * The references to rdd and splitIndex are transient because redundant information is stored
  * in the CoGroupedRDD object.  Because CoGroupedRDD is serialized separately from
@@ -131,6 +137,8 @@ class CoGroupedRDD[K: ClassTag](
   override def compute(s: Partition, context: TaskContext): Iterator[(K, Array[Iterable[_]])] = {
     val split = s.asInstanceOf[CoGroupPartition]
     val numRdds = dependencies.length
+    
+    logDebug("compute CoGroupedRDD")
 
     // A list of (rdd iterator, dependency number) pairs
     val rddIterators = new ArrayBuffer[(Iterator[Product2[K, Any]], Int)]
@@ -147,15 +155,29 @@ class CoGroupedRDD[K: ClassTag](
           .getReader(shuffleDependency.shuffleHandle, split.index, split.index + 1, context)
           .read()
         rddIterators += ((it, depNum))
+        
+//        xxxxx // problem here: CoGroupedRDD: iter (org.apache.spark.sgx.EncryptedObj@55d43a27,org.apache.spark.sgx.iterator.SgxFakePairIndicator@3837de66)
+        // it == Iterator[(Encrypted,SgxFakePairIndicator)]
+        // Need to handle this case and 
+        // - provide only first value to map.insertAll below
+        // - make sure that the enclave converts its value to Product2[]
     }
 
     val map = createExternalMap(numRdds)
     for ((it, depNum) <- rddIterators) {
+      if (SgxSettings.SGX_ENABLED) {
+        map.insertAll(it.asInstanceOf[Iterator[(Encrypted,SgxFakePairIndicator)]], depNum)
+      } else
       map.insertAll(it.map(pair => (pair._1, new CoGroupValue(pair._2, depNum))))
     }
     context.taskMetrics().incMemoryBytesSpilled(map.memoryBytesSpilled)
     context.taskMetrics().incDiskBytesSpilled(map.diskBytesSpilled)
     context.taskMetrics().incPeakExecutionMemory(map.peakMemoryUsedBytes)
+    if (SgxSettings.SGX_ENABLED) {
+      logDebug("CoGrouped: " + map.iterator.asInstanceOf[Iterator[(K, Array[Iterable[_]])]])
+      map.iterator.asInstanceOf[Iterator[(K, Array[Iterable[_]])]]
+    }
+    else
     new InterruptibleIterator(context,
       map.iterator.asInstanceOf[Iterator[(K, Array[Iterable[_]])]])
   }

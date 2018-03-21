@@ -34,6 +34,10 @@ import org.apache.spark.storage.{BlockId, DiskBlockObjectWriter}
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.SgxIteratorFct
+
+import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.Encrypt
 
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
@@ -147,7 +151,7 @@ private[spark] class ExternalSorter[K, V, C](
   // user. (A partial ordering means that equal keys have comparator.compare(k, k) = 0, but some
   // non-equal keys also have this, so we need to do a later pass to find truly equal keys).
   // Note that we ignore this if no aggregator and no ordering are given.
-  private val keyComparator: Comparator[K] = ordering.getOrElse(new Comparator[K] {
+  private val keyComparator: Comparator[K] = ordering.getOrElse(new Comparator[K] with Serializable {
     override def compare(a: K, b: K): Int = {
       val h1 = if (a == null) 0 else a.hashCode()
       val h2 = if (b == null) 0 else b.hashCode()
@@ -170,7 +174,7 @@ private[spark] class ExternalSorter[K, V, C](
     file: File,
     blockId: BlockId,
     serializerBatchSizes: Array[Long],
-    elementsPerPartition: Array[Long])
+    elementsPerPartition: Array[Long]) extends Logging
 
   private val spills = new ArrayBuffer[SpilledFile]
 
@@ -184,36 +188,77 @@ private[spark] class ExternalSorter[K, V, C](
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
 
-    val records = if (SgxSettings.SGX_ENABLED) records2 match {
-      case f: SgxFakeIterator[Product2[K, V]] => f.access()
-      case i: Iterator[Product2[K, V]] => i
-    } else records2
-
-    if (shouldCombine) {
-      // Combine values in-memory first using our AppendOnlyMap
-      val mergeValue = aggregator.get.mergeValue
-      val createCombiner = aggregator.get.createCombiner
-      var kv: Product2[K, V] = null
-      val update = (hadValue: Boolean, oldValue: C) => {
-        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+     if (SgxSettings.SGX_ENABLED) {
+      if (records2.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) {
+    	val it = records2.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
+        if (shouldCombine) {
+          val mergeValue = aggregator.get.mergeValue
+          val createCombiner = aggregator.get.createCombiner
+          SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](it, map.id, mergeValue, createCombiner, shouldPartition, partitioner)
+    	} else {
+        throw new Exception("not implemented ExternalSorter.insertAll")
+    	}
+//        f.access() // REMOVE
       }
-      while (records.hasNext) {
-        addElementsRead()
-        kv = records.next()
-        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
-        else
-        map.changeValue((getPartition(kv._1), kv._1), update)
-        maybeSpillCollection(usingMap = true)
-      }
-    } else {
-      // Stick values into our buffer
-      while (records.hasNext) {
-        addElementsRead()
-        val kv = records.next()
-        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
-        maybeSpillCollection(usingMap = false)
-      }
+//      case i: Iterator[Product2[K, V]] => i
     }
+
+//    if (shouldCombine) {
+//      // Combine values in-memory first using our AppendOnlyMap
+//      val mergeValue = aggregator.get.mergeValue
+//      val createCombiner = aggregator.get.createCombiner
+//      var kv: Product2[K, V] = null
+//      val update = (hadValue: Boolean, oldValue: C) => {
+//        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+//      }
+//      while (records.hasNext) {
+//        addElementsRead()
+//        kv = records.next()
+//        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
+//        else
+//        map.changeValue((getPartition(kv._1), kv._1), update)
+//        maybeSpillCollection(usingMap = true)
+//      }
+//    } else {
+//      // Stick values into our buffer
+//      while (records.hasNext) {
+//        addElementsRead()
+//        val kv = records.next()
+//        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
+//        maybeSpillCollection(usingMap = false)
+//      }
+//    }
+
+//    val records = if (SgxSettings.SGX_ENABLED) records2 match {
+//      case f: SgxFakeIterator[Product2[K, V]] => f.access()
+//      case i: Iterator[Product2[K, V]] => i
+//    } else records2
+//
+//    if (shouldCombine) {
+//      // Combine values in-memory first using our AppendOnlyMap
+//      val mergeValue = aggregator.get.mergeValue
+//      val createCombiner = aggregator.get.createCombiner
+//      var kv: Product2[K, V] = null
+//      val update = (hadValue: Boolean, oldValue: C) => {
+//        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+//      }
+//      while (records.hasNext) {
+//        addElementsRead()
+//        kv = records.next()
+//        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
+//        else
+//        map.changeValue((getPartition(kv._1), kv._1), update)
+//        maybeSpillCollection(usingMap = true)
+//      }
+//    } else {
+//      // Stick values into our buffer
+//      while (records.hasNext) {
+//        addElementsRead()
+//        val kv = records.next()
+//        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
+//        maybeSpillCollection(usingMap = false)
+//      }
+//    }
   }
 
   /**
@@ -486,7 +531,7 @@ private[spark] class ExternalSorter[K, V, C](
    * An internal class for reading a spilled file partition by partition. Expects all the
    * partitions to be requested in order.
    */
-  private[this] class SpillReader(spill: SpilledFile) {
+  private[this] class SpillReader(spill: SpilledFile) extends Logging{
     // Serializer batch offsets; size will be batchSize.length + 1
     val batchOffsets = spill.serializerBatchSizes.scanLeft(0L)(_ + _)
 
@@ -734,6 +779,7 @@ private[spark] class ExternalSorter[K, V, C](
   }
 
   def stop(): Unit = {
+
     spills.foreach(s => s.file.delete())
     spills.clear()
     forceSpillFiles.foreach(s => s.file.delete())
@@ -764,8 +810,9 @@ private[spark] class ExternalSorter[K, V, C](
    * partitioned iterators from our in-memory collection.
    */
   private[this] class IteratorForPartition(partitionId: Int, data: BufferedIterator[((Int, K), C)])
-    extends Iterator[Product2[K, C]]
+    extends Iterator[Product2[K, C]] with Logging
   {
+
     override def hasNext: Boolean = data.hasNext && data.head._1._1 == partitionId
 
     override def next(): Product2[K, C] = {
@@ -778,7 +825,7 @@ private[spark] class ExternalSorter[K, V, C](
   }
 
   private[this] class SpillableIterator(var upstream: Iterator[((Int, K), C)])
-    extends Iterator[((Int, K), C)] {
+    extends Iterator[((Int, K), C)] with Logging {
 
     private val SPILL_LOCK = new Object()
 
@@ -803,6 +850,10 @@ private[spark] class ExternalSorter[K, V, C](
           def hasNext(): Boolean = cur != null
 
           def nextPartition(): Int = cur._1._1
+
+          def getNext[T]() = {
+        	  Encrypt(cur.asInstanceOf[T])
+          }
         }
         logInfo(s"Task ${context.taskAttemptId} force spilling in-memory map to disk and " +
           s" it will release ${org.apache.spark.util.Utils.bytesToString(getUsed())} memory")

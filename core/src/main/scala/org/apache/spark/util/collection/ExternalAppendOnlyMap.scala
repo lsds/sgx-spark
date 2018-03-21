@@ -35,13 +35,14 @@ import org.apache.spark.storage.{BlockId, BlockManager}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalAppendOnlyMap.HashComparator
 
+import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
-
-class SgxUpdate[C,K,V](createCombiner: V => C, mergeValue: (C, V) => C, curEntry: Product2[K, V]) extends Serializable {
-  def update(hadVal: Boolean, oldVal: C) = {
-    if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
-  }
-}
+import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.Encrypted
+import org.apache.spark.sgx.iterator.SgxFakePairIndicator
+import org.apache.spark.sgx.iterator.SgxIteratorProvider
+import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
 
 /**
  * :: DeveloperApi ::
@@ -136,6 +137,11 @@ class ExternalAppendOnlyMap[K, V, C](
   def insert(key: K, value: V): Unit = {
     insertAll(Iterator((key, value)))
   }
+  
+  def insertAll(entries: Iterator[(Encrypted,SgxFakePairIndicator)], depNum: Int): Unit = {
+    val id = SgxFactory.newSgxIteratorProvider(entries, true).getIdentifier.asInstanceOf[SgxIteratorIdentifier[Product2[K,V]]]
+    SgxIteratorFct.externalAppendOnlyMapInsertAll[K,V,C](id, currentMap.id, mergeValue, createCombiner, depNum)
+  }
 
   /**
    * Insert the given iterator of keys and values into the map.
@@ -153,24 +159,29 @@ class ExternalAppendOnlyMap[K, V, C](
     }
     // An update function for the map that we reuse across entries to avoid allocating
     // a new closure each time
-    var curEntry: Product2[K, V] = null
-    val update: (Boolean, C) => C = (hadVal, oldVal) => {
-      if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
-    }
 
-    while (entries.hasNext) {
-      curEntry = entries.next()
-      val estimatedSize = currentMap.estimateSize()
-      if (estimatedSize > _peakMemoryUsedBytes) {
-        _peakMemoryUsedBytes = estimatedSize
+    if (SgxSettings.SGX_ENABLED) {
+      val id = SgxFactory.newSgxIteratorProvider(entries, true).getIdentifier
+      SgxIteratorFct.externalAppendOnlyMapInsertAll[K,V,C](id, currentMap.id, mergeValue, createCombiner)
+    }
+    else {
+      var curEntry: Product2[K, V] = null
+      val update: (Boolean, C) => C = (hadVal, oldVal) => {
+        if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
       }
-      if (maybeSpill(currentMap, estimatedSize)) {
-        currentMap = new SizeTrackingAppendOnlyMap[K, C]
+
+      while (entries.hasNext) {
+        curEntry = entries.next()
+        val estimatedSize = currentMap.estimateSize()
+        if (estimatedSize > _peakMemoryUsedBytes) {
+          _peakMemoryUsedBytes = estimatedSize
+        }
+        if (maybeSpill(currentMap, estimatedSize)) {
+          currentMap = new SizeTrackingAppendOnlyMap[K, C]
+        }
+        currentMap.changeValue(curEntry._1, update)
+        addElementsRead()
       }
-      if (SgxSettings.SGX_ENABLED) currentMap.changeValue(curEntry._1, new SgxUpdate[C,K,V](createCombiner, mergeValue, curEntry).update)
-      else
-      currentMap.changeValue(curEntry._1, update)
-      addElementsRead()
     }
   }
 
@@ -285,6 +296,7 @@ class ExternalAppendOnlyMap[K, V, C](
    * If no spill has occurred, simply return the in-memory map's iterator.
    */
   override def iterator: Iterator[(K, C)] = {
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) return SgxFct.externalAppendOnlyMapIterator[K,C](currentMap.id)
     if (currentMap == null) {
       throw new IllegalStateException(
         "ExternalAppendOnlyMap.iterator is destructive and should only be called once.")

@@ -21,12 +21,23 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 				consumer.close
 			}
 			else consumer.objects.addAll({
-				if (SgxSettings.IS_ENCLAVE)
-					(list.map { n => n.decrypt[T] }).asJava
-				else {
-					(list.map { n => n.asInstanceOf[T] }).asJava
+				if (SgxSettings.IS_ENCLAVE) {
+					val l = list.map(n => n.decrypt[T])
+//					if (l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+					if (consumer.context == "" && l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+					  try{
+					    new RuntimeException("moep")
+					  } catch {
+					    case e: Exception => logDebug("yyyy " + e.getMessage)
+					  }
+					  l.map(c => {
+					    val y = c.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[Pair[Pair[Any,Any],Any]]
+					    (y._1._2,y._2).asInstanceOf[T]
+					  })
+					} else l
 				}
-			})
+				else list.map(n => n.asInstanceOf[T])
+			}.asJava)
 
 		}
 		logDebug("new objects: " + consumer.objects)
@@ -38,7 +49,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 	override def toString() = getClass.getSimpleName + "(consumer=" + consumer + ")"
 }
 
-class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T]) extends Iterator[T] with Logging {
+class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: String = "") extends Iterator[T] with Logging {
 
 	logDebug(this + " connecting to: " + id)
 

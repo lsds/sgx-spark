@@ -29,7 +29,6 @@ import org.apache.spark.internal.Logging
 object KMeansExample extends Logging {
 
   def main(args: Array[String]) {
-
     val conf = new SparkConf().setAppName("KMeansExample")
     val sc = new SparkContext(conf)
 

@@ -37,7 +37,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 
 	def call(): Unit = {
 		val com = do_accept
-		logDebug(this + " got connection: " + com + " and provides " + identifier)
+		logDebug(this + " got connection: " + com)
 
 		var running = true
 		while (running) {
