@@ -719,6 +719,7 @@ class SparkContext(config: SparkConf) extends Logging {
   def parallelize[T: ClassTag](
       seq: Seq[T],
       numSlices: Int = defaultParallelism): RDD[T] = withScope {
+    if (outcall) return SgxSparkContextFct.parallelize(seq)
     assertNotStopped()
     new ParallelCollectionRDD[T](this, seq, numSlices, Map[Int, Seq[String]]())
   }

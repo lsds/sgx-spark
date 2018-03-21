@@ -29,6 +29,9 @@ import org.apache.spark._
 import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxSettings
+
 private[spark] class ParallelCollectionPartition[T: ClassTag](
     var rddId: Long,
     var slice: Int,
