@@ -19,7 +19,7 @@ IMG_NAME=alpine-rootfs.img
 
 .DELETE_ON_ERROR:
 
-all: alpine-rootfs.img
+all: prepare-image finalize-image
 
 $(ALPINE_TAR): 
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"

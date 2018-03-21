@@ -15,12 +15,12 @@ export IS_DRIVER=false
 export IS_ENCLAVE=true
 
 ${SGXLKL_DIR}/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
--XX:InitialCodeCacheSize=8m \
--XX:ReservedCodeCacheSize=8m \
--Xms16m \
--Xmx16m \
--XX:CompressedClassSpaceSize=8m \
--XX:MaxMetaspaceSize=32m \
+-XX:InitialCodeCacheSize=32m \
+-XX:ReservedCodeCacheSize=32m \
+-Xms512m \
+-Xmx512m \
+-XX:CompressedClassSpaceSize=32m \
+-XX:MaxMetaspaceSize=128m \
 -XX:+UseCompressedClassPointers \
 -XX:+UseMembar \
 -XX:+AssumeMP \
