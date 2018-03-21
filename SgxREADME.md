@@ -1,20 +1,164 @@
-# Prerequisites
+# Sgx-Spark
 
-As Sgx-Spark uses [sgx-lkl](https://lsds.doc.ic.ac.uk/gitlab/sereca/sgx-lkl), the
+This is [Apache Spark](https://github.com/apache/spark) with modifications to run
+security sensitive code inside Intl SGX enclaves. The implementation leverages
+[sgx-lkl](https://github.com/lsds/sgx-lkl), a library OS that allows to run
+Java-based applications inside SGX enclaves.
+
+## Docker quick start
+
+This guide shows how to run Sgx-Spark in a few simple steps using Docker. 
+Most parts of the setup and deployment are wrapped within Docker containers.
+Compliation and deployment should thus be smooth.
+
+### Preparing the Sgx-Spark Docker environment
+
+- Clone this Sgx-Spark repository
+
+- Build the Sgx-Spark base image. The name of the resulting Docker image is `sgxpsark`. This process might take a while (30-60 mins):
+    
+    ```
+    sgx-spark/dockerfiles$ docker build -t sgxspark .
+    ```
+
+- Prepare the disk image that will be required by sgx-lkl. Due to restrictions of Docker, this step can currently not be implemented as part of the above Docker build process. Thus, this step is platform-dependent. The process has been successfully tested on Ubuntu 16.04 and Arch Linux:
+
+    ```
+    sgx-spark/lkl$ make prepare-image
+    ```
+
+- Create a Docker network device that will be used for communication by the Docker containers:
+
+    ```
+    sgx-spark$ docker network create sgxsparknet
+    ```
+
+### Running Sgx-Spark jobs using Docker
+
+
+From within directory `sgx-spark/dockerfiles`, run the Sgx-Spark master node,
+the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
+
+- Run the Sgx-Spark master node:
+
+    ```
+    sgx-spark/dockerfiles$ docker run \
+    --user user \
+    --env-file $(pwd)/docker-env \
+    --net sgxsparknet \
+    --name sgxspark-docker-master \
+    -p 7077:7077 \
+    -p 8082:8082 \
+    -ti sgxspark /sgx-spark/master.sh
+    ```
+
+- Run the Sgx-Spark worker node:
+
+    ```
+    sgx-spark/dockerfiles$ docker run \
+    --user user \
+    --env-file $(pwd)/docker-env \
+    --net sgxsparknet \
+    --privileged \
+    -v $(pwd)/../lkl:/spark-image:ro \
+    -ti sgxspark /sgx-spark/worker-and-enclave.sh
+    ```
+
+- Run the Sgx-Spark job as follows.
+
+    As of writing, the three jobs below are known to be fully supported:
+
+    - WordCount
+    
+        ```
+        sgx-spark/dockerfiles$ docker run \
+        --user user \
+        --env-file $(pwd)/docker-env \
+        --net sgxsparknet \
+        --privileged \
+        -v $(pwd)/../lkl:/spark-image:ro \
+        -e SPARK_JOB_CLASS=org.apache.spark.examples.MyWordCount \
+        -e SPARK_JOB_NAME=WordCount \
+        -e SPARK_JOB_ARG0=README.md \
+        -e SPARK_JOB_ARG1=output \
+        -ti sgxspark /sgx-spark/driver-and-enclave.sh
+        ```
+        
+    - KMeans
+
+        ```
+        sgx-spark/dockerfiles$ docker run \
+        --user user \
+        --env-file $(pwd)/docker-env \
+        --net sgxsparknet \
+        --privileged \
+        -v $(pwd)/../lkl:/spark-image:ro \
+        -e SPARK_JOB_CLASS=org.apache.spark.examples.mllib.KMeansExample \
+        -e SPARK_JOB_NAME=KMeans \
+        -e SPARK_JOB_ARG0=data/mllib/kmeans_data.txt \
+        -ti sgxspark /sgx-spark/driver-and-enclave.sh
+        ```
+        
+    - Smart grid fault detection
+    
+        ```
+        sgx-spark/dockerfiles$ docker run \
+        --user user \
+        --env-file $(pwd)/docker-env \
+        --net sgxsparknet \
+        --privileged \
+        -v $(pwd)/../lkl:/spark-image:ro \
+        -e SPARK_JOB_CLASS=org.apache.spark.examples.lactec.Example2 \
+        -e SPARK_JOB_NAME=lactec2 \
+        -e SPARK_JOB_ARG0=FaultsLactecAPP/TestCustomer.csv \
+        -e SPARK_JOB_ARG1=FaultsLactecAPP/TestDSM.csv \
+        -e SPARK_JOB_ARG2=FaultsLactecAPP/TestFaults.csv \
+        -e SPARK_JOB_ARG3=2016-01-01 \
+        -e SPARK_JOB_ARG4=2016-01-31 \
+        -ti sgxspark /sgx-spark/driver-and-enclave.sh
+        ```   
+
+## Conventional compilation, installation and deployment
+
+As Sgx-Spark uses [sgx-lkl](https://github.com/lsds/sgx-lkl), the
 latter must have been downloaded and compiled successfully. In addition, please
-ensure that sgx-lkl executes simple Java applications successfully.
+ensure that sgx-lkl executes simple Java applications successfully. For this,
+please follow the documentation that comes with sgx-lkl.
 
-# Build Sgx-Spark
+### Build Sgx-Spark
 
-- Remove existing Hadoop Maven files to ensure that we will be using our customised Hadoop library:
+- Remove existing Hadoop Maven files to ensure that we will be using the customised Hadoop library that ships with Sgx-Spark:
 
-    `# rm -rf ~/.m2/repository/org/apache/hadoop/`
+    ```
+    $ rm -rf ~/.m2/repository/org/apache/hadoop/
+    ```
 
-- Build a modified version of Hadoop. This version has been modified to make simple datatypes serialisable:
+- Build the customised Hadoop library that ships with Sgx-Spark. This version of Hadoop has been modified to make simple datatypes serialisable:
 
-    You need to have Google Protocol Buffers 2.5 installed (see https://stackoverflow.com/a/29799354/2273470). Note that these instructions are for Arch Linux. For Ubuntu 16.04, you'll need to remove the existing protoc installed by default (version 2.6.1) and when running configure for 2.5.0, don't specify the prefix flag.
+    For this step, Google Protocol Buffers (GPB) v2.5 is required.
+    
+    - Make sure to uninstall any other versions of GPB
+    
+    - Install GBP v2.5
+    
+        Instructions for Ubuntu 16.04 are as follows:
 
-    `sgx-spark/hadoop-2.6.5-src# mvn package -DskipTests`
+            $ cd /tmp
+            /tmp$ wget https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.gz
+        	/tmp$ tar xvf protobuf-2.5.0.tar.gz
+        	/tmp$ cd protobuf-2.5.0
+        	/tmp/protobuf-2.5.0$ ./autogen.sh
+        	/tmp/protobuf-2.5.0$ ./configure
+        	/tmp/protobuf-2.5.0$ make
+        	/tmp/protobuf-2.5.0$ sudo make install
+
+    	An installation guide for Arch Linux is available at https://stackoverflow.com/a/29799354/2273470.
+
+    - Compile the customised Hadoop library:
+    
+        ```
+        sgx-spark/hadoop-2.6.5-src# mvn package -DskipTests
+        ```
 
 - Build Spark:
 
