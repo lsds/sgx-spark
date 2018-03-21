@@ -32,6 +32,8 @@ object SgxSparkContextFct {
 //    	partitions: Seq[Int],
 //    	resultHandler: (Int, U) => Unit) = new SgxTaskSparkContextRunJob(rddId, func, partitions, resultHandler).send()
 
+	def parallelize[T: ClassTag](seq: Seq[T]) = new SgxSparkContextParallelize(seq).send()
+	
 	def stop() = new SgxSparkContextStop().send()
 
 	def textFile(path: String) = new SgxSparkContextTextFile(path).send()
@@ -74,6 +76,15 @@ private case class SgxSparkContextNewRddId() extends SgxMessage[Int] {
 //
 //	override def toString = this.getClass.getSimpleName + "()"
 //}
+
+private case class SgxSparkContextParallelize[T: ClassTag](seq: Seq[T]) extends SgxMessage[RDD[T]] {
+	def execute() = Await.result( Future {
+		val rdd = SgxMain.sparkContext.parallelize(seq)
+		SgxMain.rddIds.put(rdd.id, rdd)
+		rdd
+	}, Duration.Inf)
+}
+
 
 private case class SgxSparkContextStop() extends SgxMessage[Unit] {
 	def execute() = Await.result( Future { SgxMain.sparkContext.stop() }, Duration.Inf)
