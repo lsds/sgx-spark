@@ -37,19 +37,30 @@ RUN     apt-get update && \
         && apt-get autoclean \
         && rm -rf /var/lib/apt/lists/*
 
-RUN	mkdir -p /root/.ssh
-COPY	id_rsa /root/.ssh/
-RUN	chmod 400 /root/.ssh/id_rsa && \
-	ssh-keyscan lsds.doc.ic.ac.uk >> /root/.ssh/known_hosts
+RUN	useradd -m user && echo "user:user" | chpasswd && adduser user sudo && \
+	echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-RUN     mkdir -p ${SGXLKL_DIR}
+ENV	HOME /home/user
+
+USER	user
+
+RUN	mkdir -p $HOME/.ssh
+WORKDIR	$HOME/.ssh
+COPY	id_rsa .
+RUN	sudo chown user:user id_rsa && \
+	chmod 400 id_rsa && \
+	ssh-keyscan lsds.doc.ic.ac.uk >> known_hosts
+
+RUN     sudo mkdir -p ${SGXLKL_DIR} && \
+	sudo chown user:user ${SGXLKL_DIR}
 WORKDIR	${SGXLKL_DIR}
 RUN     git clone --depth 1 lsds_git@lsds.doc.ic.ac.uk:sereca/sgx-lkl.git ${SGXLKL_DIR} && \
 	make sim && \
 	find . -name .git -exec rm -r {} + && \
 	rm -rf ${SGXLKL_DIR}/apps
 
-RUN	mkdir -p ${SPARK_DIR}
+RUN	sudo mkdir -p ${SPARK_DIR} && \
+	sudo chown user:user ${SPARK_DIR}
 WORKDIR ${SPARK_DIR}
 RUN	git clone --depth 1 lsds_git@lsds.doc.ic.ac.uk:sereca/sgx-spark.git ${SPARK_DIR} -b ${SPARK_BRANCH} && \
 	find . -name .git -exec rm -r {} +
@@ -61,15 +72,15 @@ RUN	wget https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSIO
 	./autogen.sh && \
 	./configure && \
 	make && \
-	make install && \
+	sudo make install && \
 	cd .. && \
 	rm -rf protobuf-${PROTOBUF_VERSION}*
-RUN	apt-get update && \
-	apt-get install -y --no-install-recommends \
+RUN	sudo apt-get update && \
+	sudo apt-get install -y --no-install-recommends \
 		libprotoc-dev \
-        && apt-get clean \
-        && apt-get autoclean \
-        && rm -rf /var/lib/apt/lists/*
+        && sudo apt-get clean \
+        && sudo apt-get autoclean \
+        && sudo rm -rf /var/lib/apt/lists/*
 
 WORKDIR	${HADOOP_DIR}
 RUN	MAVEN_OPTS="-Xmx1g" mvn package -DskipTests
@@ -86,5 +97,14 @@ WORKDIR ${SPARK_DIR}/lkl
 RUN	sed -i 's,^SGX_LKL=.*,SGX_LKL='${SGXLKL_DIR}',g' Makefile
 
 WORKDIR ${SPARK_DIR}
-RUN	cat ./master.sh
+COPY	worker-and-enclave.sh .
+COPY	driver-and-enclave.sh .
+COPY	log4j.properties conf/
+RUN	sudo chown user:user worker-and-enclave.sh && \
+	sudo chown user:user driver-and-enclave.sh && \
+	sudo chown user:user conf/log4j.properties && \
+	chmod +x worker-and-enclave.sh && \
+	chmod +x driver-and-enclave.sh
 
+EXPOSE 7077
+EXPOSE 8082
