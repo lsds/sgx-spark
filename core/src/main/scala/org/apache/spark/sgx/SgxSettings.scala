@@ -9,9 +9,8 @@ object SgxSettings extends Logging {
 	val IS_DRIVER = sys.env.get("IS_DRIVER").getOrElse("false").toBoolean
 	val IS_WORKER = sys.env.get("IS_WORKER").getOrElse("false").toBoolean
 
-	val RETRIES = 10
 	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("1").toInt
-	val PREFETCH = sys.env.get("PREFETCH").getOrElse("8").toInt
+	val PREFETCH = sys.env.get("PREFETCH").getOrElse("128").toInt
 
 	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt
 
@@ -21,10 +20,10 @@ object SgxSettings extends Logging {
 			""})
 	}
 
-	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("4096"))
+	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("10485760"))
 
 	val SHMEM_OUT_TO_ENC = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC").getOrElse("0")) // fail if not provided
 	val SHMEM_ENC_TO_OUT = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_ENC_TO_OUT").getOrElse("0")) // fail if not provided
 
-	val SGX_USE_SHMEM = sys.env.get("SGX_USE_SHMEM").getOrElse("false").toBoolean
+	val SGX_USE_SHMEM = sys.env.get("SGX_USE_SHMEM").getOrElse("true").toBoolean
 }

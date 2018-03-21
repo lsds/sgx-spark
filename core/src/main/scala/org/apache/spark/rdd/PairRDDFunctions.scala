@@ -314,7 +314,6 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * to a "combiner" in MapReduce.
    */
   def reduceByKey(partitioner: Partitioner, func: (V, V) => V): RDD[(K, V)] = self.withScope {
-	  logDebug("AAAA reducebykey")
     combineByKeyWithClassTag[V]((v: V) => v, func, func, partitioner)
   }
 
@@ -334,7 +333,6 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * parallelism level.
    */
   def reduceByKey(func: (V, V) => V): RDD[(K, V)] = self.withScope {
-	  logDebug("AAAA reducebykey")
     reduceByKey(defaultPartitioner(self), func)
   }
 
@@ -826,15 +824,12 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    */
   def cogroup[W](other: RDD[(K, W)], partitioner: Partitioner)
       : RDD[(K, (Iterable[V], Iterable[W]))] = self.withScope {
-    logDebug("cogroup0 is HERE")
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.cogroup[K,V,W](self.id, other.id, partitioner)
-    logDebug("cogroup1 is HERE")
     if (partitioner.isInstanceOf[HashPartitioner] && keyClass.isArray) {
       throw new SparkException("HashPartitioner cannot partition array keys.")
     }
     val cg = new CoGroupedRDD[K](Seq(self, other), partitioner)
     cg.mapValues { case Array(vs, w1s) => {
-      println("mapvalues: ("+vs+","+w1s+")")
       (vs.asInstanceOf[Iterable[V]], w1s.asInstanceOf[Iterable[W]]) }
     }
   }
