@@ -75,12 +75,6 @@ object SgxRddFct {
 	def reduce[T](rddId: Int, f: (T, T) => T) =
 		new Reduce[T](rddId, f).send()
 
-	def reduceByKey[K, V:ClassTag](
-		rddId: Int,
-		partitioner: Partitioner,
-		f: (V, V) => V) =
-		  new ReduceByKey[K, V](rddId, partitioner, f).send()
-
 	def sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) =
 		new Sample[T](rddId, withReplacement, fraction, seed).send()
 
@@ -199,16 +193,6 @@ private case class Reduce[T](rddId: Int, f: (T, T) => T) extends SgxTaskRDD[T](r
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].reduce(f)
 	}, Duration.Inf)
 }
-
-private case class ReduceByKey[K, V:ClassTag] extends SgxTaskRDD[RDD[(K, V)]](
-	rddId: Int,
-	partitioner: Partitioner,
-    f: (V, V) => V) = {
-	  def execute() = Await.result( Future {
-	    val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).reduceByKey(partitioner, f)
-		SgxMain.rddIds.put(r.id, r)
-	  }, Duration.Inf)
-	}
 
 private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) extends SgxTaskRDD[RDD[T]](rddId) {
 	def execute() = Await.result( Future {

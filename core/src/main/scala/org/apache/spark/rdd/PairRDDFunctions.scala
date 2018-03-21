@@ -308,7 +308,6 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * to a "combiner" in MapReduce.
    */
   def reduceByKey(partitioner: Partitioner, func: (V, V) => V): RDD[(K, V)] = self.withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.reduceByKey[K, V](self.id, partitioner, func)
     combineByKeyWithClassTag[V]((v: V) => v, func, func, partitioner)
   }
 
