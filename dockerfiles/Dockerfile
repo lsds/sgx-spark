@@ -46,7 +46,7 @@ USER	user
 
 RUN	mkdir -p $HOME/.ssh
 WORKDIR	$HOME/.ssh
-COPY	id_rsa .
+COPY	id_rsa $HOME/.ssh/
 RUN	sudo chown user:user id_rsa && \
 	chmod 400 id_rsa && \
 	ssh-keyscan lsds.doc.ic.ac.uk >> known_hosts
@@ -97,14 +97,14 @@ WORKDIR ${SPARK_DIR}/lkl
 RUN	sed -i 's,^SGX_LKL=.*,SGX_LKL='${SGXLKL_DIR}',g' Makefile
 
 WORKDIR ${SPARK_DIR}
-COPY	worker-and-enclave.sh .
-COPY	driver-and-enclave.sh .
-COPY	log4j.properties conf/
-RUN	sudo chown user:user worker-and-enclave.sh && \
-	sudo chown user:user driver-and-enclave.sh && \
-	sudo chown user:user conf/log4j.properties && \
-	chmod +x worker-and-enclave.sh && \
-	chmod +x driver-and-enclave.sh
+COPY	worker-and-enclave.sh ${SPARK_DIR}/
+COPY	driver-and-enclave.sh ${SPARK_DIR}/
+COPY	log4j.properties ${SPARK_DIR}/conf/
+RUN	sudo chown user:user ${SPARK_DIR}/worker-and-enclave.sh && \
+	sudo chown user:user ${SPARK_DIR}/driver-and-enclave.sh && \
+	sudo chown user:user ${SPARK_DIR}/conf/log4j.properties && \
+	chmod +x ${SPARK_DIR}/worker-and-enclave.sh && \
+	chmod +x ${SPARK_DIR}/driver-and-enclave.sh
 
 EXPOSE 7077
 EXPOSE 8082
