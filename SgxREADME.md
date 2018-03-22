@@ -1,7 +1,7 @@
 # Sgx-Spark
 
 This is [Apache Spark](https://github.com/apache/spark) with modifications to run
-security sensitive code inside Intl SGX enclaves. The implementation leverages
+security sensitive code inside Intel SGX enclaves. The implementation leverages
 [sgx-lkl](https://github.com/lsds/sgx-lkl), a library OS that allows to run
 Java-based applications inside SGX enclaves.
 
