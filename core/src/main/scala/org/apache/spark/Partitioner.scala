@@ -30,6 +30,9 @@ import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.util.{CollectionsUtils, Utils}
 import org.apache.spark.util.random.SamplingUtils
 
+import org.apache.spark.sgx.SgxPartitionFct
+import org.apache.spark.sgx.SgxSettings
+
 /**
  * An object that defines how the elements in a key-value pair RDD are partitioned by key.
  * Maps each key to a partition ID, from 0 to `numPartitions - 1`.
@@ -60,6 +63,10 @@ object Partitioner {
    * We use two method parameters (rdd, others) to enforce callers passing at least 1 RDD.
    */
   def defaultPartitioner(rdd: RDD[_], others: RDD[_]*): Partitioner = {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+      val otherIds = others.map(_.id)
+      return SgxPartitionFct.defaultPartitioner(rdd.id, otherIds: _*)
+    }
     val rdds = (Seq(rdd) ++ others)
     val hasPartitioner = rdds.filter(_.partitioner.exists(_.numPartitions > 0))
 
