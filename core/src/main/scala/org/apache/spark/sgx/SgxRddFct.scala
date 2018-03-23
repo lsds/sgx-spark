@@ -81,6 +81,9 @@ object SgxRddFct {
 	def saveAsTextFile[T](rddId: Int, path: String) =
 		new SaveAsTextFile[T](rddId, path).send()
 
+	def take[T](rddId: Int, num: Int) =
+		new Take[T](rddId, num).send()
+
 	def unpersist[T](rddId: Int) =
 		new Unpersist[T](rddId).send()
 
@@ -204,6 +207,12 @@ private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Dou
 private case class SaveAsTextFile[T](rddId: Int, path: String) extends SgxTaskRDD[Unit](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].saveAsTextFile(path)
+	}, Duration.Inf)
+}
+
+private case class Take[T](rddId: Int, num: Int) extends SgxMessage[Array[T]] {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num)
 	}, Duration.Inf)
 }
 
