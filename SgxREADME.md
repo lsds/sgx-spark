@@ -114,7 +114,7 @@ the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
         -e SPARK_JOB_ARG1=FaultsLactecAPP/TestDSM.csv \
         -e SPARK_JOB_ARG2=FaultsLactecAPP/TestFaults.csv \
         -e SPARK_JOB_ARG3=2016-01-01 \
-        -e SPARK_JOB_ARG4=2016-01-31 \
+        -e SPARK_JOB_ARG4=2016-12-31 \
         -ti sgxspark /sgx-spark/driver-and-enclave.sh
         ```   
 
