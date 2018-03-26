@@ -1,0 +1,1 @@
+SGX_USE_SHMEM=true SGXLKL_SHMEM_FILE=sgx-lkl-shmem SGXLKL_SHMEM_SIZE=10240000 SGX_ENABLED=true PREFETCH=8 CONNECTIONS=1 java -cp conf/:assembly/target/scala-2.11/jars/\* -Djava.library.path=$(pwd)/lib -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://maruVM:7077
