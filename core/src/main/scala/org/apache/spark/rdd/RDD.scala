@@ -405,7 +405,7 @@ abstract class RDD[T: ClassTag](
    * Return a new RDD containing only the elements that satisfy a predicate.
    */
   def filter(f: T => Boolean): RDD[T] = withScope {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.filter(this.id, f)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.filter(this.id, f)
     val cleanF = sc.clean(f)
     new MapPartitionsRDD[T, T](
       this,
@@ -1048,7 +1048,7 @@ abstract class RDD[T: ClassTag](
    * associative binary operator.
    */
   def reduce(f: (T, T) => T): T = withScope {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.reduce(this.id, f)
     val cleanF = sc.clean(f)
     val reducePartition: Iterator[T] => Option[T] = iter => {
       if (iter.hasNext) {
@@ -1378,41 +1378,43 @@ abstract class RDD[T: ClassTag](
    * an exception if called on an RDD of `Nothing` or `Null`.
    */
   def take(num: Int): Array[T] = withScope {
-	if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Unimplemented SGX operation")//return SgxRddFct.take[T](this.id, num)
-			val scaleUpFactor = Math.max(conf.getInt("spark.rdd.limit.scaleUpFactor", 4), 2)
-    if (num == 0) {
-      new Array[T](0)
-    } else {
-      val buf = new ArrayBuffer[T]
-      val totalParts = this.partitions.length
-      var partsScanned = 0
-      while (buf.size < num && partsScanned < totalParts) {
-        // The number of partitions to try in this iteration. It is ok for this number to be
-        // greater than totalParts because we actually cap it at totalParts in runJob.
-        var numPartsToTry = 1L
-        val left = num - buf.size
-        if (partsScanned > 0) {
-          // If we didn't find any rows after the previous iteration, quadruple and retry.
-          // Otherwise, interpolate the number of partitions we need to try, but overestimate
-          // it by 50%. We also cap the estimation in the end.
-          if (buf.isEmpty) {
-            numPartsToTry = partsScanned * scaleUpFactor
-          } else {
-            // As left > 0, numPartsToTry is always >= 1
-            numPartsToTry = Math.ceil(1.5 * left * partsScanned / buf.size).toInt
-            numPartsToTry = Math.min(numPartsToTry, partsScanned * scaleUpFactor)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.take[T](this.id, num)
+    else {
+        val scaleUpFactor = Math.max(conf.getInt("spark.rdd.limit.scaleUpFactor", 4), 2)
+        if (num == 0) {
+          new Array[T](0)
+        } else {
+          val buf = new ArrayBuffer[T]
+          val totalParts = this.partitions.length
+          var partsScanned = 0
+          while (buf.size < num && partsScanned < totalParts) {
+            // The number of partitions to try in this iteration. It is ok for this number to be
+            // greater than totalParts because we actually cap it at totalParts in runJob.
+            var numPartsToTry = 1L
+            val left = num - buf.size
+            if (partsScanned > 0) {
+              // If we didn't find any rows after the previous iteration, quadruple and retry.
+              // Otherwise, interpolate the number of partitions we need to try, but overestimate
+              // it by 50%. We also cap the estimation in the end.
+              if (buf.isEmpty) {
+                numPartsToTry = partsScanned * scaleUpFactor
+              } else {
+                // As left > 0, numPartsToTry is always >= 1
+                numPartsToTry = Math.ceil(1.5 * left * partsScanned / buf.size).toInt
+                numPartsToTry = Math.min(numPartsToTry, partsScanned * scaleUpFactor)
+              }
+            }
+
+            val p = partsScanned.until(math.min(partsScanned + numPartsToTry, totalParts).toInt)
+            val res = sc.runJob(this, (it: Iterator[T]) => it.take(left).toArray, p)
+
+            res.foreach(buf ++= _.take(num - buf.size))
+            partsScanned += p.size
           }
+
+          buf.toArray
         }
-
-        val p = partsScanned.until(math.min(partsScanned + numPartsToTry, totalParts).toInt)
-        val res = sc.runJob(this, (it: Iterator[T]) => it.take(left).toArray, p)
-
-        res.foreach(buf ++= _.take(num - buf.size))
-        partsScanned += p.size
-      }
-
-      buf.toArray
-    }
+     }
   }
 
   /**

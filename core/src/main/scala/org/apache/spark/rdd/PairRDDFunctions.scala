@@ -755,15 +755,11 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * all the data is loaded into the driver's memory.
    */
   def collectAsMap(): Map[K, V] = self.withScope {
-	  logDebug("collectAsMap 0")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.collectAsMap[K, V](self.id)
     val data = self.collect()
-    logDebug("collectAsMap 1")
     val map = new mutable.HashMap[K, V]
-	   logDebug("collectAsMap 2")
     map.sizeHint(data.length)
-    logDebug("collectAsMap 3")
     data.foreach { pair => map.put(pair._1, pair._2) }
-	   logDebug("collectAsMap 4")
     map
   }
 
