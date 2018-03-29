@@ -92,7 +92,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       self.context.clean(createCombiner),
       self.context.clean(mergeValue),
       self.context.clean(mergeCombiners))
-    val x = if (self.partitioner == Some(partitioner)) {
+    if (self.partitioner == Some(partitioner)) {
       self.mapPartitions(iter => {
         val context = TaskContext.get()
         new InterruptibleIterator(context, aggregator.combineValuesByKey(iter, context))
@@ -103,7 +103,6 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
         .setAggregator(aggregator)
         .setMapSideCombine(mapSideCombine)
     }
-    x
   }
 
   /**

@@ -1834,11 +1834,6 @@ private[spark] object Utils extends Logging {
       count += 1L
       iterator.next()
     }
-    try {
-    	throw new Exception("foo")
-    } catch {
-    	case e: Exception => println("getIteratorSize: " + count  +" " + e.getMessage + "\n" + e.getStackTraceString )
-    }
     count
   }
 

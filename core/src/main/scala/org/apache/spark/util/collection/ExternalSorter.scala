@@ -174,7 +174,7 @@ private[spark] class ExternalSorter[K, V, C](
     file: File,
     blockId: BlockId,
     serializerBatchSizes: Array[Long],
-    elementsPerPartition: Array[Long]) extends Logging
+    elementsPerPartition: Array[Long])
 
   private val spills = new ArrayBuffer[SpilledFile]
 
@@ -531,7 +531,7 @@ private[spark] class ExternalSorter[K, V, C](
    * An internal class for reading a spilled file partition by partition. Expects all the
    * partitions to be requested in order.
    */
-  private[this] class SpillReader(spill: SpilledFile) extends Logging{
+  private[this] class SpillReader(spill: SpilledFile) {
     // Serializer batch offsets; size will be batchSize.length + 1
     val batchOffsets = spill.serializerBatchSizes.scanLeft(0L)(_ + _)
 
@@ -779,7 +779,6 @@ private[spark] class ExternalSorter[K, V, C](
   }
 
   def stop(): Unit = {
-
     spills.foreach(s => s.file.delete())
     spills.clear()
     forceSpillFiles.foreach(s => s.file.delete())
@@ -810,9 +809,8 @@ private[spark] class ExternalSorter[K, V, C](
    * partitioned iterators from our in-memory collection.
    */
   private[this] class IteratorForPartition(partitionId: Int, data: BufferedIterator[((Int, K), C)])
-    extends Iterator[Product2[K, C]] with Logging
+    extends Iterator[Product2[K, C]]
   {
-
     override def hasNext: Boolean = data.hasNext && data.head._1._1 == partitionId
 
     override def next(): Product2[K, C] = {
@@ -825,7 +823,7 @@ private[spark] class ExternalSorter[K, V, C](
   }
 
   private[this] class SpillableIterator(var upstream: Iterator[((Int, K), C)])
-    extends Iterator[((Int, K), C)] with Logging {
+    extends Iterator[((Int, K), C)] {
 
     private val SPILL_LOCK = new Object()
 
@@ -851,9 +849,7 @@ private[spark] class ExternalSorter[K, V, C](
 
           def nextPartition(): Int = cur._1._1
 
-          def getNext[T]() = {
-        	  Encrypt(cur.asInstanceOf[T])
-          }
+          def getNext[T]() = Encrypt(cur.asInstanceOf[T])
         }
         logInfo(s"Task ${context.taskAttemptId} force spilling in-memory map to disk and " +
           s" it will release ${org.apache.spark.util.Utils.bytesToString(getUsed())} memory")

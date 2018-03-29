@@ -55,7 +55,7 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
   def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]])
     : WritablePartitionedIterator = {
     val it = partitionedDestructiveSortedIterator(keyComparator)
-    new WritablePartitionedIterator with Logging {
+    new WritablePartitionedIterator {
       private[this] var cur = if (it.hasNext) it.next() else null
 
       def writeNext(writer: DiskBlockObjectWriter): Unit = {
@@ -70,7 +70,6 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
       def getNext[T]() = {
     	  val c = cur.asInstanceOf[T]
     	  cur = if (it.hasNext) it.next() else null
-    	  logDebug("getNext: " + cur)
     	  Encrypt(c)
       }
     }
@@ -117,4 +116,3 @@ private[spark] trait WritablePartitionedIterator {
 
   def getNext[T](): Encrypted
 }
-

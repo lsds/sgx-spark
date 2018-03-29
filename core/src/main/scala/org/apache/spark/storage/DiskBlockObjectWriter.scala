@@ -256,9 +256,7 @@ private[spark] class DiskBlockObjectWriter(
   }
   
   def write(enc: Encrypted) {
-    val f = new SgxFakePairIndicator()
-    logDebug("writing: ("+enc+","+f+")")
-    write(enc, f)
+    write(enc, new SgxFakePairIndicator())
   }
 
   override def write(b: Int): Unit = throw new UnsupportedOperationException()

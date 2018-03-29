@@ -137,8 +137,6 @@ class CoGroupedRDD[K: ClassTag](
   override def compute(s: Partition, context: TaskContext): Iterator[(K, Array[Iterable[_]])] = {
     val split = s.asInstanceOf[CoGroupPartition]
     val numRdds = dependencies.length
-    
-    logDebug("compute CoGroupedRDD")
 
     // A list of (rdd iterator, dependency number) pairs
     val rddIterators = new ArrayBuffer[(Iterator[Product2[K, Any]], Int)]
@@ -155,12 +153,6 @@ class CoGroupedRDD[K: ClassTag](
           .getReader(shuffleDependency.shuffleHandle, split.index, split.index + 1, context)
           .read()
         rddIterators += ((it, depNum))
-        
-//        xxxxx // problem here: CoGroupedRDD: iter (org.apache.spark.sgx.EncryptedObj@55d43a27,org.apache.spark.sgx.iterator.SgxFakePairIndicator@3837de66)
-        // it == Iterator[(Encrypted,SgxFakePairIndicator)]
-        // Need to handle this case and 
-        // - provide only first value to map.insertAll below
-        // - make sure that the enclave converts its value to Product2[]
     }
 
     val map = createExternalMap(numRdds)

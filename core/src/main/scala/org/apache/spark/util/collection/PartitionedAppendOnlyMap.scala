@@ -27,12 +27,6 @@ import org.apache.spark.sgx.SgxSettings
 
 import org.apache.spark.sgx.IdentifierManager
 
-//private object PartitionedAppendOnlyMaps extends IdentifierManager[PartitionedAppendOnlyMap[Any,Any]]() {}
-
-//case class PartitionedAppendOnlyMapIdentifier(id: Long) extends Serializable {
-//	def getMap[K,V] = PartitionedAppendOnlyMaps.get(id).asInstanceOf[PartitionedAppendOnlyMap[K,V]]
-//}
-
 /**
  * Implementation of WritablePartitionedPairCollection that wraps a map in which the keys are tuples
  * of (partition ID, K)
