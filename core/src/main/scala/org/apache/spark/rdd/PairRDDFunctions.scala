@@ -79,9 +79,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       mapSideCombine: Boolean = true,
       serializer: Serializer = null)(implicit ct: ClassTag[C]): RDD[(K, C)] = self.withScope {
     require(mergeCombiners != null, "mergeCombiners must be defined") // required as of Spark 0.9.0
-    logDebug("AAAA combineByKeyWithClassTag 0")
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.combineByKeyWithClassTag[C,V,K](self.id, createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer)
-    logDebug("AAAA combineByKeyWithClassTag 1")
     if (keyClass.isArray) {
       if (mapSideCombine) {
         throw new SparkException("Cannot use map-side combining with array keys.")
@@ -95,19 +93,16 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       self.context.clean(mergeValue),
       self.context.clean(mergeCombiners))
     val x = if (self.partitioner == Some(partitioner)) {
-    	logDebug("AAAA combineByKeyWithClassTag b1")
       self.mapPartitions(iter => {
         val context = TaskContext.get()
         new InterruptibleIterator(context, aggregator.combineValuesByKey(iter, context))
       }, preservesPartitioning = true)
     } else {
-    	logDebug("AAAA combineByKeyWithClassTag b2")
       new ShuffledRDD[K, V, C](self, partitioner)
         .setSerializer(serializer)
         .setAggregator(aggregator)
         .setMapSideCombine(mapSideCombine)
     }
-    logDebug("AAAA combineByKeyWithClassTag 2")
     x
   }
 
@@ -553,9 +548,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * (k, v2) is in `other`. Uses the given Partitioner to partition the output RDD.
    */
   def join[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (V, W))] = self.withScope {
-    logDebug("join0 is HERE")
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.join[K,V,W](self.id, other.id, partitioner)
-    logDebug("join1 is HERE")
     val x = this.cogroup(other, partitioner)
     x.foreach(y => println("join " + y))
     x.flatMapValues( pair =>
@@ -755,15 +748,10 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * all the data is loaded into the driver's memory.
    */
   def collectAsMap(): Map[K, V] = self.withScope {
-	  logDebug("collectAsMap 0")
     val data = self.collect()
-    logDebug("collectAsMap 1")
     val map = new mutable.HashMap[K, V]
-	   logDebug("collectAsMap 2")
     map.sizeHint(data.length)
-    logDebug("collectAsMap 3")
     data.foreach { pair => map.put(pair._1, pair._2) }
-	   logDebug("collectAsMap 4")
     map
   }
 
@@ -784,9 +772,7 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * keys; this also retains the original RDD's partitioning.
    */
   def flatMapValues[U](f: V => TraversableOnce[U]): RDD[(K, U)] = self.withScope {
-    logDebug("flatMapValues0 is HERE")
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.flatMapValues[U,V,K](self.id, f)
-    logDebug("flatMapValues1 is HERE")
     val cleanF = self.context.clean(f)
     new MapPartitionsRDD[(K, U), (K, V)](self,
       (context, pid, iter) => iter.flatMap { case (k, v) =>

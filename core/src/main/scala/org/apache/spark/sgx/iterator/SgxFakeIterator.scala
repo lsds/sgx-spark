@@ -28,18 +28,7 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 	// by Java's instanceof operator.
 	// Will always return true. A potential subsequent call to next()
 	// will then surely throw an Exception
-	override def hasNext: Boolean = {
-//	  try {
-//	    // throw and print the Exception as a warning
-	    throw SgxFakeIteratorException(id)
-//	  }
-//	  catch {
-//	    case e: Exception =>
-//	      logDebug(e.getMessage)
-//	      logDebug(e.getStackTraceString)
-//	  }
-//	  return true
-	}
+	override def hasNext: Boolean = throw SgxFakeIteratorException(id)
 
 	override def next: T = throw SgxFakeIteratorException(id)
 
@@ -79,61 +68,49 @@ case class SgxWritablePartitionedFakeIterator[K,V](@transient val delegate: Writ
 
 	override def writeNext(writer: DiskBlockObjectWriter) = {
 		if (SgxSettings.IS_DRIVER) {
-			logDebug("writeNext DRIVER")
 			delegate.writeNext(writer)
 		}
 		else if (SgxSettings.IS_WORKER) {
-			logDebug("writeNext WORKER: " + writer)
 			val cur = SgxFct.writablePartitionedIteratorGetNext[K,V,((Int,K),V)](this)
 			writer.write(cur)
 		}
 		else {
-			logDebug("writeNext MISC")
 			throw SgxFakeIteratorException(id)
 		}
 	}
 
 	override def hasNext: Boolean = {
 		if (SgxSettings.IS_DRIVER) {
-			logDebug("hasNext DRIVER")
 			delegate.hasNext()
 		}
 		else if (SgxSettings.IS_WORKER) {
-			logDebug("hasNext WORKER")
 			SgxFct.writablePartitionedIteratorHasNext(this)
 		}
 		else {
-			logDebug("hasNext MISC")
 			throw SgxFakeIteratorException(id)
 		}
 	}
 
 	override def nextPartition() = {
 		if (SgxSettings.IS_DRIVER) {
-			logDebug("nextPartition DRIVER")
 			delegate.nextPartition()
 		}
 		else if (SgxSettings.IS_WORKER) {
-			logDebug("nextPartition WORKER")
 			SgxFct.writablePartitionedIteratorNextPartition(this)
 		}
 		else {
-			logDebug("nextPartition MISC")
 			throw SgxFakeIteratorException(id)
 		}
 	}
 
 	override def getNext[T]() = {
 		if (SgxSettings.IS_DRIVER) {
-			logDebug("getNext DRIVER")
 			delegate.getNext[T]()
 		}
 		else if (SgxSettings.IS_WORKER) {
-			logDebug("getNext WORKER")
 			SgxFct.writablePartitionedIteratorGetNext[K,V,T](this)
 		}
 		else {
-			logDebug("getNext MISC")
 			throw SgxFakeIteratorException(id)
 		}
 	}

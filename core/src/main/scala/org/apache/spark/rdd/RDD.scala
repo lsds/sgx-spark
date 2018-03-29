@@ -641,14 +641,7 @@ abstract class RDD[T: ClassTag](
       ascending: Boolean = true,
       numPartitions: Int = this.partitions.length)
       (implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T] = withScope {
-	 logDebug("SORT 1")
-    val x= this.keyBy[K](f)
-    logDebug("SORT 2")
-    val y = x.sortByKey(ascending, numPartitions)
-    logDebug("SORT 3")
-    val z =y    .values
-    logDebug("SORT 4")
-    z
+    	this.keyBy[K](f).sortByKey(ascending, numPartitions).values
   }
 
   /**
