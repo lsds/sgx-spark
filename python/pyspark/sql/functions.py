@@ -106,18 +106,15 @@ _functions = {
 
 _functions_1_4 = {
     # unary math functions
-    'acos': 'Computes the cosine inverse of the given value; the returned angle is in the range' +
-            '0.0 through pi.',
-    'asin': 'Computes the sine inverse of the given value; the returned angle is in the range' +
-            '-pi/2 through pi/2.',
-    'atan': 'Computes the tangent inverse of the given value; the returned angle is in the range' +
-            '-pi/2 through pi/2',
+    'acos': ':return: inverse cosine of `col`, as if computed by `java.lang.Math.acos()`',
+    'asin': ':return: inverse sine of `col`, as if computed by `java.lang.Math.asin()`',
+    'atan': ':return: inverse tangent of `col`, as if computed by `java.lang.Math.atan()`',
     'cbrt': 'Computes the cube-root of the given value.',
     'ceil': 'Computes the ceiling of the given value.',
-    'cos': """Computes the cosine of the given value.
-
-           :param col: :class:`DoubleType` column, units in radians.""",
-    'cosh': 'Computes the hyperbolic cosine of the given value.',
+    'cos': """:param col: angle in radians
+           :return: cosine of the angle, as if computed by `java.lang.Math.cos()`.""",
+    'cosh': """:param col: hyperbolic angle
+           :return: hyperbolic cosine of the angle, as if computed by `java.lang.Math.cosh()`""",
     'exp': 'Computes the exponential of the given value.',
     'expm1': 'Computes the exponential of the given value minus one.',
     'floor': 'Computes the floor of the given value.',
@@ -127,14 +124,16 @@ _functions_1_4 = {
     'rint': 'Returns the double value that is closest in value to the argument and' +
             ' is equal to a mathematical integer.',
     'signum': 'Computes the signum of the given value.',
-    'sin': """Computes the sine of the given value.
-
-           :param col: :class:`DoubleType` column, units in radians.""",
-    'sinh': 'Computes the hyperbolic sine of the given value.',
-    'tan': """Computes the tangent of the given value.
-
-           :param col: :class:`DoubleType` column, units in radians.""",
-    'tanh': 'Computes the hyperbolic tangent of the given value.',
+    'sin': """:param col: angle in radians
+           :return: sine of the angle, as if computed by `java.lang.Math.sin()`""",
+    'sinh': """:param col: hyperbolic angle
+           :return: hyperbolic sine of the given value,
+                    as if computed by `java.lang.Math.sinh()`""",
+    'tan': """:param col: angle in radians
+           :return: tangent of the given value, as if computed by `java.lang.Math.tan()`""",
+    'tanh': """:param col: hyperbolic angle
+            :return: hyperbolic tangent of the given value,
+                     as if computed by `java.lang.Math.tanh()`""",
     'toDegrees': '.. note:: Deprecated in 2.1, use :func:`degrees` instead.',
     'toRadians': '.. note:: Deprecated in 2.1, use :func:`radians` instead.',
     'bitwiseNOT': 'Computes bitwise not.',
@@ -173,16 +172,31 @@ _functions_1_6 = {
 
 _functions_2_1 = {
     # unary math functions
-    'degrees': 'Converts an angle measured in radians to an approximately equivalent angle ' +
-               'measured in degrees.',
-    'radians': 'Converts an angle measured in degrees to an approximately equivalent angle ' +
-               'measured in radians.',
+    'degrees': """
+               Converts an angle measured in radians to an approximately equivalent angle
+               measured in degrees.
+               :param col: angle in radians
+               :return: angle in degrees, as if computed by `java.lang.Math.toDegrees()`
+               """,
+    'radians': """
+               Converts an angle measured in degrees to an approximately equivalent angle
+               measured in radians.
+               :param col: angle in degrees
+               :return: angle in radians, as if computed by `java.lang.Math.toRadians()`
+               """,
 }
 
 # math functions that take two arguments as input
 _binary_mathfunctions = {
-    'atan2': 'Returns the angle theta from the conversion of rectangular coordinates (x, y) to' +
-             'polar coordinates (r, theta). Units in radians.',
+    'atan2': """
+             :param col1: coordinate on y-axis
+             :param col2: coordinate on x-axis
+             :return: the `theta` component of the point
+                (`r`, `theta`)
+                in polar coordinates that corresponds to the point
+                (`x`, `y`) in Cartesian coordinates,
+                as if computed by `java.lang.Math.atan2()`
+             """,
     'hypot': 'Computes ``sqrt(a^2 + b^2)`` without intermediate overflow or underflow.',
     'pow': 'Returns the value of the first argument raised to the power of the second argument.',
 }
@@ -2109,6 +2123,8 @@ def udf(f=None, returnType=StringType()):
         in boolean expressions and it ends up with being executed all internally. If the functions
         can fail on special rows, the workaround is to incorporate the condition into the functions.
 
+    .. note:: The user-defined functions do not take keyword arguments on the calling side.
+
     :param f: python function if used as a standalone function
     :param returnType: the return type of the user-defined function. The value can be either a
         :class:`pyspark.sql.types.DataType` object or a DDL-formatted type string.
@@ -2238,6 +2254,8 @@ def pandas_udf(f=None, returnType=None, functionType=None):
     .. note:: The user-defined functions do not support conditional expressions or short circuiting
         in boolean expressions and it ends up with being executed all internally. If the functions
         can fail on special rows, the workaround is to incorporate the condition into the functions.
+
+    .. note:: The user-defined functions do not take keyword arguments on the calling side.
     """
     # decorator @pandas_udf(returnType, functionType)
     is_decorator = f is None or isinstance(f, (str, DataType))
