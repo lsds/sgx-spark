@@ -22,6 +22,9 @@ object SgxRddFct {
 	def collect[T](rddId: Int) =
 		new Collect[T](rddId).send()
 
+	def collectAsMap[K:ClassTag, V:ClassTag](rddId: Int) =
+		new CollectAsMap[K, V](rddId).send()
+
 	def combineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 		rddId: Int,
 		createCombiner: V => C,
@@ -77,6 +80,9 @@ object SgxRddFct {
 	def persist[T](rddId: Int, level: StorageLevel) =
 		new Persist[T](rddId, level).send()
 
+	def reduce[T](rddId: Int, f: (T, T) => T) =
+		new Reduce[T](rddId, f).send()
+
 	def sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) =
 		new Sample[T](rddId, withReplacement, fraction, seed).send()
 
@@ -95,8 +101,8 @@ object SgxRddFct {
 			V: ClassTag,
 			P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) =
 		new SortByKey[K,V,P](rddId, ascending, numPartitions).send()
-		
-  def take[T](rddId: Int, num: Int) =
+
+	def take[T](rddId: Int, num: Int) =
 		new Take[T](rddId, num).send()
 
 	def unpersist[T](rddId: Int) =
@@ -113,6 +119,12 @@ private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
 private case class Collect[T](rddId: Int) extends SgxTaskRDD[Array[T]](rddId) {
 	def execute() = Await.result( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
+	}, Duration.Inf)
+}
+
+private case class CollectAsMap[K:ClassTag, V:ClassTag](rddId: Int) extends SgxMessage[scala.collection.Map[K, V]] {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]].collectAsMap()
 	}, Duration.Inf)
 }
 
@@ -222,16 +234,16 @@ private case class Persist[T](rddId: Int, level: StorageLevel) extends SgxTaskRD
 	}, Duration.Inf)
 }
 
+private case class Reduce[T](rddId: Int, f: (T, T) => T) extends SgxTaskRDD[T](rddId) {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].reduce(f)
+	}, Duration.Inf)
+}
+
 private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) extends SgxTaskRDD[RDD[T]](rddId) {
 	def execute() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
 		SgxMain.rddIds.put(r.id, r)
-	}, Duration.Inf)
-}
-
-private case class Take[T](rddId: Int, num: Int) extends SgxTaskRDD[Array[T]](rddId) {
-	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num)
 	}, Duration.Inf)
 }
 
@@ -253,9 +265,16 @@ private case class SortByKey[
 		V: ClassTag,
 		P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) extends SgxTaskRDD[RDD[(K,V)]](rddId) {
 
-	def execute() = Await.result( Future {
-		val r = new OrderedRDDFunctions[K,V,P](SgxMain.rddIds.get(rddId).asInstanceOf[RDD[P]]).sortByKey(ascending, numPartitions)
+	def execute() = Await.result(Future {
+		val r = new OrderedRDDFunctions[K, V, P](SgxMain.rddIds.get(rddId).asInstanceOf[RDD[P]]).sortByKey(ascending, numPartitions)
 		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+}
+
+
+private case class Take[T](rddId: Int, num: Int) extends SgxMessage[Array[T]] {
+	def execute() = Await.result( Future {
+		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num)
 	}, Duration.Inf)
 }
 

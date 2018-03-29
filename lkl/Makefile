@@ -21,10 +21,10 @@ IMG_NAME=alpine-rootfs.img
 
 all: prepare-image finalize-image
 
-$(ALPINE_TAR): 
+$(ALPINE_TAR):
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"
 
-prepare-image: $(ALPINE_TAR) buildenv.sh 
+prepare-image: $(ALPINE_TAR) buildenv.sh
 	dd if=/dev/zero of="$(IMG_NAME)" count=$(IMAGE_SIZE_MB) bs=1M
 	mkfs.ext4 "$(IMG_NAME)"
 
@@ -38,9 +38,9 @@ prepare-image: $(ALPINE_TAR) buildenv.sh
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/lib
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
 	sudo mkdir -p $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars
-	sudo cp    ../C/* $(MOUNTPOINT)/$(SPARK_DIR)/lib	
+	sudo cp    ../C/* $(MOUNTPOINT)/$(SPARK_DIR)/lib
 	sudo cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
-	
+
 	sudo mkdir -p $(MOUNTPOINT)/opt
 	sudo tar -xf $(JVM) -C $(MOUNTPOINT)/opt
 
@@ -52,7 +52,7 @@ prepare-image: $(ALPINE_TAR) buildenv.sh
 finalize-image:
 	sudo mkdir -p $(MOUNTPOINT)
 	sudo mount -t ext4 -o loop "$(IMG_NAME)" $(MOUNTPOINT)
-	
+
 	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
 	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
 	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.*-SNAPSHOT.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
@@ -94,4 +94,3 @@ clean:
 	pkill -9 java ; true
 	pkill -9 sgx-lkl-starter  ; true
 	pkill -9 spark ; true
-
