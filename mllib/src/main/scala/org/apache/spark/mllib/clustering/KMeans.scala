@@ -32,7 +32,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
 import org.apache.spark.util.random.XORShiftRandom
 
-import org.apache.spark.sgx.{Encrypt, Encryptable, Encrypted}
+import org.apache.spark.sgx.{Encrypt, Encrypted}
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.mllib.clustering.sgx.SgxTaskVectorsToDense
 
@@ -609,7 +609,7 @@ object KMeans {
  * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDistance]]
  */
 private[clustering]
-class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable with Encryptable with Logging {
+class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable {
 
   def this(vector: Vector) = this(vector, Vectors.norm(vector, 2.0))
 
@@ -618,25 +618,25 @@ class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable 
   /** Converts the vector to a dense vector. */
   def toDense: VectorWithNorm = new VectorWithNorm(Vectors.dense(vector.toArray), norm)
 
-  def encrypt = new SgxVectorWithNorm(Encrypt(vector), Encrypt(norm))
+//  def encrypt = new SgxVectorWithNorm(Encrypt(vector), Encrypt(norm))
 
   override def toString() = this.getClass.getSimpleName + "("+norm+","+vector.toArray.deep.mkString("[", ",", "]")+")"
 }
 
 
-private[clustering]
-class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
-
-  override def toDense = {
-	if (SgxSettings.IS_ENCLAVE) decrypt[VectorWithNorm].toDense
-	else new SgxTaskVectorsToDense(this).send
-  }
-
-  def decrypt[U]: U = {
-	if (SgxSettings.IS_ENCLAVE) new VectorWithNorm(_vector.decrypt[Vector], _norm.decrypt[Double]).asInstanceOf[U]
-	else throw new RuntimeException("Must not decrypt outside of enclave")
-  }
-
-  /** Must override, as superclass uses provided null value. */
-  override def toString() = this.getClass.getSimpleName
-}
+//private[clustering]
+//class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
+//
+//  override def toDense = {
+//	if (SgxSettings.IS_ENCLAVE) decrypt[VectorWithNorm].toDense
+//	else new SgxTaskVectorsToDense(this).send
+//  }
+//
+//  def decrypt[U]: U = {
+//	if (SgxSettings.IS_ENCLAVE) new VectorWithNorm(_vector.decrypt[Vector], _norm.decrypt[Double]).asInstanceOf[U]
+//	else throw new RuntimeException("Must not decrypt outside of enclave")
+//  }
+//
+//  /** Must override, as superclass uses provided null value. */
+//  override def toString() = this.getClass.getSimpleName
+//}

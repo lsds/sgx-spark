@@ -11,9 +11,9 @@ trait Encrypted extends Serializable {
 	def decrypt[U]: U
 }
 
-trait Encryptable extends Serializable {
-	def encrypt: Encrypted
-}
+//trait Encryptable extends Serializable {
+//	def encrypt: Encrypted
+//}
 
 private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted {
 	def decrypt[U]: U = {
@@ -30,9 +30,9 @@ private object Base64StringEncrypt extends Logging {
 	def apply(plain: Any): Encrypted = {
 		logDebug("Encrypting: " + plain)
 		val x = plain match {
-			case e: Encryptable =>
-				logDebug("Encryptable")
-				e.encrypt
+//			case e: Encryptable =>
+//				logDebug("Encryptable")
+//				e.encrypt
 			case p: Any =>
 				logDebug("EncryptedObj")
 				new EncryptedObj[String](
