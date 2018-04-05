@@ -1,3 +1,34 @@
 #!/bin/bash
 
-LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usrib:/usr/local/lib SGXLKL_STRACELKL=1 SGXLKL_VERBOSE=1 SGXLKL_TRACE_SYSCALL=0 SGXLKL_TRACE_MMAP=0 SGXLKL_TAP=tap4 SGXLKL_HD=lkl/alpine-rootfs.img SGXLKL_KERNEL=0 SGXLKL_VERSION=1 SGXLKL_ESLEEP=16 SGXLKL_SSLEEP=16 SGXLKL_ESPINS=16 SGXLKL_SSPINS=16 SGXLKL_HOSTNAME=localhost SGXLKL_STHREADS=6 SGXLKL_ETHREADS=3 IS_DRIVER=true IS_ENCLAVE=true SGX_USE_SHMEM=true SGXLKL_SHMEM_FILE=/sgx-lkl-shmem-driver SGX_ENABLED=true SGXLKL_SHMEM_SIZE=10240000 CONNECTIONS=1 PREFETCH=8 ../sgx-lkl-sim/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=8m -XX:ReservedCodeCacheSize=8m -Xms16m -Xmx16m -XX:+UseMembar -XX:CompressedClassSpaceSize=8m -XX:MaxMetaspaceSize=32m -XX:+UseCompressedClassPointers -XX:+AssumeMP -Xint -Djava.library.path=/spark/lib/ -Dcom.sun.management.jmxremote  -Djava.rmi.server.hostname=10.0.1.1 -Dcom.sun.management.jmxremote.port=5000 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/* org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-driver
+source variables.sh
+
+export SGXLKL_TAP=tap6
+
+export IS_ENCLAVE=true
+export IS_DRIVER=true
+export IS_WORKER=false
+
+export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
+export SGXLKL_IP4=10.0.6.1
+export SGXLKL_GW4=10.0.6.254
+
+../sgx-lkl-sim/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
+-XX:InitialCodeCacheSize=${JVM_INITIAL_CODE_CACHE_SIZE} \
+-XX:ReservedCodeCacheSize=${JVM_RESERVED_CODE_CACHE_SIZE} \
+-Xms${JVM_XMS} \
+-Xmx${JVM_XMX} \
+-XX:CompressedClassSpaceSize=${JVM_COMPRESSED_CLASS_SPACE_SIZE} \
+-XX:MaxMetaspaceSize=${JVM_MAX_METASPACE_SIZE} \
+-XX:+UseCompressedClassPointers \
+-XX:+UseMembar \
+-XX:+AssumeMP \
+-Xint \
+-Djava.library.path=/spark/lib/ \
+-Dcom.sun.management.jmxremote \
+-Djava.rmi.server.hostname=${SGXLKL_IP4} \
+-Dcom.sun.management.jmxremote.port=5000 \
+-Dcom.sun.management.jmxremote.authenticate=false \
+-Dcom.sun.management.jmxremote.ssl=false \
+-cp \
+/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/* \
+org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-driver
