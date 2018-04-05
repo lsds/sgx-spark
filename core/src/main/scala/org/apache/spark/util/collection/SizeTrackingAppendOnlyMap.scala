@@ -24,7 +24,7 @@ import org.apache.spark.sgx.SgxFct
 private object SizeTrackingAppendOnlyMaps extends IdentifierManager[SizeTrackingAppendOnlyMap[Any,Any]]() {}
 
 case class SizeTrackingAppendOnlyMapIdentifier(id: Long) extends Serializable {
-	def getMap[K,V] = SizeTrackingAppendOnlyMaps.get(id).asInstanceOf[SizeTrackingAppendOnlyMap[K,V]]
+  def getMap[K,V] = SizeTrackingAppendOnlyMaps.get(id).asInstanceOf[SizeTrackingAppendOnlyMap[K,V]]
 }
 
 /**

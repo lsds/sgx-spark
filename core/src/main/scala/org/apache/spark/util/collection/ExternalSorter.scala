@@ -184,81 +184,47 @@ private[spark] class ExternalSorter[K, V, C](
    */
   private[spark] def numSpills: Int = spills.size
 
-  def insertAll(records2: Iterator[Product2[K, V]]): Unit = {
+  def insertAll(records: Iterator[Product2[K, V]]): Unit = {
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
 
      if (SgxSettings.SGX_ENABLED) {
-      if (records2.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) {
-    	val it = records2.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
+      if (records.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) {
+    	val it = records.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
         if (shouldCombine) {
           val mergeValue = aggregator.get.mergeValue
           val createCombiner = aggregator.get.createCombiner
           SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](it, map.id, mergeValue, createCombiner, shouldPartition, partitioner)
     	} else {
-        throw new Exception("not implemented ExternalSorter.insertAll")
+          throw new Exception("not implemented ExternalSorter.insertAll")
     	}
-//        f.access() // REMOVE
       }
-//      case i: Iterator[Product2[K, V]] => i
     }
-
-//    if (shouldCombine) {
-//      // Combine values in-memory first using our AppendOnlyMap
-//      val mergeValue = aggregator.get.mergeValue
-//      val createCombiner = aggregator.get.createCombiner
-//      var kv: Product2[K, V] = null
-//      val update = (hadValue: Boolean, oldValue: C) => {
-//        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
-//      }
-//      while (records.hasNext) {
-//        addElementsRead()
-//        kv = records.next()
-//        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
-//        else
-//        map.changeValue((getPartition(kv._1), kv._1), update)
-//        maybeSpillCollection(usingMap = true)
-//      }
-//    } else {
-//      // Stick values into our buffer
-//      while (records.hasNext) {
-//        addElementsRead()
-//        val kv = records.next()
-//        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
-//        maybeSpillCollection(usingMap = false)
-//      }
-//    }
-
-//    val records = if (SgxSettings.SGX_ENABLED) records2 match {
-//      case f: SgxFakeIterator[Product2[K, V]] => f.access()
-//      case i: Iterator[Product2[K, V]] => i
-//    } else records2
-//
-//    if (shouldCombine) {
-//      // Combine values in-memory first using our AppendOnlyMap
-//      val mergeValue = aggregator.get.mergeValue
-//      val createCombiner = aggregator.get.createCombiner
-//      var kv: Product2[K, V] = null
-//      val update = (hadValue: Boolean, oldValue: C) => {
-//        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
-//      }
-//      while (records.hasNext) {
-//        addElementsRead()
-//        kv = records.next()
-//        if (SgxSettings.SGX_ENABLED) map.changeValue(SgxFct.externalSorterInsertAllCreateKey(partitioner.get, kv), update)
-//        else
-//        map.changeValue((getPartition(kv._1), kv._1), update)
-//        maybeSpillCollection(usingMap = true)
-//      }
-//    } else {
-//      // Stick values into our buffer
-//      while (records.hasNext) {
-//        addElementsRead()
-//        val kv = records.next()
-//        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
-//        maybeSpillCollection(usingMap = false)
-//      }
-//    }
+    else {
+    if (shouldCombine) {
+      // Combine values in-memory first using our AppendOnlyMap
+      val mergeValue = aggregator.get.mergeValue
+      val createCombiner = aggregator.get.createCombiner
+      var kv: Product2[K, V] = null
+      val update = (hadValue: Boolean, oldValue: C) => {
+        if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
+      }
+      while (records.hasNext) {
+        addElementsRead()
+        kv = records.next()
+        map.changeValue((getPartition(kv._1), kv._1), update)
+        maybeSpillCollection(usingMap = true)
+      }
+    } else {
+      // Stick values into our buffer
+      while (records.hasNext) {
+        addElementsRead()
+        val kv = records.next()
+        buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
+        maybeSpillCollection(usingMap = false)
+      }
+    }
+    }
   }
 
   /**

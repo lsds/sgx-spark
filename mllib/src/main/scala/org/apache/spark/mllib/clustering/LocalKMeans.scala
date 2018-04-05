@@ -113,6 +113,7 @@ private[mllib] object LocalKMeans extends Logging {
   }
 
   private def pickWeighted[T](rand: Random, data: Array[T], weights: Array[Double]): T = {
+    logDebug("DATA: " + data.mkString(","))
     val r = rand.nextDouble() * weights.sum
     var i = 0
     var curWeight = 0.0

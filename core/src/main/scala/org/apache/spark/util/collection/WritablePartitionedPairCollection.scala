@@ -19,13 +19,9 @@ package org.apache.spark.util.collection
 
 import java.util.Comparator
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.storage.DiskBlockObjectWriter
-import org.apache.spark.sgx.SgxFct
-import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.Encrypted
-import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
 
 /**
  * A common interface for size-tracking collections of key-value pairs that

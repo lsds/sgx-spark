@@ -165,23 +165,23 @@ class ExternalAppendOnlyMap[K, V, C](
       SgxIteratorFct.externalAppendOnlyMapInsertAll[K,V,C](id, currentMap.id, mergeValue, createCombiner)
     }
     else {
-      var curEntry: Product2[K, V] = null
-      val update: (Boolean, C) => C = (hadVal, oldVal) => {
-        if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
-      }
+    var curEntry: Product2[K, V] = null
+    val update: (Boolean, C) => C = (hadVal, oldVal) => {
+      if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
+    }
 
-      while (entries.hasNext) {
-        curEntry = entries.next()
-        val estimatedSize = currentMap.estimateSize()
-        if (estimatedSize > _peakMemoryUsedBytes) {
-          _peakMemoryUsedBytes = estimatedSize
-        }
-        if (maybeSpill(currentMap, estimatedSize)) {
-          currentMap = new SizeTrackingAppendOnlyMap[K, C]
-        }
-        currentMap.changeValue(curEntry._1, update)
-        addElementsRead()
+    while (entries.hasNext) {
+      curEntry = entries.next()
+      val estimatedSize = currentMap.estimateSize()
+      if (estimatedSize > _peakMemoryUsedBytes) {
+        _peakMemoryUsedBytes = estimatedSize
       }
+      if (maybeSpill(currentMap, estimatedSize)) {
+        currentMap = new SizeTrackingAppendOnlyMap[K, C]
+      }
+      currentMap.changeValue(curEntry._1, update)
+      addElementsRead()
+    }
     }
   }
 

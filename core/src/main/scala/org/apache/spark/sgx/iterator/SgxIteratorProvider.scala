@@ -65,7 +65,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 							q += delegate.next
 						}
 					}
-					val qe = if (doEncrypt) q.map { n => Encrypt(n) } else q
+					val qe = if (doEncrypt) Encrypt(q) else q
 					logDebug("Sending: " + qe)
 					com.sendOne(qe)
 				}

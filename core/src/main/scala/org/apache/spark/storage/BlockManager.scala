@@ -52,6 +52,8 @@ import org.apache.spark.unsafe.Platform
 import org.apache.spark.util._
 import org.apache.spark.util.io.ChunkedByteBuffer
 
+import org.apache.spark.sgx.SgxSettings
+
 /* Class for returning a fetched block and associated metrics. */
 private[spark] class BlockResult(
     val data: Iterator[Any],
@@ -1478,16 +1480,17 @@ private[spark] class BlockManager(
    * Remove all blocks belonging to the given broadcast.
    */
   def removeBroadcast(broadcastId: Long, tellMaster: Boolean): Int = {
-     // FK 30/01/18.
-     // TODO. There was some concurrency issues with this code.
-     // The broadcast variable was removed even though it was used at some later point in time
-//    logDebug(s"Removing broadcast $broadcastId")
-//    val blocksToRemove = blockInfoManager.entries.map(_._1).collect {
-//      case bid @ BroadcastBlockId(`broadcastId`, _) => bid
-//    }
-//    blocksToRemove.foreach { blockId => removeBlock(blockId, tellMaster) }
-//    blocksToRemove.size
-    0
+    // FK 30/01/18.
+    // TODO. There was some concurrency issues with this code.
+    // The broadcast variable was removed even though it was used at some later point in time
+    if (SgxSettings.SGX_ENABLED) return 0
+
+    logDebug(s"Removing broadcast $broadcastId")
+    val blocksToRemove = blockInfoManager.entries.map(_._1).collect {
+      case bid @ BroadcastBlockId(`broadcastId`, _) => bid
+    }
+    blocksToRemove.foreach { blockId => removeBlock(blockId, tellMaster) }
+    blocksToRemove.size
   }
 
   /**

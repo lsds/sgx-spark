@@ -16,21 +16,18 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 	def call(): Unit = {
 		val num = SgxSettings.PREFETCH - consumer.objects.size
 		if (num > 0) {
-			val list = consumer.com.sendRecv[Queue[Encrypted]](new MsgIteratorReqNextN(num))
+			val list = consumer.com.sendRecv[Encrypted](new MsgIteratorReqNextN(num)).decrypt[Queue[T]]
+			
 			if (list.size == 0) {
 				consumer.close
 			}
 			else consumer.objects.addAll({
-				if (SgxSettings.IS_ENCLAVE) {
-					val l = list.map(n => n.decrypt[T])
-					if (consumer.context == "" && l.size > 0 && l.front.isInstanceOf[Product2[Any,Any]] && l.front.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
-					  l.map(c => {
-					    val y = c.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[Product2[Product2[Any,Any],Any]]
-					    (y._1._2,y._2).asInstanceOf[T]
-					  })
-					} else l
-				}
-				else list.map(n => n.asInstanceOf[T])
+				if (consumer.context == "" && list.size > 0 && list.front.isInstanceOf[Product2[Any,Any]] && list.front.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+				  list.map(c => {
+				    val y = c.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[Product2[Product2[Any,Any],Any]]
+				    (y._1._2,y._2).asInstanceOf[T]
+				  })
+				} else list
 			}.asJava)
 
 		}
