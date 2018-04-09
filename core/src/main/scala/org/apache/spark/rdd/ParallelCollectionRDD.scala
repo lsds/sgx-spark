@@ -29,11 +29,16 @@ import org.apache.spark._
 import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.util.Utils
 
+import org.apache.spark.internal.Logging
+
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxSparkEnvFct
+
 private[spark] class ParallelCollectionPartition[T: ClassTag](
     var rddId: Long,
     var slice: Int,
     var values: Seq[T]
-  ) extends Partition with Serializable {
+  ) extends Partition with Serializable with Logging {
 
   def iterator: Iterator[T] = values.iterator
 
@@ -50,7 +55,8 @@ private[spark] class ParallelCollectionPartition[T: ClassTag](
   @throws(classOf[IOException])
   private def writeObject(out: ObjectOutputStream): Unit = Utils.tryOrIOException {
 
-    val sfactory = SparkEnv.get.serializer
+    val sfactory = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getSerializer
+    else SparkEnv.get.serializer
 
     // Treat java serializer with default action rather than going thru serialization, to avoid a
     // separate serialization header.
@@ -68,8 +74,10 @@ private[spark] class ParallelCollectionPartition[T: ClassTag](
 
   @throws(classOf[IOException])
   private def readObject(in: ObjectInputStream): Unit = Utils.tryOrIOException {
-
-    val sfactory = SparkEnv.get.serializer
+    
+    val sfactory = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getSerializer
+    else SparkEnv.get.serializer
+    
     sfactory match {
       case js: JavaSerializer => in.defaultReadObject()
       case _ =>

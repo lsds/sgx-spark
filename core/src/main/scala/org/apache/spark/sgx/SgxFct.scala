@@ -21,9 +21,6 @@ import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.iterator.SgxIterator
 
 object SgxFct {
-
-//def diskBlockObjectWriterWriteKeyValue(writer: DiskBlockObjectWriter, key: Any, value: Any) =
-//	new DiskBlockObjectWriterWriteKeyValue(writer, key, value).send()
 		
   def externalAppendOnlyMapIterator[K,V](id: SizeTrackingAppendOnlyMapIdentifier) =
     new ExternalAppendOnlyMapIterator[K,V](id).send
@@ -57,7 +54,7 @@ object SgxFct {
 	def writablePartitionedIteratorNextPartition[K,V](it: SgxWritablePartitionedFakeIterator[K,V]) =
 		new WritablePartitionedIteratorNextPartition(it).send()
 
-	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send()
+	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send().decrypt[Z]
 
 	def fct2[A, B, Z](fct: (A, B) => Z, a: A, b: B) = new SgxFct2[A, B, Z](fct, a, b).send()
 }
@@ -146,19 +143,8 @@ private case class WritablePartitionedIteratorGetNext[K,V,T](
 	}, Duration.Inf)
 }
 
-//private case class DiskBlockObjectWriterWriteKeyValue(
-//	writer: DiskBlockObjectWriter,
-//	key: Any,
-//	value: Any) extends SgxMessage[Unit] {
-//
-//	def execute() = Await.result( Future {
-//		writer.get.write(key, value)
-//	}, Duration.Inf)
-//}
-
-
-private case class SgxFct0[Z](fct: () => Z) extends SgxMessage[Z] {
-	def execute() = Await.result(Future { fct() }, Duration.Inf)
+private case class SgxFct0[Z](fct: () => Z) extends SgxMessage[Encrypted] {
+	def execute() = Await.result(Future { Encrypt(fct()) }, Duration.Inf)
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
 }
 

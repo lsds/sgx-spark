@@ -43,7 +43,7 @@ import org.apache.spark.util.NextIterator
  * They are intended to be used to serialize/de-serialize data within a single Spark application.
  */
 @DeveloperApi
-abstract class Serializer {
+abstract class Serializer extends Serializable {
 
   /**
    * Default ClassLoader to use in deserialization. Implementations of [[Serializer]] should

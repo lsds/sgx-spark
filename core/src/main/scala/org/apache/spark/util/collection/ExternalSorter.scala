@@ -38,6 +38,7 @@ import org.apache.spark.sgx.SgxIteratorFct
 
 import org.apache.spark.sgx.Serialization
 import org.apache.spark.sgx.Encrypt
+import org.apache.spark.sgx.SgxFactory
 
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
@@ -187,10 +188,9 @@ private[spark] class ExternalSorter[K, V, C](
   def insertAll(records: Iterator[Product2[K, V]]): Unit = {
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
-
-     if (SgxSettings.SGX_ENABLED) {
-      if (records.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) {
-    	val it = records.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
+    if (SgxSettings.SGX_ENABLED) {
+      val it = if (records.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) records.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
+      else SgxFactory.newSgxIteratorProvider(records, true).getIdentifier
         if (shouldCombine) {
           val mergeValue = aggregator.get.mergeValue
           val createCombiner = aggregator.get.createCombiner
@@ -198,7 +198,6 @@ private[spark] class ExternalSorter[K, V, C](
     	} else {
           throw new Exception("not implemented ExternalSorter.insertAll")
     	}
-      }
     }
     else {
     if (shouldCombine) {

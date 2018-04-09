@@ -1481,8 +1481,8 @@ private[spark] class BlockManager(
    */
   def removeBroadcast(broadcastId: Long, tellMaster: Boolean): Int = {
     // FK 30/01/18.
-    // TODO. There was some concurrency issues with this code.
-    // The broadcast variable was removed even though it was used at some later point in time
+    // With SGX, there is some concurrency issue with this code.
+    // The broadcast variable is removed even though it will still be used at some later point in time.
     if (SgxSettings.SGX_ENABLED) return 0
 
     logDebug(s"Removing broadcast $broadcastId")

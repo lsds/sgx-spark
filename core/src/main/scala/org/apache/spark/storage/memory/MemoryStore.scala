@@ -38,6 +38,9 @@ import org.apache.spark.util.{SizeEstimator, Utils}
 import org.apache.spark.util.collection.SizeTrackingVector
 import org.apache.spark.util.io.{ChunkedByteBuffer, ChunkedByteBufferOutputStream}
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.Encrypted
+
 private sealed trait MemoryEntry[T] {
   def size: Long
   def memoryMode: MemoryMode

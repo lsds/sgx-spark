@@ -145,7 +145,7 @@ abstract class RDD[T: ClassTag](
   protected def getPreferredLocations(split: Partition): Seq[String] = Nil
 
   /** Optionally overridden by subclasses to specify how they are partitioned. */
-  @transient val partitioner: Option[Partitioner] = None
+  val partitioner: Option[Partitioner] = None
 
   // =======================================================================
   // Methods and fields available on all RDDs
@@ -967,8 +967,8 @@ abstract class RDD[T: ClassTag](
     // SGX: no return statement allowed at this point
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.collect[T](this.id)
     else {
-      val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
-      Array.concat(results: _*)
+    val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
+    Array.concat(results: _*)
     }
   }
 
