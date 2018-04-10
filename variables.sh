@@ -10,9 +10,9 @@ export SPARK_MASTER_PORT=7077
 export SPARK_MASTER_WEBUI_PORT=8082
 
 export SGX_USE_SHMEM=true
-export SGXLKL_SHMEM_SIZE=8294967296 # 4GB
+export SGXLKL_SHMEM_SIZE=4294967296 # 4GB
 export PREFETCH=512
-export CONNECTIONS=8
+export CONNECTIONS=4
 
 export LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usrib:/usr/local/lib
 
@@ -28,8 +28,8 @@ export SGXLKL_SSLEEP=512
 export SGXLKL_ESPINS=512
 export SGXLKL_SSPINS=512
 export SGXLKL_HOSTNAME=localhost
-export SGXLKL_STHREADS=8
-export SGXLKL_ETHREADS=4
+export SGXLKL_STHREADS=6
+export SGXLKL_ETHREADS=3
 
 export JVM_INITIAL_CODE_CACHE_SIZE=64m
 export JVM_RESERVED_CODE_CACHE_SIZE=64m
