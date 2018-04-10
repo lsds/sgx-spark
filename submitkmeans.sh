@@ -10,6 +10,9 @@ export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
 
 export SPARK_JOBNAME=kmeans
 
+INFILE=$(pwd)/data/mllib/kmeans_data.txt
+#INFILE=$(pwd)/data/mllib/kmeans_data.txt.short
+
 rm -rf $(pwd)/output
 
 ./bin/spark-submit \
@@ -24,4 +27,4 @@ rm -rf $(pwd)/output
 --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar $(pwd)/data/mllib/kmeans_data.txt 2>&1 output | tee outside-driver
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar ${INFILE} output 2>&1 | tee outside-driver

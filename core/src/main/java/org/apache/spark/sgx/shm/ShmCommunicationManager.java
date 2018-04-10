@@ -28,7 +28,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	
 	private static ShmCommunicationManager<?> _instance = null;
 
-	private ShmCommunicationManager(String file, int size) {
+	private ShmCommunicationManager(String file, long size) {
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
 		this.readBuff = new RingBuff(handles[0], true);
 		this.writeBuff = new RingBuff(handles[1], true);
@@ -40,7 +40,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> create(String file, int size) {
+	public static <T> ShmCommunicationManager<T> create(String file, long size) {
 		synchronized(lockInstance) {
 			if (_instance == null) {
 				_instance = new ShmCommunicationManager<T>(file, size);

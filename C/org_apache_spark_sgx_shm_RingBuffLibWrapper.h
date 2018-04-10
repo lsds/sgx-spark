@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     org_apache_spark_sgx_shm_RingBuffLibWrapper
  * Method:    init_shm
- * Signature: (Ljava/lang/String;I)[J
+ * Signature: (Ljava/lang/String;J)[J
  */
 JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm
-  (JNIEnv *, jclass, jstring, jint);
+  (JNIEnv *, jclass, jstring, jlong);
 
 /*
  * Class:     org_apache_spark_sgx_shm_RingBuffLibWrapper

@@ -6,7 +6,7 @@ public class RingBuffLibWrapper {
 		System.loadLibrary("ringbuff");
 	}
 
-	public static native long[] init_shm(String file, int size);
+	public static native long[] init_shm(String file, long size);
 
 	public static native boolean write_msg(long handle, byte[] msg);
 

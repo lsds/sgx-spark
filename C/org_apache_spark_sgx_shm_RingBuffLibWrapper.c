@@ -12,9 +12,16 @@
 #include "org_apache_spark_sgx_shm_RingBuffLibWrapper.h"
 #include "ring_buff.h"
 
-#define USLEEP 16
+#define MAX(a,b) ((a) > (b) ? a : b)
+#define MIN(a,b) ((a) < (b) ? a : b)
 
-static void *register_shm(char* path, size_t len)
+#define MAX_WAIT 32768
+#define MIN_WAIT 8
+
+static int wait_read = MIN_WAIT;
+static int wait_write = MIN_WAIT;
+
+static void *register_shm(char* path, unsigned long long len)
 {
 	if (path == NULL || strlen(path) == 0)
 		exit(2);
@@ -39,13 +46,13 @@ static void *register_shm(char* path, size_t len)
 	}
 
 	if (len <= 0) {
-		fprintf(stderr, "Error: invalid memory size length %zu\n", len);
+		fprintf(stderr, "Error: invalid memory size length %llu\n", len);
 		exit(6);
 	}
 
 	if(ftruncate(fd, len) == -1) {
 		fprintf(stderr, "ftruncate: %s\n", strerror(errno));
-	    exit(7);
+		exit(7);
 	}
 
 	void *addr;
@@ -67,7 +74,11 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_writ
 	while ((ret = ring_buff_write_msg((ring_buff_handle_t) handle, (void*) buf, (uint32_t) len)) != RING_BUFF_ERR_OK) {
 //		printf("Error during ring_buff_write_msg()\n");
 //		ring_buff_print_err(ret);
+//		printf("Waiting write %d\n", wait_write);
+		usleep(wait_write);
+		wait_write = MIN(wait_write*2, MAX_WAIT);
 	}
+	wait_write = MIN_WAIT;
 
 	return ret == RING_BUFF_ERR_OK;
 }
@@ -81,8 +92,11 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_re
 	while ((ret = ring_buff_read_msg((ring_buff_handle_t) handle, &data, &len)) != RING_BUFF_ERR_OK) {
 //		printf("Error during ring_buff_read_msg()\n");
 //		ring_buff_print_err(ret);
-//		usleep(USLEEP);
+//		printf("Waiting read %d\n", wait_read);
+		usleep(wait_read);
+		wait_read = MIN(wait_read*2, MAX_WAIT);
 	}
+	wait_read = MIN_WAIT;
 
 	if ((ret = ring_buff_free((ring_buff_handle_t) handle, data, len)) != RING_BUFF_ERR_OK) {
 		printf("Error during ring_buff_free()\n");
@@ -99,7 +113,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_re
 	return result;
 }
 
-JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jint size) {
+JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jlong size) {
 	char* shm_file = (char *) (*env)->GetStringUTFChars(env, file, 0);
 	void* shm_addr = register_shm(shm_file, ring_buff_struct_size() * 2);
 

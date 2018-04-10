@@ -23,6 +23,7 @@ import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.storage.{BlockManager, ShuffleBlockFetcherIterator}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
+import org.apache.spark.sgx.iterator.SgxFakeIterator
 
 /**
  * Fetches and reads the partitions in range [startPartition, endPartition) from a shuffle by
@@ -115,6 +116,7 @@ private[spark] class BlockStoreShuffleReader[K, C](
 
     resultIter match {
       case _: InterruptibleIterator[Product2[K, C]] => resultIter
+      case _: SgxFakeIterator[Product2[K, C]] => resultIter
       case _ =>
         // Use another interruptible iterator here to support task cancellation as aggregator
         // or(and) sorter may have consumed previous interruptible iterator.
