@@ -14,7 +14,7 @@
 
 #define USLEEP 16
 
-static void *register_shm(char* path, size_t len)
+static void *register_shm(char* path, unsigned long long len)
 {
 	if (path == NULL || strlen(path) == 0)
 		exit(2);
@@ -39,7 +39,7 @@ static void *register_shm(char* path, size_t len)
 	}
 
 	if (len <= 0) {
-		fprintf(stderr, "Error: invalid memory size length %zu\n", len);
+		fprintf(stderr, "Error: invalid memory size length %llu\n", len);
 		exit(6);
 	}
 
@@ -99,7 +99,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_re
 	return result;
 }
 
-JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jint size) {
+JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jlong size) {
 	char* shm_file = (char *) (*env)->GetStringUTFChars(env, file, 0);
 	void* shm_addr = register_shm(shm_file, ring_buff_struct_size() * 2);
 
