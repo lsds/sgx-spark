@@ -274,7 +274,6 @@ private case class SortByKey[
 	}, Duration.Inf)
 }
 
-
 private case class Take[T](rddId: Int, num: Int) extends SgxMessage[Encrypted] {
 	def execute() = Await.result( Future {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num))

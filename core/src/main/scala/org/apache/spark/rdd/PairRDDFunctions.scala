@@ -45,6 +45,7 @@ import org.apache.spark.util.random.StratifiedSamplingUtils
 
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.SgxRddFct
+import org.apache.spark.sgx.SgxSettings
 
 /**
  * Extra functions available on RDDs of (key, value) pairs through an implicit conversion.
