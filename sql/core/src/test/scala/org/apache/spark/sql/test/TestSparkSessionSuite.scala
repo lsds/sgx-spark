@@ -15,7 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution
+package org.apache.spark.sql.test
 
-class QueryExecutionException(message: String, cause: Throwable = null)
-  extends Exception(message, cause)
+import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.SparkSession
+
+class TestSparkSessionSuite extends SparkFunSuite {
+  test("default session is set in constructor") {
+    val session = new TestSparkSession()
+    assert(SparkSession.getDefaultSession.contains(session))
+    session.stop()
+  }
+}
