@@ -6,9 +6,6 @@ import java.nio.ByteOrder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import org.apache.spark.sgx.types.DataType;
-import org.apache.spark.sgx.types.DatasetFileType;
-import org.apache.spark.sgx.types.Phase;
 import org.apache.spark.sgx.utils.Bits;
 import sun.misc.Unsafe;
 
@@ -25,29 +22,17 @@ public class MappedDataBuffer implements IDataBuffer {
 	private boolean bigEndian;
 	private boolean nativeByteOrder = (Bits.byteOrder() == ByteOrder.BIG_ENDIAN);
 	
-	private Phase phase;
 	private int id;
-	private DatasetFileType filetype;
 	
 	private long address;
 	private int capacity;
 	
-	private DataType datatype;
-	
-	public MappedDataBuffer (Phase phase, DatasetFileType filetype, int id, long address, int capacity, DataType datatype) {
+	public MappedDataBuffer (int id, long address, int capacity) {
 		
-		this.phase = phase;
 		this.id = id;
-		this.filetype = filetype;
 		
 		this.address = address;
 		this.capacity = capacity;
-		
-		this.datatype = datatype;
-	}
-	
-	public void setAddress (long address) {
-		this.address = address;
 	}
 	
 	public final ByteOrder order () {
@@ -59,16 +44,8 @@ public class MappedDataBuffer implements IDataBuffer {
 		nativeByteOrder = (bigEndian == (Bits.byteOrder() == ByteOrder.BIG_ENDIAN));
 	}
 	
-	public Phase getPhase () {
-		return phase;
-	}
-	
 	public int getBufferId () {
 		return id;
-	}
-	
-	public DatasetFileType getDatasetFileType () {
-		return filetype;
 	}
 	
 	public long address () {
@@ -103,10 +80,10 @@ public class MappedDataBuffer implements IDataBuffer {
 		return capacity;
 	}
 	
-	@Override
-	public DataType getType () {
-		return datatype;
-	}
+//	@Override
+//	public DataType getType () {
+//		return datatype;
+//	}
 	
 	@Override
 	public byte get (int offset) {

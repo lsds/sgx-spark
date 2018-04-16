@@ -2,13 +2,9 @@ package org.apache.spark.sgx.data;
 
 import java.nio.ByteBuffer;
 
-import org.apache.spark.sgx.types.DataType;
-
 public interface IDataBuffer {
 	
 	public int getBufferId ();
-	
-	public DataType getType ();
 	
 	public byte  get      (int offset);
 	public int   getInt   (int offset);
