@@ -14,9 +14,14 @@ import org.apache.spark.sgx.SgxSettings
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
-		val num = SgxSettings.PREFETCH - consumer.objects.size
+		val num = SgxSettings.PREFETCH //- consumer.objects.size
 		if (num > 0) {
-			val list = consumer.com.sendRecv[Encrypted](new MsgIteratorReqNextN(num)).decrypt[Queue[T]]
+			logDebug("Asking for "+num+" objects")
+//			val list = consumer.com.sendRecv[Encrypted](new MsgIteratorReqNextN(num)).decrypt[Queue[T]]
+			val resp = consumer.com.sendRecv[Encrypted](new MsgIteratorReqNextN(num))
+			logDebug("Response: " + resp)
+			val list = resp.decrypt[Queue[T]]
+			logDebug("Retrieved "+list.length+" objects")
 			
 			if (list.size == 0) {
 				consumer.close

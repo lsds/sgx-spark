@@ -1,14 +1,20 @@
 package org.apache.spark.sgx.shm;
 
-import java.io.Serializable;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 
-class ShmMessage implements Serializable {
+class ShmMessage implements Externalizable {
 	private static final long serialVersionUID = 7329847091123L;
 	
-	private final EShmMessageType type;
-	private final Object msg;
-	private final long port;
+	private EShmMessageType type;
+	private Object msg;
+	private long port;
 	
+	public ShmMessage() {
+	}
+
 	ShmMessage(EShmMessageType type, Object msg, long port) {
 		this.type = type;
 		this.msg = msg;
@@ -25,6 +31,20 @@ class ShmMessage implements Serializable {
 
 	long getPort() {
 		return port;
+	}
+
+	@Override
+	public void writeExternal(ObjectOutput out) throws IOException {
+		out.writeObject(type);
+		out.writeObject(msg);
+		out.writeLong(port);
+	}
+
+	@Override
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		type = (EShmMessageType) in.readObject();
+		msg = in.readObject();
+		port = in.readLong();
 	}
 	
 	public String toString() {

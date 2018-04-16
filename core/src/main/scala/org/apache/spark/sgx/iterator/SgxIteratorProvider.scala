@@ -66,8 +66,9 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 						}
 					}
 					val qe = if (doEncrypt) Encrypt(q) else q
-					logDebug("Sending: " + qe)
+					logDebug("Sending: " + qe + "("+q.length+" elements)")
 					com.sendOne(qe)
+					logDebug("Sent done: " + qe)
 				}
 				case MsgIteratorReqClose =>
 					stop(com)

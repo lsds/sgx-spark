@@ -276,11 +276,21 @@
          This is needed by the scalatest plugin, and so is declared here to be available in
          all child modules, just as scalatest is run in all children
     -->
-	<dependency>
-	    <groupId>de.ruedigermoeller</groupId>
-	    <artifactId>fst</artifactId>
-	    <version>2.54</version>
-	</dependency>    
+    <dependency>
+        <groupId>de.ruedigermoeller</groupId>
+        <artifactId>fst</artifactId>
+    <version>2.57</version>
+    </dependency>   
+    <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-api</artifactId>
+        <version>2.11.0</version>
+    </dependency> 
+    <dependency>
+        <groupId>com.esotericsoftware</groupId>
+        <artifactId>kryo-shaded</artifactId>
+        <version>4.0.2</version>
+    </dependency>
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>

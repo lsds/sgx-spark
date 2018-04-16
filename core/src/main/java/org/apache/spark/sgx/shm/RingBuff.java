@@ -1,5 +1,7 @@
 package org.apache.spark.sgx.shm;
 
+import java.util.logging.Logger;
+
 import org.apache.spark.sgx.Serialization;
 
 class RingBuff {
@@ -14,10 +16,12 @@ class RingBuff {
 	boolean write(Object o) {
 		boolean success = false;
 		boolean exception = false;
-
+		
 		do {
 			try {
+				Logger.getLogger("debug").info("RingBuff.write length: " + Serialization.serialize(o).length);
 				success = RingBuffLibWrapper.write_msg(handle, Serialization.serialize(o));
+				Logger.getLogger("debug").info("RingBuff.write done: " + success);
 			} catch (Exception e) {
 				e.printStackTrace();
 				exception = true;

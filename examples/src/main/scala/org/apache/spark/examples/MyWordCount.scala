@@ -3,6 +3,7 @@ package org.apache.spark.examples
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD.rddToPairRDDFunctions
 
 object MyWordCount extends Logging {
   def main(args: Array[String]) {

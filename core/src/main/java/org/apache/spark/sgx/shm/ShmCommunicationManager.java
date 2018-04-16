@@ -6,6 +6,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import java.util.logging.Logger;
+
 /**
  * This class is to be used by the enclave to communicate with the outside.
  * 
@@ -102,6 +104,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @return whether the write was successful
 	 */
 	void write(Object o, long theirPort) {
+		Logger.getLogger("debug").info("ShmCommunicationManager.write: " + o);
 		write(new ShmMessage(EShmMessageType.REGULAR, o, theirPort));
 	}
 
@@ -144,6 +147,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				synchronized (lockInboxes) {
 					inbox = inboxes.get(msg.getPort());
 				}
+				Logger.getLogger("debug").info("Addding to inbox: " + msg.getMsg());
 				inbox.add(msg.getMsg());
 			}
 		}

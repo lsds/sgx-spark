@@ -1,6 +1,7 @@
 package org.apache.spark.sgx.shm;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.logging.Logger;
 
 import org.apache.spark.sgx.SgxCommunicator;
 
@@ -63,12 +64,15 @@ public class ShmCommunicator extends SgxCommunicator {
 		Object result = null;
 		do {
 			try {
+				Logger.getLogger("debug").info("waiting for inbox");
 				result = inbox.take();
+				Logger.getLogger("debug").info("Inbox served: " + result);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		} while (result == null);
 
+		Logger.getLogger("debug").info("Inbox read return: " + result);
 		return result;
 	}
 
