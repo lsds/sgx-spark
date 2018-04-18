@@ -20,7 +20,7 @@ object SgxSettings extends Logging {
 			""})
 	}
 
-	val SHMEM_SIZE = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("1073741824"))
+	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("1073741824"))
 
 	val SHMEM_OUT_TO_ENC = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC").getOrElse("0")) // fail if not provided
 	val SHMEM_ENC_TO_OUT = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_ENC_TO_OUT").getOrElse("0")) // fail if not provided

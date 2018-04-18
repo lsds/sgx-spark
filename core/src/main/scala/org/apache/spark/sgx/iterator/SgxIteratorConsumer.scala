@@ -4,7 +4,8 @@ import java.util.concurrent.{Executors, Callable, ExecutorCompletionService, Fut
 import java.util.concurrent.{BlockingQueue, LinkedBlockingQueue}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.Queue
+
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.Completor
@@ -16,18 +17,13 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 	def call(): Unit = {
 		val num = SgxSettings.PREFETCH //- consumer.objects.size
 		if (num > 0) {
-			logDebug("Asking for "+num+" objects")
-//			val list = consumer.com.sendRecv[Encrypted](new MsgIteratorReqNextN(num)).decrypt[Queue[T]]
-			val resp = consumer.com.sendRecv[Encrypted](new MsgIteratorReqNextN(num))
-			logDebug("Response: " + resp)
-			val list = resp.decrypt[Queue[T]]
-			logDebug("Retrieved "+list.length+" objects")
+			val list = consumer.com.sendRecv[Encrypted](new MsgIteratorReqNextN(num)).decrypt[ArrayBuffer[T]]
 			
 			if (list.size == 0) {
 				consumer.close
 			}
 			else consumer.objects.addAll({
-				if (consumer.context == "" && list.size > 0 && list.front.isInstanceOf[Product2[Any,Any]] && list.front.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+        if (consumer.context == "" && list.size > 0 && list.head.isInstanceOf[Product2[Any,Any]] && list.head.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {				  
 				  list.map(c => {
 				    val y = c.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[Product2[Product2[Any,Any],Any]]
 				    (y._1._2,y._2).asInstanceOf[T]
@@ -36,7 +32,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 			}.asJava)
 
 		}
-		logDebug("new objects: " + consumer.objects)
+		logDebug("new objects: " + consumer.objects.size())
 		consumer.Lock.synchronized {
 			consumer.fillingFuture = null
 		}
@@ -76,11 +72,13 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	}
 
 	def fill(): Unit = {
-		Lock.synchronized {
-			if (!closed && fillingFuture == null && objects.size <= SgxSettings.PREFETCH / 2) {
-				fillingFuture = Completor.submit(new Filler(this))
-			}
-		}
+	  if (objects.size <= SgxSettings.PREFETCH / 2) {
+      Lock.synchronized {
+        if (!closed && fillingFuture == null) {
+          fillingFuture = Completor.submit(new Filler(this))
+        }
+      }
+    }
 	}
 
 	def close() = {

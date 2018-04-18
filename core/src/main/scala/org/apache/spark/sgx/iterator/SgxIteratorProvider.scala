@@ -2,7 +2,8 @@ package org.apache.spark.sgx.iterator
 
 import java.util.concurrent.Callable
 
-import scala.collection.mutable.Queue
+import scala.collection.mutable.ArrayBuffer
+
 import scala.util.control.Breaks._
 
 import org.apache.commons.lang3.SerializationUtils
@@ -43,16 +44,16 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 		while (running) {
 			com.recvOne() match {
 				case num: MsgIteratorReqNextN => {
-					val q = Queue[T]()
+					val q = new ArrayBuffer[T](num.num)
 					if (delegate.isInstanceOf[NextIterator[T]] && delegate.hasNext) {
-						for (_ <- 1 to num.num if delegate.hasNext) {
+						for (i <- 0 to num.num - 1 if delegate.hasNext) {
 							val n = delegate.next
 							// Need to clone the object. Otherwise the same object will be sent multiple times.
 							// It seems that this is due to optimizations in the implementation of class NextIterator.
 							// If cloning is not possible, just add this one object and send it individually.
 							// This should actually never be the case, as the object _must_ be sent to a consumer.
 							try {
-								q += SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T]
+								q.insert(i, SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T])
 							}
 							catch {
 								case e: SerializationException =>
@@ -61,8 +62,8 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 							}
 						}
 					} else {
-						for (_ <- 1 to num.num if delegate.hasNext) {
-							q += delegate.next
+						for (i <- 0 to num.num - 1 if delegate.hasNext) {
+							q.insert(i, delegate.next)
 						}
 					}
 					val qe = if (doEncrypt) Encrypt(q) else q

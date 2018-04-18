@@ -1,7 +1,5 @@
 package org.apache.spark.sgx;
 
-import java.util.logging.Logger;
-
 public abstract class SgxCommunicator {
 	
 	/**
@@ -9,9 +7,7 @@ public abstract class SgxCommunicator {
 	 * @param o the object to send
 	 */
 	public final void sendOne(Object o) {
-		Logger.getLogger("debug").info("SgxCommunicator.sendOne o: " + o);
 		write(o);
-		Logger.getLogger("debug").info("SgxCommunicator.sendOne done: " + o);
 	}
 	
 	/**
@@ -19,9 +15,7 @@ public abstract class SgxCommunicator {
 	 * @return the received object
 	 */
 	public final Object recvOne() {
-		Logger.getLogger("debug").info("SgxCommunicator.recvOne");
 		Object o = read();
-		Logger.getLogger("debug").info("SgxCommunicator.recvOne: " + o); 
 		return o; 
 	}
 	

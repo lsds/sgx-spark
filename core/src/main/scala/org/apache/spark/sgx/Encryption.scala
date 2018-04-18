@@ -1,19 +1,8 @@
 package org.apache.spark.sgx
 
-import java.util.Base64
-import java.io.Externalizable
-import java.io.ObjectInput
-import java.io.ObjectOutput
-import org.apache.spark.internal.Logging
 
-import java.io.ByteArrayOutputStream
-import javax.crypto.CipherOutputStream
-import javax.crypto.Cipher
-import javax.crypto.NullCipher
-import java.io.ByteArrayInputStream
-import javax.crypto.CipherInputStream
-import java.io.ObjectOutputStream
-import java.io.ObjectInputStream
+
+import org.apache.spark.internal.Logging
 
   /*
    * TODO: Encryption/Decryption are dummy operations.
@@ -34,8 +23,20 @@ private class EncryptedObj(private var cipher: Array[Byte], private var dec: Arr
 	}
 }
 
+object EncryptionAlgorithm extends Enumeration {
+  val None, Base64 = Value
+}
+
 object Encrypt {
-	def apply(plain: Any): Encrypted = Base64StringEncrypt(plain)
+  
+	def apply(plain: Any): Encrypted = {
+//	  Base64StringEncrypt(plain)
+	  new NoEncryption(plain)
+	}
+}
+
+private class NoEncryption(o: Any) extends Encrypted {
+  def decrypt[U]: U = o.asInstanceOf[U]
 }
 
 private object Base64StringEncrypt extends Logging {
@@ -43,11 +44,8 @@ private object Base64StringEncrypt extends Logging {
 		val x = plain match {
 			case p: Any =>
 				new EncryptedObj({
-				  logDebug("encrypt0 " + plain)
 				  val a = Serialization.serialize(plain)
-				  logDebug("encrypt1("+a.length+") " + java.util.Arrays.hashCode(a))
-					val b = Base64.getEncoder.encode(a)
-					logDebug("encrypt2("+b.length+") ")
+					val b = org.apache.commons.codec.binary.Base64.encodeBase64(a)
 					b
 //				  val stream = new ByteArrayOutputStream()
 //				  val cos = new ObjectOutputStream(new CipherOutputStream(stream, new NullCipher))
@@ -57,11 +55,8 @@ private object Base64StringEncrypt extends Logging {
 //				  r
 				},
 					(x: Array[Byte]) => {
-					  logDebug("decrypt0("+x.length+") ")
-					  val y = Base64.getDecoder.decode(x)
-					  logDebug("decrypt1("+y.length+") " + java.util.Arrays.hashCode(y))
+					  val y = org.apache.commons.codec.binary.Base64.decodeBase64(x)
 					  val z = Serialization.deserialize(y)
-					  logDebug("decrypt2 " + z)
 					  z
 					  
 //					  new ObjectInputStream(new CipherInputStream(new ByteArrayInputStream(x), new NullCipher)).readObject()

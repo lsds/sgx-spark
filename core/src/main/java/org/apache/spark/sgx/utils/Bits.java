@@ -123,6 +123,15 @@ public class Bits {
 
 		return (bigEndian ? getIntB (address) : getIntL (address));
 	}
+	
+    private static byte long7(long x) { return (byte)(x >> 56); }
+    private static byte long6(long x) { return (byte)(x >> 48); }
+    private static byte long5(long x) { return (byte)(x >> 40); }
+    private static byte long4(long x) { return (byte)(x >> 32); }
+    private static byte long3(long x) { return (byte)(x >> 24); }
+    private static byte long2(long x) { return (byte)(x >> 16); }
+    private static byte long1(long x) { return (byte)(x >>  8); }
+    private static byte long0(long x) { return (byte)(x      ); }	
 
 	static private long makeLong (
 			byte b7, byte b6, byte b5, byte b4,
@@ -185,5 +194,78 @@ public class Bits {
 		
 		return (bigEndian ? getFloatB(address) : getFloatL(address));
 	}
+	
+    static void putLongL(long a, long x) {
+        _put(a + 7, long7(x));
+        _put(a + 6, long6(x));
+        _put(a + 5, long5(x));
+        _put(a + 4, long4(x));
+        _put(a + 3, long3(x));
+        _put(a + 2, long2(x));
+        _put(a + 1, long1(x));
+        _put(a    , long0(x));
+    }
+	
+    static void putLongB(long a, long x) {
+        _put(a    , long7(x));
+        _put(a + 1, long6(x));
+        _put(a + 2, long5(x));
+        _put(a + 3, long4(x));
+        _put(a + 4, long3(x));
+        _put(a + 5, long2(x));
+        _put(a + 6, long1(x));
+        _put(a + 7, long0(x));
+    }	
+	
+    public static void putLong(long a, long x, boolean bigEndian) {
+        if (bigEndian)
+            putLongB(a, x);
+        else
+            putLongL(a, x);
+    }	
 
+    private static void _put(long a, byte b) {
+        unsafe.putByte(a, b);
+    }
+    
+    private static byte int3(int x) { return (byte)(x >> 24); }
+    private static byte int2(int x) { return (byte)(x >> 16); }
+    private static byte int1(int x) { return (byte)(x >>  8); }
+    private static byte int0(int x) { return (byte)(x      ); }    
+    
+    static void putIntB(long a, int x) {
+        _put(a    , int3(x));
+        _put(a + 1, int2(x));
+        _put(a + 2, int1(x));
+        _put(a + 3, int0(x));
+    }
+    
+    static void putIntL(long a, int x) {
+        _put(a + 3, int3(x));
+        _put(a + 2, int2(x));
+        _put(a + 1, int1(x));
+        _put(a    , int0(x));
+    }
+    
+    public static void putInt(long a, int x, boolean bigEndian) {
+        if (bigEndian)
+            putIntB(a, x);
+        else
+            putIntL(a, x);
+    }
+
+    static void putFloatL(long a, float x) {
+        putIntL(a, Float.floatToRawIntBits(x));
+    }
+
+    static void putFloatB(long a, float x) {
+        putIntB(a, Float.floatToRawIntBits(x));
+    }  
+    
+    public static void putFloat(long a, float x, boolean bigEndian) {
+        if (bigEndian)
+            putFloatB(a, x);
+        else
+            putFloatL(a, x);
+    }
 }

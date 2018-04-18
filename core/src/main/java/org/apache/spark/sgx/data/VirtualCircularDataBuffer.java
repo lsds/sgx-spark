@@ -1,22 +1,13 @@
 package org.apache.spark.sgx.data;
 
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import org.apache.spark.sgx.DatasetAddressTranslator;
-import org.apache.spark.sgx.utils.SlottedObjectPool;
+import java.util.logging.Logger;
 
 public class VirtualCircularDataBuffer {
 	
-	private final static Logger log = LogManager.getLogger (VirtualCircularDataBuffer.class);
-	
-	private SlottedObjectPool<MappedDataBuffer> buffers;
+	private MappedDataBuffer buffer;
 	
 	private long capacity, limit;
-	
-	private DatasetAddressTranslator translator;
 	
 	private final PaddedAtomicLong start;
 	private final PaddedAtomicLong end;
@@ -28,23 +19,16 @@ public class VirtualCircularDataBuffer {
 	
 	private long wraps;
 	
-	public VirtualCircularDataBuffer (SlottedObjectPool<MappedDataBuffer> buffers, long capacity) {
-		
-		this(buffers, capacity, capacity);
+	public VirtualCircularDataBuffer (MappedDataBuffer buffer, long capacity) {
+		this(buffer, capacity, capacity);
 	}
 	
-	public VirtualCircularDataBuffer (SlottedObjectPool<MappedDataBuffer> buffers, long capacity, long limit) {
-		
-		this.buffers = buffers;
+	public VirtualCircularDataBuffer (MappedDataBuffer buffer, long capacity, long limit) {
+		this.buffer = buffer;
 		
 		this.capacity = capacity;
 		this.limit = limit;
-		
-		if (this.buffers != null)
-			translator = new DatasetAddressTranslator (buffers);
-		else
-			translator = null;
-		
+
 		start = new PaddedAtomicLong (0L);
 		end = new PaddedAtomicLong (0L);
 		
@@ -61,7 +45,7 @@ public class VirtualCircularDataBuffer {
 		return (index % capacity);
 	}
 	
-	public long shift (int bytes) {
+	public long shift (byte [] arr, int bytes) {
 		
 		/* log.debug(String.format("Shift %d bytes (capacity = %d, limit = %d)", bytes, capacity, limit)); */
 		
@@ -90,6 +74,9 @@ public class VirtualCircularDataBuffer {
 		if (bytes > (capacity - index))
 			throw new IllegalStateException ("error: circular buffer overflow");
 		
+		// start writing from index
+//		buffer.put();
+		
 		long p = normalise (_end + bytes);
 		
 		if (p <= index)
@@ -107,7 +94,7 @@ public class VirtualCircularDataBuffer {
 		
 		long remaining = (tail < head) ? (head - tail) : (capacity - (tail - head));
 		
-		log.debug (
+		Logger.getLogger("debug").info(
 			String.format(
 				"start %20d (%20d) end %20d (%20d) %7d wraps %20d bytes remaining", 
 				normalise (head), head, normalise (tail), tail, getWraps(), remaining
@@ -157,11 +144,6 @@ public class VirtualCircularDataBuffer {
 	public long capacity () {
 		
 		return capacity;
-	}
-	
-	public DatasetAddressTranslator getAddressTranslator () {
-		
-		return translator;
 	}
 
 	public long getNormalisedStartPointer() {

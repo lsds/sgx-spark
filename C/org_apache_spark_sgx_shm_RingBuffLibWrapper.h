@@ -10,26 +10,10 @@ extern "C" {
 /*
  * Class:     org_apache_spark_sgx_shm_RingBuffLibWrapper
  * Method:    init_shm
- * Signature: (Ljava/lang/String;J)[J
+ * Signature: (Ljava/lang/String;I)[J
  */
 JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm
-  (JNIEnv *, jclass, jstring, jlong);
-
-/*
- * Class:     org_apache_spark_sgx_shm_RingBuffLibWrapper
- * Method:    write_msg
- * Signature: (J[B)Z
- */
-JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_write_1msg
-  (JNIEnv *, jclass, jlong, jbyteArray);
-
-/*
- * Class:     org_apache_spark_sgx_shm_RingBuffLibWrapper
- * Method:    read_msg
- * Signature: (J)[B
- */
-JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_read_1msg
-  (JNIEnv *, jclass, jlong);
+  (JNIEnv *, jclass, jstring, jint);
 
 #ifdef __cplusplus
 }

@@ -18,7 +18,7 @@ class SgxBroadcastProvider() extends Callable[Unit] with Logging {
 	ClientHandle.sendRecv[Boolean](new SgxBroadcastProviderIdentifier(_com.getMyPort))
 
 	val com = _com.connect(_com.recvOne.asInstanceOf[Long])
-
+	
 	def call(): Unit = {
 		logDebug(this + " now running with " + com)
 

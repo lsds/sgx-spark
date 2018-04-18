@@ -11,9 +11,7 @@ object ClientHandle extends Logging {
 
 	def sendRecv[O](in: Any) = {
 		val h = handles.take
-		logDebug("ClientHandle.sendRecv in: " + in)
 		val ret = h.sendRecv[O](in)
-		logDebug("ClientHandle.sendRecv ret: " + ret)
 		handles.add(h)
 		ret
 	}

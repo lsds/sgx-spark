@@ -10,15 +10,9 @@ import java.io.Serializable;
 import org.apache.commons.lang3.SerializationUtils;
 import org.nustaq.serialization.FSTConfiguration;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.io.Input;
-
-import java.util.logging.Logger;
-
 public class Serialization {
 	
-	private static ISerialization serializer = new FSTSerialization();
+	private static ISerialization serializer = new JavaSerialization();
 	
 	public static byte[] serialize(Object o) throws Exception {
 		return serializer.serialize(o);
@@ -43,27 +37,17 @@ class JavaSerialization implements ISerialization {
 		byte[] result = stream.toByteArray();
 		oos.close();
 		stream.close();
+		
 		return result;
 	}
 
 	public Object deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
- 		Logger.getLogger("debug").info("JavaSerialization.deserialize0 hash: " + java.util.Arrays.hashCode(bytes));
-		Logger.getLogger("debug").info("JavaSerialization.deserialize1 byte length: " + bytes.length);
 		ByteArrayInputStream s = new ByteArrayInputStream(bytes);
-		Logger.getLogger("debug").info("JavaSerialization.deserialize2: stream1 available: " + s.available());
 		ObjectInputStream ois = new ObjectInputStream(s);
-		Logger.getLogger("debug").info("JavaSerialization.deserialize3: stream2 available: " + ois.available());
-		try {
 		Object value = ois.readObject();
-		Logger.getLogger("debug").info("JavaSerialization.deserialize4: " + value);
 		ois.close();
 		s.close();
-		Logger.getLogger("debug").info("JavaSerialization.deserialize5: closed");
 		return value;
-		} catch (Exception e) {
-			Logger.getLogger("debug").info("Exception: " + e.getMessage());
-		}
-		return null;
 	}
 }
 

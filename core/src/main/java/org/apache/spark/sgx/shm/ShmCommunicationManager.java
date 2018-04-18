@@ -6,7 +6,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import java.util.logging.Logger;
+import org.apache.spark.sgx.data.MappedDataBuffer;
 
 /**
  * This class is to be used by the enclave to communicate with the outside.
@@ -15,8 +15,9 @@ import java.util.logging.Logger;
  *
  */
 public final class ShmCommunicationManager<T> implements Callable<T> {
-	private RingBuff writeBuff;
-	private RingBuff readBuff;
+	
+	private RingBuffConsumer reader;
+	private RingBuffProducer writer;
 
 	private final Object lockWriteBuff = new Object();
 	private final Object lockReadBuff = new Object();
@@ -29,20 +30,21 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	private long inboxCtr = 1;
 	
 	private static ShmCommunicationManager<?> _instance = null;
+	
 
-	private ShmCommunicationManager(String file, long size) {
+	private ShmCommunicationManager(String file, int size) {
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
-		this.readBuff = new RingBuff(handles[0], true);
-		this.writeBuff = new RingBuff(handles[1], true);
+		this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size));
+		this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size));
 	}
 
-	private ShmCommunicationManager(long writeBuff, long readBuff) {
-		this.writeBuff = new RingBuff(writeBuff, true);
-		this.readBuff = new RingBuff(readBuff, true);
+	private ShmCommunicationManager(long writeBuff, long readBuff, int size) {
+		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size));
+		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size));
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> create(String file, long size) {
+	public static <T> ShmCommunicationManager<T> create(String file, int size) {
 		synchronized(lockInstance) {
 			if (_instance == null) {
 				_instance = new ShmCommunicationManager<T>(file, size);
@@ -52,10 +54,10 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff) {
+	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff, int size) {
 		synchronized(lockInstance) {
 			if (_instance == null) {
-				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff);
+				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff, size);
 			}
 		}
 		return (ShmCommunicationManager<T>) _instance;
@@ -84,6 +86,15 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		return new ShmCommunicator(myport, inbox, doConnect);
 	}
 
+	/**
+	 * Waits for a new incoming connections. This call blocks until
+	 * a new connection is actually made. Once a connection is made,
+	 * this method returns a {@link ShmCommunicator} object that
+	 * represents this new connection. 
+	 * This is conceptually similar to accept() on TCP sockets.
+	 * 
+	 * @return a {@link ShmCommunicator} representing the accepted connection
+	 */
 	public ShmCommunicator accept() {
 		ShmCommunicator result = null;
 		do {
@@ -104,13 +115,12 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @return whether the write was successful
 	 */
 	void write(Object o, long theirPort) {
-		Logger.getLogger("debug").info("ShmCommunicationManager.write: " + o);
 		write(new ShmMessage(EShmMessageType.REGULAR, o, theirPort));
 	}
 
 	void write(ShmMessage m) {
 		synchronized (lockWriteBuff) {
-			writeBuff.write(m);
+			writer.write(m);
 		}
 	}
 	
@@ -123,7 +133,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		ShmMessage msg = null;
 		while (true) {
 			synchronized (lockReadBuff) {
-				msg = ((ShmMessage) readBuff.read());
+				msg = ((ShmMessage) reader.read());
 			}
 
 			if (msg.getPort() == 0) {
@@ -147,7 +157,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				synchronized (lockInboxes) {
 					inbox = inboxes.get(msg.getPort());
 				}
-				Logger.getLogger("debug").info("Addding to inbox: " + msg.getMsg());
 				inbox.add(msg.getMsg());
 			}
 		}

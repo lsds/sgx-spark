@@ -1,19 +1,15 @@
 package org.apache.spark.sgx.data;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Logger;
 
 import org.apache.spark.sgx.utils.Bits;
 import sun.misc.Unsafe;
 
 @SuppressWarnings("restriction")
 public class MappedDataBuffer implements IDataBuffer {
-	
-	@SuppressWarnings("unused")
-	private final static Logger log = LogManager.getLogger (MappedDataBuffer.class);
 	
 	protected static final Unsafe unsafe = Bits.unsafe();
 	
@@ -22,17 +18,13 @@ public class MappedDataBuffer implements IDataBuffer {
 	private boolean bigEndian;
 	private boolean nativeByteOrder = (Bits.byteOrder() == ByteOrder.BIG_ENDIAN);
 	
-	private int id;
-	
 	private long address;
 	private int capacity;
 	
-	public MappedDataBuffer (int id, long address, int capacity) {
-		
-		this.id = id;
-		
+	public MappedDataBuffer (long address, int capacity) {
 		this.address = address;
 		this.capacity = capacity;
+		Logger.getLogger("debug").info("Creating " + this);
 	}
 	
 	public final ByteOrder order () {
@@ -42,10 +34,6 @@ public class MappedDataBuffer implements IDataBuffer {
 	public final void order (ByteOrder bo) {
 		bigEndian = (bo == ByteOrder.BIG_ENDIAN);
 		nativeByteOrder = (bigEndian == (Bits.byteOrder() == ByteOrder.BIG_ENDIAN));
-	}
-	
-	public int getBufferId () {
-		return id;
 	}
 	
 	public long address () {
@@ -79,11 +67,6 @@ public class MappedDataBuffer implements IDataBuffer {
 	public long getSize ()  {
 		return capacity;
 	}
-	
-//	@Override
-//	public DataType getType () {
-//		return datatype;
-//	}
 	
 	@Override
 	public byte get (int offset) {
@@ -165,11 +148,6 @@ public class MappedDataBuffer implements IDataBuffer {
 	}
 	
 	@Override
-	public IDataBufferIterator getIterator () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-	
-	@Override
 	public byte [] array () {
 		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
 	}
@@ -206,41 +184,79 @@ public class MappedDataBuffer implements IDataBuffer {
 	
 	@Override
 	public void put (int index, byte value) {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+		unsafe.putByte(ix(checkIndex(index)), ((value)));
 	}
+	
+    static void checkBounds(int off, int len, int size) {
+        if ((off | len | (off + len) | (size - (off + len))) < 0)
+            throw new IndexOutOfBoundsException();
+    }	
 
+
+    private void putInt(long a, int x) {
+        if (unaligned) {
+            int y = (x);
+            unsafe.putInt(a, (nativeByteOrder ? y : Bits.swap(y)));
+        } else {
+            Bits.putInt(a, x, bigEndian);
+        }
+    }
+	
 	@Override
 	public void putInt (int index, int value) {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+		putInt(ix(checkIndex(index, (1 << 2))), value);
 	}
+
+    private void putFloat(long a, float x) {
+        if (unaligned) {
+            int y = Float.floatToRawIntBits(x);
+            unsafe.putInt(a, (nativeByteOrder ? y : Bits.swap(y)));
+        } else {
+            Bits.putFloat(a, x, bigEndian);
+        }
+    }	
 
 	@Override
 	public void putFloat(int index, float value) {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+        putFloat(ix(checkIndex(index, (1 << 2))), value);
 	}
 
+    private void putLong(long a, long x) {
+        if (unaligned) {
+            long y = (x);
+            unsafe.putLong(a, (nativeByteOrder ? y : Bits.swap(y)));
+        } else {
+            Bits.putLong(a, x, bigEndian);
+        }
+    }
+	
 	@Override
 	public void putLong (int index, long value) {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+		putLong(ix(checkIndex(index, (1 << 3))), value);
 	}
 	
 	@Override
 	public void put (IDataBuffer buffer) {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+		throw new UnsupportedOperationException ("error: unsupported operation");
 	}
 
 	@Override
 	public void put (IDataBuffer buffer, int offset, int length, boolean resetPosition) {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+		throw new UnsupportedOperationException ("error: unsupported operation");
 	}
 
 	@Override
 	public void bzero () {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+		throw new UnsupportedOperationException ("error: unsupported operation");
 	}
 	
 	@Override
 	public void bzero (int offset, int length) {
-		throw new UnsupportedOperationException ("error: mapped data buffer are read-only");
+		throw new UnsupportedOperationException ("error: unsupported operation");
+	}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + "(address=" + address + ", capacity=" + capacity + ")";
 	}
 }

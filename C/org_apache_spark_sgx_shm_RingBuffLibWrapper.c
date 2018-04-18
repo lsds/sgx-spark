@@ -10,7 +10,6 @@
 #include <sys/mman.h>
 
 #include "org_apache_spark_sgx_shm_RingBuffLibWrapper.h"
-#include "ring_buff.h"
 
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
@@ -18,7 +17,7 @@
 #define MAX_WAIT 32768
 #define MIN_WAIT 64
 
-static void *register_shm(char* path, unsigned long long len)
+static void *register_shm(char* path, int len)
 {
 	if (path == NULL || strlen(path) == 0)
 		exit(2);
@@ -43,7 +42,7 @@ static void *register_shm(char* path, unsigned long long len)
 	}
 
 	if (len <= 0) {
-		fprintf(stderr, "Error: invalid memory size length %llu\n", len);
+		fprintf(stderr, "Error: invalid memory size length %d\n", len);
 		exit(6);
 	}
 
@@ -62,54 +61,8 @@ static void *register_shm(char* path, unsigned long long len)
 	return addr;
 }
 
-JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_write_1msg(JNIEnv *env, jclass cls, jlong handle, jbyteArray data) {
-	jint len = (*env)->GetArrayLength(env, data);
-	char buf[len];
-	int ret;
-	(*env)->GetByteArrayRegion(env, data, 0, len, buf);
-
-	int wait_write = MIN_WAIT;
-	while ((ret = ring_buff_write_msg((ring_buff_handle_t) handle, (void*) buf, (uint32_t) len)) != RING_BUFF_ERR_OK) {
-		usleep(wait_write);
-		wait_write = MIN(wait_write*2, MAX_WAIT);
-	}
-
-	return ret == RING_BUFF_ERR_OK;
-}
-
-JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_read_1msg(JNIEnv *env, jclass cls, jlong handle) {
-	void *data;
-	uint32_t len;
-	int ret = RING_BUFF_ERR_GENERAL;
-
-	int wait_read = MIN_WAIT;
-	while ((ret = ring_buff_read_msg((ring_buff_handle_t) handle, &data, &len)) != RING_BUFF_ERR_OK) {
-		usleep(wait_read);
-		wait_read = MIN(wait_read*2, MAX_WAIT);
-	}
-
-	if ((ret = ring_buff_free((ring_buff_handle_t) handle, data, len)) != RING_BUFF_ERR_OK) {
-		printf("Error during ring_buff_free()\n");
-		ring_buff_print_err(ret);
-		return (jbyteArray) {0};
-	}
-
-	jbyteArray result = (*env)->NewByteArray(env, len);
-	if (result == NULL) {
-		return NULL;
-	}
-
-	(*env)->SetByteArrayRegion(env, result, 0, len, data);
-	return result;
-}
-
-JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jlong size) {
+JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm(JNIEnv *env, jclass cls, jstring file, jint size) {
 	char* shm_file = (char *) (*env)->GetStringUTFChars(env, file, 0);
-	void* shm_addr = register_shm(shm_file, ring_buff_struct_size() * 2);
-
-	// Load message queue control structures to memory
-	ring_buff_handle_t enc_to_out_q = (ring_buff_handle_t) shm_addr;
-	ring_buff_handle_t out_to_enc_q = ((ring_buff_handle_t) (((char*) shm_addr) + ring_buff_struct_size()));
 
 	// Load shared memory
 	size_t strl = strlen(shm_file);
@@ -121,14 +74,9 @@ JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_in
 	void* enc_to_out_mem = register_shm(enc_to_out_file, size);
 	void* out_to_enc_mem = register_shm(out_to_enc_file, size);
 
-	// Set the read buffer for the incoming message queue to match our address space (same for write buffer for outgoing message queue)
-	// NOTE: By default, these will both be set to the buffer address of the enclave application, so it only needs to be changed here
-	ring_buff_set_read_buff(enc_to_out_q, enc_to_out_mem);
-	ring_buff_set_write_buff(out_to_enc_q, out_to_enc_mem);
-
 	long res[2];
-	res[0] = (long) enc_to_out_q;
-	res[1] = (long) out_to_enc_q;
+	res[0] = (long) enc_to_out_mem;
+	res[1] = (long) out_to_enc_mem;
 
 	jlongArray result = (*env)->NewLongArray(env, 2);
 	(*env)->SetLongArrayRegion(env, result, 0, 2, res);

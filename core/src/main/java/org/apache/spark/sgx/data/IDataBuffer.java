@@ -4,8 +4,6 @@ import java.nio.ByteBuffer;
 
 public interface IDataBuffer {
 	
-	public int getBufferId ();
-	
 	public byte  get      (int offset);
 	public int   getInt   (int offset);
 	public float getFloat (int offset);
@@ -28,8 +26,6 @@ public interface IDataBuffer {
 	
 	public void finalise (int index);
 	public boolean isFinalised ();
-	
-	public IDataBufferIterator getIterator ();
 	
 	public void put (IDataBuffer buffer);
 	public void put (IDataBuffer buffer, int offset, int length, boolean resetPosition);
