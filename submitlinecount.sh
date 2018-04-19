@@ -13,8 +13,6 @@ export SPARK_JOBNAME=linecount
 INFILE=$(pwd)/data/mllib/kmeans_data.txt.single
 #INFILE=$(pwd)/data/mllib/kmeans_data.txt.short
 
-rm /dev/shm/${SGXLKL_SHMEM_FILE}*
-
 ./bin/spark-submit \
 --class org.apache.spark.examples.LineCount \
 --master spark://kiwi01.doc.res.ic.ac.uk:${SPARK_MASTER_PORT} \
