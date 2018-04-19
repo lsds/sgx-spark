@@ -9,6 +9,7 @@ class RingBuffProducer {
 	
 	RingBuffProducer(MappedDataBuffer buffer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer);
+		System.out.println("Creating " + this);
 	}
 
 	/*

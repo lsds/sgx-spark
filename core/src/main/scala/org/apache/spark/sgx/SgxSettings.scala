@@ -8,7 +8,13 @@ object SgxSettings extends Logging {
 	val IS_ENCLAVE = sys.env.get("IS_ENCLAVE").getOrElse("false").toBoolean
 	val IS_DRIVER = sys.env.get("IS_DRIVER").getOrElse("false").toBoolean
 	val IS_WORKER = sys.env.get("IS_WORKER").getOrElse("false").toBoolean
-	val IS_ENCLAVE_REAL = sys.env.get("IS_ENCLAVE_REAL").getOrElse("true").toBoolean
+	
+	/*
+	 * For debugging. Set this to false if the enclave side of Sgx-Spark does not run on
+	 * sgx-lkl, but in a regular JVM on the host.
+	 * Default: true
+	 */
+	val DEBUG_IS_ENCLAVE_REAL = sys.env.get("DEBUG_IS_ENCLAVE_REAL").getOrElse("true").toBoolean
 
 	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("1").toInt
 	val PREFETCH = sys.env.get("PREFETCH").getOrElse("128").toInt

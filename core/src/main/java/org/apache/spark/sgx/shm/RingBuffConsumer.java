@@ -10,6 +10,7 @@ class RingBuffConsumer {
 
 	RingBuffConsumer(MappedDataBuffer buffer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer);
+		System.out.println("Creating " + this);
 	}
 
 	Object read() {

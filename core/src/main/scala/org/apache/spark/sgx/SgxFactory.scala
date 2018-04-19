@@ -20,7 +20,10 @@ object SgxFactory {
 //	    println("mgr creation 3")
 //	    ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 //	  }
-	if (SgxSettings.IS_ENCLAVE) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC, SgxSettings.SHMEM_SIZE)
+	if (SgxSettings.IS_ENCLAVE) {
+	  if (SgxSettings.DEBUG_IS_ENCLAVE_REAL) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC, SgxSettings.SHMEM_SIZE)
+	  else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
+	}
 	else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 	Completor.submit(mgr);
 

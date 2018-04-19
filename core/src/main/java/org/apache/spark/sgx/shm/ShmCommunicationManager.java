@@ -6,6 +6,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.spark.sgx.SgxSettings;
 import org.apache.spark.sgx.data.MappedDataBuffer;
 
 /**
@@ -31,16 +32,41 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	
 	private static ShmCommunicationManager<?> _instance = null;
 	
-
+	/**
+	 * This constructor is called by the outside JVM. 
+	 * For debugging purposes, this might indeed also be a JVM that fulfills
+	 * the duties of the enclave (i.e., a JVM that runs outside of the enclave
+	 * but does what the enclave is supposed to do). 
+	 * 
+	 * @param file
+	 * @param size
+	 */
 	private ShmCommunicationManager(String file, int size) {
 		System.out.println("ShmCommunicationManager: " + file + " " + size);
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
 		System.out.println("ShmCommunicationManager: " + file + " " + size + " initialized: " + handles[0] + ", " + handles[1]);
 		
-		this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size));
-		this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size));
+		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
+			// debugging case: switch producer and consumer,
+			// since this instance of the code is acually the enclave side of things
+			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size));
+			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size));
+		}
+		else {
+			// default case
+			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size));
+			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size));
+		}
 	}
 
+	/**
+	 * This constructor is called by the enclave, which is provided with
+	 * corresponding pointers to shared memory by sgx-lkl.
+	 * 
+	 * @param writeBuff pointer to the memory to write to
+	 * @param readBuff pointer to the memory to read from
+	 * @param size the size of each of those memory regions
+	 */
 	private ShmCommunicationManager(long writeBuff, long readBuff, int size) {
 		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size));
 		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size));

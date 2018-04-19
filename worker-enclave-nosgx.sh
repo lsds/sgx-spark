@@ -8,7 +8,7 @@ export IS_ENCLAVE=true
 export IS_DRIVER=false
 export IS_WORKER=true
 
-export IS_ENCLAVE_REAL=false
+export DEBUG_IS_ENCLAVE_REAL=false
 
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
 
@@ -33,5 +33,5 @@ java \
 -XX:+AssumeMP \
 -Xint \
 -Djava.library.path=lib/ \
--cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:examples/target/scala-${SCALA_VERSION}/jars/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-worker
