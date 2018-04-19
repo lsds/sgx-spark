@@ -5,8 +5,23 @@ import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 object SgxFactory {
-	val mgr = if (SgxSettings.IS_ENCLAVE) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC, SgxSettings.SHMEM_SIZE);
-			else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
+	val mgr =
+//	  if (SgxSettings.IS_ENCLAVE) {
+//	    if (SgxSettings.IS_ENCLAVE_REAL) {
+//	      println("mgr creation 1")
+//	      ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC, SgxSettings.SHMEM_SIZE)
+//	    }
+//	    else {
+//	      println("mgr creation 2")
+//	      ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE, true)
+//	    }
+//	  }
+//	  else {
+//	    println("mgr creation 3")
+//	    ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
+//	  }
+	if (SgxSettings.IS_ENCLAVE) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC, SgxSettings.SHMEM_SIZE)
+	else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 	Completor.submit(mgr);
 
 	private var startedBroadcastProvider = false

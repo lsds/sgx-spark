@@ -1,11 +1,9 @@
 package org.apache.spark.sgx.data;
 
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.logging.Logger;
 
 import org.apache.spark.sgx.utils.Bits;
+
 import sun.misc.Unsafe;
 
 @SuppressWarnings("restriction")
@@ -24,7 +22,6 @@ public class MappedDataBuffer implements IDataBuffer {
 	public MappedDataBuffer (long address, int capacity) {
 		this.address = address;
 		this.capacity = capacity;
-		Logger.getLogger("debug").info("Creating " + this);
 	}
 	
 	public final ByteOrder order () {
@@ -56,21 +53,8 @@ public class MappedDataBuffer implements IDataBuffer {
 		return index;
 	}
 	
-	public boolean isMapped () {
-		return true;
-	}
-	
-	public ByteBuffer getByteBuffer () {
-		throw new IllegalStateException ("error: buffer is mapped");
-	}
-	
-	public long getSize ()  {
-		return capacity;
-	}
-	
-	@Override
-	public byte get (int offset) {
-		return ((unsafe.getByte(ix(checkIndex(offset)))));
+	public byte get (int index) {
+		return ((unsafe.getByte(ix(checkIndex(index)))));
 	}
 	
 	private int getInt (long a) {
@@ -81,22 +65,8 @@ public class MappedDataBuffer implements IDataBuffer {
 		return Bits.getInt(a, bigEndian);
 	}
 	
-	@Override
-	public int getInt (int offset) {
-		return getInt(ix(checkIndex(offset, (1 << 2))));
-	}
-	
-	private float getFloat (long a) {
-		if (unaligned) {
-			int x = unsafe.getInt (a);
-			return Float.intBitsToFloat(nativeByteOrder ? x : Bits.swap(x));
-		}
-		return Bits.getFloat(a, bigEndian);
-	}
-	
-	@Override
-	public float getFloat (int offset) {
-		return getFloat(ix(checkIndex(offset, (1 << 2))));
+	public int getInt (int index) {
+		return getInt(ix(checkIndex(index, (1 << 2))));
 	}
 	
 	private long getLong (long a) {
@@ -107,85 +77,25 @@ public class MappedDataBuffer implements IDataBuffer {
 		return Bits.getLong (a, bigEndian);
 	}
 	
-	@Override
-	public long getLong (int offset) {
-		return getLong(ix(checkIndex(offset, (1 << 3))));
+	public long getLong (int index) {
+		return getLong(ix(checkIndex(index, (1 << 3))));
 	}
 	
-	@Override
-	public int limit () {
-		return capacity;
-	}
-	
-	@Override
-	public int position () {
-		return 0;
-	}
-
-	@Override
-	public int capacity () {
-		return capacity;
-	}
-	
-	@Override
-	public boolean isDirect () {
-		return true;
-	}
-	
-	@Override
-	public boolean isFinalised () {
-		return true;
-	}
-
-	@Override
-	public void reset () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-
-	@Override
-	public void clear () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-	
-	@Override
-	public byte [] array () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-
-	@Override
-	public void finalise(int index) {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-	
-	@Override
-	public float computeChecksum () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-	
-	@Override
-	public void free () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-	
-	@Override
-	public int referenceCountGet () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-
-	@Override
-	public int referenceCountGetAndIncrement () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-
-	@Override
-	public int referenceCountDecrementAndGet () {
-		throw new UnsupportedOperationException ("error: unsupported operation on mapped data buffers");
-	}
-	
-	@Override
 	public void put (int index, byte value) {
 		unsafe.putByte(ix(checkIndex(index)), ((value)));
 	}
+	
+	public void put (int index, byte[] value) {
+		int length = value.length;
+		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + 0 * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(checkIndex(index, length)), length);
+	}
+	
+	public byte[] get(int index, byte[] value) {
+		int length = value.length;
+		unsafe.copyMemory(null, ix(checkIndex(index, length)), value, Unsafe.ARRAY_BYTE_BASE_OFFSET + 0 * Unsafe.ARRAY_BYTE_INDEX_SCALE, length);
+		return value;
+	}	
+		
 	
     static void checkBounds(int off, int len, int size) {
         if ((off | len | (off + len) | (size - (off + len))) < 0)
@@ -202,23 +112,8 @@ public class MappedDataBuffer implements IDataBuffer {
         }
     }
 	
-	@Override
 	public void putInt (int index, int value) {
 		putInt(ix(checkIndex(index, (1 << 2))), value);
-	}
-
-    private void putFloat(long a, float x) {
-        if (unaligned) {
-            int y = Float.floatToRawIntBits(x);
-            unsafe.putInt(a, (nativeByteOrder ? y : Bits.swap(y)));
-        } else {
-            Bits.putFloat(a, x, bigEndian);
-        }
-    }	
-
-	@Override
-	public void putFloat(int index, float value) {
-        putFloat(ix(checkIndex(index, (1 << 2))), value);
 	}
 
     private void putLong(long a, long x) {
@@ -229,34 +124,26 @@ public class MappedDataBuffer implements IDataBuffer {
             Bits.putLong(a, x, bigEndian);
         }
     }
+    
+//    public void put(byte[] src, int offset, int length) {
+//        checkBounds(offset, length, src.length);
+//        if (length > remaining())
+//            throw new BufferOverflowException();
+//        int end = offset + length;
+//        for (int i = offset; i < end; i++)
+//            this.put(src[i]);
+//    }
 	
-	@Override
 	public void putLong (int index, long value) {
 		putLong(ix(checkIndex(index, (1 << 3))), value);
 	}
 	
-	@Override
-	public void put (IDataBuffer buffer) {
-		throw new UnsupportedOperationException ("error: unsupported operation");
-	}
-
-	@Override
-	public void put (IDataBuffer buffer, int offset, int length, boolean resetPosition) {
-		throw new UnsupportedOperationException ("error: unsupported operation");
-	}
-
-	@Override
-	public void bzero () {
-		throw new UnsupportedOperationException ("error: unsupported operation");
-	}
-	
-	@Override
-	public void bzero (int offset, int length) {
-		throw new UnsupportedOperationException ("error: unsupported operation");
-	}
-	
-	@Override
 	public String toString() {
 		return this.getClass().getSimpleName() + "(address=" + address + ", capacity=" + capacity + ")";
+	}
+
+	@Override
+	public int capacity() {
+		return capacity;
 	}
 }

@@ -8,11 +8,18 @@ object SgxSettings extends Logging {
 	val IS_ENCLAVE = sys.env.get("IS_ENCLAVE").getOrElse("false").toBoolean
 	val IS_DRIVER = sys.env.get("IS_DRIVER").getOrElse("false").toBoolean
 	val IS_WORKER = sys.env.get("IS_WORKER").getOrElse("false").toBoolean
+	val IS_ENCLAVE_REAL = sys.env.get("IS_ENCLAVE_REAL").getOrElse("true").toBoolean
 
 	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("1").toInt
 	val PREFETCH = sys.env.get("PREFETCH").getOrElse("128").toInt
 
 	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt
+	
+	/*
+	 * Serializer to use.
+	 * See Serialization.getSerializer() for valid options.
+	 */
+	val SERIALIZER = sys.env.get("SERIALIZER").getOrElse("fst");
 
 	val SHMEM_FILE = {
 		sys.env.get("SGXLKL_SHMEM_FILE").getOrElse({

@@ -12,7 +12,21 @@ import org.nustaq.serialization.FSTConfiguration;
 
 public class Serialization {
 	
-	private static ISerialization serializer = new JavaSerialization();
+//	private static ISerialization getSerializer() {
+//		switch (SgxSettings.SERIALIZER().toLowerCase()) {
+//			case "java":
+//			case "default":
+//				return new JavaSerialization();
+//			case "apache":
+//			case "commons":
+//				return new CommonsSerialization();
+//			case "fst":
+//			default:
+//				return new FSTSerialization();
+//		}
+//	}
+	
+	private static ISerialization serializer = new FSTSerialization();//getSerializer();
 	
 	public static byte[] serialize(Object o) throws Exception {
 		return serializer.serialize(o);

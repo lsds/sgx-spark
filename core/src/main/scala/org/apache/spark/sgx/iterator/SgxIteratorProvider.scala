@@ -52,14 +52,15 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 							// It seems that this is due to optimizations in the implementation of class NextIterator.
 							// If cloning is not possible, just add this one object and send it individually.
 							// This should actually never be the case, as the object _must_ be sent to a consumer.
-							try {
+//							try {
+							logDebug("Cloning " + n)
 								q.insert(i, SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T])
-							}
-							catch {
-								case e: SerializationException =>
-									q += n
-									break
-							}
+//							}
+//							catch {
+//								case e: SerializationException =>
+//									q += n
+//									break
+//							}
 						}
 					} else {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {

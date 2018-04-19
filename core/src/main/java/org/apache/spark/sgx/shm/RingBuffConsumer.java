@@ -1,19 +1,15 @@
 package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.Serialization;
-import org.apache.spark.sgx.data.IDataBuffer;
+import org.apache.spark.sgx.data.AlignedMappedDataBuffer;
+import org.apache.spark.sgx.data.MappedDataBuffer;
 
 class RingBuffConsumer {
 	
-	private IDataBuffer buffer;
-	
-	private static int MAX_WAIT = 16;
-	private static int MIN_WAIT = 1;
-	
-	private int position = 0;
+	private AlignedMappedDataBuffer buffer;
 
-	RingBuffConsumer(IDataBuffer buffer) {
-		this.buffer = buffer;
+	RingBuffConsumer(MappedDataBuffer buffer) {
+		this.buffer = new AlignedMappedDataBuffer(buffer);
 	}
 
 	Object read() {
@@ -22,18 +18,16 @@ class RingBuffConsumer {
 
 		do {
 			try {
-				int len;
-				int wait = MIN_WAIT;
-				while ((len = buffer.getInt(position)) == 0) {
-					Thread.sleep(wait);
-					wait = Math.min(wait << 1, MAX_WAIT);
-				}
-				position += 4;
+				System.out.println("Reading object");
+				int pos = buffer.position();
+				System.out.println("position=" + pos);
+				int len = buffer.waitWhile(0);
+				System.out.println("Reading object done waiting");
 				byte[] bytes = new byte[len];
-				for (int i = 0; i < len; i++) {
-					bytes[i] = buffer.get(position++);					
-				}
+				buffer.get(bytes);
+				buffer.putInt(pos, 0);
 				obj = Serialization.deserialize(bytes);
+				System.out.println("Reading object done: " + obj);
 				
 			} catch (Exception e) {
 				e.printStackTrace();
