@@ -10,7 +10,6 @@ class RingBuffConsumer {
 
 	RingBuffConsumer(MappedDataBuffer buffer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer);
-		System.out.println("Creating " + this);
 	}
 
 	Object read() {
@@ -19,16 +18,12 @@ class RingBuffConsumer {
 
 		do {
 			try {
-				System.out.println("Reading object");
 				int pos = buffer.position();
-				System.out.println("position=" + pos);
 				int len = buffer.waitWhile(0);
-				System.out.println("Reading object done waiting");
 				byte[] bytes = new byte[len];
 				buffer.get(bytes);
 				buffer.putInt(pos, 0);
 				obj = Serialization.deserialize(bytes);
-				System.out.println("Reading object done: " + obj);
 				
 			} catch (Exception e) {
 				e.printStackTrace();

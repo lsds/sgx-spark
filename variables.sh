@@ -13,6 +13,7 @@ export SGX_USE_SHMEM=true
 export SGXLKL_SHMEM_SIZE=1073741824 # 1GB // 4294967296 # 4GB
 export PREFETCH=2048
 export CONNECTIONS=1
+export SERIALIZER=commons
 
 export LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usrib:/usr/local/lib
 

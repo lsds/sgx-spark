@@ -4,6 +4,8 @@ public class AlignedMappedDataBuffer {
 	
 	private MappedDataBuffer buffer;
 	
+	private static int ALIGNMENT = 64;
+	
 	private int position = 0;
 	
 	public AlignedMappedDataBuffer(MappedDataBuffer buffer) {
@@ -11,12 +13,12 @@ public class AlignedMappedDataBuffer {
 	}
 	
 	private void movePosition(int plus) {
-		int r = plus % 64;
-		position += (r == 0) ? plus : plus + (64 - r);
+		int r = plus % ALIGNMENT;
+		position += (r == 0) ? plus : plus + (ALIGNMENT - r);
 	}
 	
 	public void putInt(int position, int value) {
-		if (position % 64 != 0) {
+		if (position % ALIGNMENT != 0) {
 			throw new RuntimeException("Index is not aligned");
 		}
 		buffer.putInt(position, value);
@@ -24,29 +26,26 @@ public class AlignedMappedDataBuffer {
 	
 	public void putInt(int value) {
 		putInt(position, value);
-		movePosition(64);
+		movePosition(ALIGNMENT);
 	}
 	
 	public int getInt() {
 		int i = buffer.getInt(position);
-		movePosition(64);
+		movePosition(ALIGNMENT);
 		return i;
 	}
 	
-	private static int MAX_WAIT = 256;
+	private static int MAX_WAIT = 16;
 	private static int MIN_WAIT = 1;
 	
 	public int waitWhile(int value) throws InterruptedException {
 		int wait = MIN_WAIT;
 		int res;
-		System.out.println("waiting ");
-		while ((res = buffer.getInt(position)) == value) {
-			System.out.print(".");			
+		while ((res = buffer.getInt(position)) == value) {	
 			Thread.sleep(wait);			
 			wait = Math.min(wait << 1, MAX_WAIT);
 		}
-		System.out.println(".");
-		movePosition(64);
+		movePosition(ALIGNMENT);
 		return res;
 	}
 	
@@ -57,7 +56,7 @@ public class AlignedMappedDataBuffer {
 			Thread.sleep(wait);
 			wait = Math.min(wait << 1, MAX_WAIT);
 		}
-		movePosition(64);
+		movePosition(ALIGNMENT);
 		return res;
 	}	
 	

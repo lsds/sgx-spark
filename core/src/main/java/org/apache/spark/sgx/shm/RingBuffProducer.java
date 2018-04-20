@@ -9,7 +9,6 @@ class RingBuffProducer {
 	
 	RingBuffProducer(MappedDataBuffer buffer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer);
-		System.out.println("Creating " + this);
 	}
 
 	/*
@@ -29,12 +28,10 @@ class RingBuffProducer {
 			try {				
 				byte[] bytes = Serialization.serialize(o);
 				int pos = buffer.position();
-				System.out.println("Waiting to write object " + o);
 				buffer.waitUntil(0);
 				buffer.put(bytes);
 				buffer.putInt(pos, bytes.length);
 				success = true;
-				System.out.println("Done writing object " + o + " of length " + bytes.length);
 			} catch (Exception e) {
 				e.printStackTrace();
 				exception = true;

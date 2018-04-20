@@ -12,6 +12,7 @@ object LineCount extends Logging {
     val result = block    // call-by-name
     val t1 = System.nanoTime()
     println("Elapsed time: " + java.text.NumberFormat.getIntegerInstance.format((t1 - t0)/1000000) + "ms")
+    logInfo("Elapsed time: " + java.text.NumberFormat.getIntegerInstance.format((t1 - t0)/1000000) + "ms")
     result
   }
 

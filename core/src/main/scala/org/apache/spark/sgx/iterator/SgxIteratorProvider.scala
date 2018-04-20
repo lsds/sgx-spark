@@ -53,7 +53,6 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 							// If cloning is not possible, just add this one object and send it individually.
 							// This should actually never be the case, as the object _must_ be sent to a consumer.
 //							try {
-							logDebug("Cloning " + n)
 								q.insert(i, SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T])
 //							}
 //							catch {
@@ -68,9 +67,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 						}
 					}
 					val qe = if (doEncrypt) Encrypt(q) else q
-					logDebug("Sending: " + qe + "("+q.length+" elements)")
 					com.sendOne(qe)
-					logDebug("Sent done: " + qe)
 				}
 				case MsgIteratorReqClose =>
 					stop(com)
