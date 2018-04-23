@@ -1,14 +1,14 @@
 package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.Serialization;
-import org.apache.spark.sgx.data.AlignedMappedDataBuffer;
-import org.apache.spark.sgx.data.MappedDataBuffer;
 
 class RingBuffProducer {
 	private AlignedMappedDataBuffer buffer;
 	
+	private int pos = 0;
+	
 	RingBuffProducer(MappedDataBuffer buffer) {
-		this.buffer = new AlignedMappedDataBuffer(buffer);
+		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
 	}
 
 	/*
@@ -16,28 +16,29 @@ class RingBuffProducer {
 	 * - Align with cache line 64 Byte
 	 * - Deserialization: do not copy first into local, deserialize directly from shared memory
 	 * - Wrapping at end of buffer
+	 * - Use shared files between enclave and outside
+	 * - Use shared directories betweene enclave and outside
 	 * - Use System.arracopy
 	 * - madvise: do not page out
 	 */
 	
-	boolean write(Object o) {
+	void write(Object o) {
 		boolean exception = false;
 		boolean success = false;
 		
 		do {
 			try {				
 				byte[] bytes = Serialization.serialize(o);
-				int pos = buffer.position();
-				buffer.waitUntil(0);
-				buffer.put(bytes);
+				buffer.waitUntil(pos, 0);
+				buffer.putBytes(pos+1, bytes);
 				buffer.putInt(pos, bytes.length);
+				pos += buffer.slotsNeeded(bytes.length) + 1;
 				success = true;
 			} catch (Exception e) {
 				e.printStackTrace();
 				exception = true;
 			}
 		} while (!success && !exception);
-		return true;
 	}
 	
 	@Override

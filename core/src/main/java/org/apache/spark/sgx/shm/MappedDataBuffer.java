@@ -1,4 +1,4 @@
-package org.apache.spark.sgx.data;
+package org.apache.spark.sgx.shm;
 
 import java.nio.ByteOrder;
 
@@ -7,7 +7,7 @@ import org.apache.spark.sgx.utils.Bits;
 import sun.misc.Unsafe;
 
 @SuppressWarnings("restriction")
-public class MappedDataBuffer implements IDataBuffer {
+class MappedDataBuffer {
 	
 	protected static final Unsafe unsafe = Bits.unsafe();
 	
@@ -16,24 +16,24 @@ public class MappedDataBuffer implements IDataBuffer {
 	private boolean bigEndian;
 	private boolean nativeByteOrder = (Bits.byteOrder() == ByteOrder.BIG_ENDIAN);
 	
-	private long address;
-	private int capacity;
+	private final long address;
+	private final int capacity;
 	
 	public MappedDataBuffer (long address, int capacity) {
 		this.address = address;
 		this.capacity = capacity;
 	}
 	
-	public final ByteOrder order () {
+	final ByteOrder order () {
 		return (bigEndian) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 	}
 	
-	public final void order (ByteOrder bo) {
+	final void order (ByteOrder bo) {
 		bigEndian = (bo == ByteOrder.BIG_ENDIAN);
 		nativeByteOrder = (bigEndian == (Bits.byteOrder() == ByteOrder.BIG_ENDIAN));
 	}
 	
-	public long address () {
+	long address () {
 		return address;
 	}
 	
@@ -53,7 +53,7 @@ public class MappedDataBuffer implements IDataBuffer {
 		return index;
 	}
 	
-	public byte get (int index) {
+	byte get (int index) {
 		return ((unsafe.getByte(ix(checkIndex(index)))));
 	}
 	
@@ -65,7 +65,7 @@ public class MappedDataBuffer implements IDataBuffer {
 		return Bits.getInt(a, bigEndian);
 	}
 	
-	public int getInt (int index) {
+	int getInt (int index) {
 		return getInt(ix(checkIndex(index, (1 << 2))));
 	}
 	
@@ -77,31 +77,38 @@ public class MappedDataBuffer implements IDataBuffer {
 		return Bits.getLong (a, bigEndian);
 	}
 	
-	public long getLong (int index) {
+	long getLong (int index) {
 		return getLong(ix(checkIndex(index, (1 << 3))));
 	}
 	
-	public void put (int index, byte value) {
+	void put (int index, byte value) {
 		unsafe.putByte(ix(checkIndex(index)), ((value)));
 	}
 	
-	public void put (int index, byte[] value) {
-		int length = value.length;
-		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + 0 * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(checkIndex(index, length)), length);
+	void put (int index, byte[] value) {
+		put(index, value, 0, value.length);
 	}
 	
-	public byte[] get(int index, byte[] value) {
-		int length = value.length;
-		unsafe.copyMemory(null, ix(checkIndex(index, length)), value, Unsafe.ARRAY_BYTE_BASE_OFFSET + 0 * Unsafe.ARRAY_BYTE_INDEX_SCALE, length);
-		return value;
-	}	
-		
+	void put (int index, byte[] value, int from, int length) {
+		if (from < 0 || from >= value.length || from + length >= value.length ) {
+			throw new RuntimeException("Invalid index: from=" + from + ", length=" + length + " for array of size " + value.length + ".");
+		}
+		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(checkIndex(index, from + length)), length);
+	}
 	
+	byte[] get(int index, byte[] value) {
+		return get(index, value, 0, value.length);
+	}
+	
+	byte[] get(int index, byte[] value, int from, int length) {
+		unsafe.copyMemory(null, ix(checkIndex(index, length)), value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, length);
+		return value;
+	}
+
     static void checkBounds(int off, int len, int size) {
         if ((off | len | (off + len) | (size - (off + len))) < 0)
             throw new IndexOutOfBoundsException();
-    }	
-
+    }
 
     private void putInt(long a, int x) {
         if (unaligned) {
@@ -112,7 +119,7 @@ public class MappedDataBuffer implements IDataBuffer {
         }
     }
 	
-	public void putInt (int index, int value) {
+	void putInt (int index, int value) {
 		putInt(ix(checkIndex(index, (1 << 2))), value);
 	}
 
@@ -124,17 +131,8 @@ public class MappedDataBuffer implements IDataBuffer {
             Bits.putLong(a, x, bigEndian);
         }
     }
-    
-//    public void put(byte[] src, int offset, int length) {
-//        checkBounds(offset, length, src.length);
-//        if (length > remaining())
-//            throw new BufferOverflowException();
-//        int end = offset + length;
-//        for (int i = offset; i < end; i++)
-//            this.put(src[i]);
-//    }
 	
-	public void putLong (int index, long value) {
+	void putLong (int index, long value) {
 		putLong(ix(checkIndex(index, (1 << 3))), value);
 	}
 	
@@ -142,8 +140,7 @@ public class MappedDataBuffer implements IDataBuffer {
 		return this.getClass().getSimpleName() + "(address=" + address + ", capacity=" + capacity + ")";
 	}
 
-	@Override
-	public int capacity() {
+	int capacity() {
 		return capacity;
 	}
 }

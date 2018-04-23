@@ -7,7 +7,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.spark.sgx.SgxSettings;
-import org.apache.spark.sgx.data.MappedDataBuffer;
 
 /**
  * This class is to be used by the enclave to communicate with the outside.

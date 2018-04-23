@@ -3,6 +3,8 @@ package org.apache.spark.sgx.data;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
+import org.apache.spark.sgx.shm.MappedDataBuffer;
+
 public class VirtualCircularDataBuffer {
 	
 	private MappedDataBuffer buffer;
