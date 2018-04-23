@@ -70,26 +70,25 @@ class AlignedMappedDataBuffer {
 	
 	int getInt(int slot) {
 		check(slot);
-		return buffer.getInt(toIndex(slot));
+		int v = buffer.getInt(toIndex(slot));
+		return v;
 	}
 	
 	void putBytes(int slot, byte[] value) {
-		putBytes(toIndex(slot), value, 0, value.length);
+		putBytes(slot, value, 0, value.length);
 	}
 	
 	void putBytes(int slot, byte[] value, int from, int length) {
 		check(slot, length);
-		System.out.println(this + " putBytes(slot=" + slot + ", from=" + from + ", length=" + length + ")");
 		buffer.put(toIndex(slot), value, from, length);
 	}
 	
 	byte[] getBytes(int slot, byte[] value) {
-		return getBytes(toIndex(slot), value, 0, value.length);
+		return getBytes(slot, value, 0, value.length);
 	}
 	
 	byte[] getBytes(int slot, byte[] value, int from, int length) {
 		check(slot, length);
-		System.out.println(this + " getBytes(slot=" + slot + ", from=" + from + ", length=" + length + ")");
 		return buffer.get(toIndex(slot), value, from, length);
 	}
 	
@@ -101,6 +100,7 @@ class AlignedMappedDataBuffer {
 			Thread.sleep(wait);			
 			wait = Math.min(wait << 1, MAX_WAIT);
 		}
+		
 		return res;
 	}
 	

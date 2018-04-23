@@ -6,7 +6,6 @@ import org.apache.spark.sgx.utils.Bits;
 
 import sun.misc.Unsafe;
 
-@SuppressWarnings("restriction")
 class MappedDataBuffer {
 	
 	protected static final Unsafe unsafe = Bits.unsafe();
@@ -90,7 +89,7 @@ class MappedDataBuffer {
 	}
 	
 	void put (int index, byte[] value, int from, int length) {
-		if (from < 0 || from >= value.length || from + length >= value.length ) {
+		if (from < 0 || from >= value.length || from + length > value.length ) {
 			throw new RuntimeException("Invalid index: from=" + from + ", length=" + length + " for array of size " + value.length + ".");
 		}
 		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(checkIndex(index, from + length)), length);
