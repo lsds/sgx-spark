@@ -1,14 +1,16 @@
 package org.apache.spark.sgx.shm;
 
-import org.apache.spark.sgx.Serialization;
+import org.apache.spark.sgx.ISerialization;
 
 class RingBuffProducer {
 	private AlignedMappedDataBuffer buffer;
+	private ISerialization serializer;
 	
 	private int pos = 0;
 	
-	RingBuffProducer(MappedDataBuffer buffer) {
+	RingBuffProducer(MappedDataBuffer buffer, ISerialization serializer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
+		this.serializer = serializer;
 	}
 
 	/*
@@ -28,7 +30,7 @@ class RingBuffProducer {
 		
 		do {
 			try {				
-				byte[] bytes = Serialization.serialize(o);
+				byte[] bytes = serializer.serialize(o);
 				buffer.waitUntil(pos, 0);
 				buffer.putBytes(pos+1, bytes);
 				buffer.putInt(pos, bytes.length);

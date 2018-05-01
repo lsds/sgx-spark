@@ -8,6 +8,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.spark.sgx.ISerialization;
 import org.nustaq.serialization.FSTConfiguration;
 
 public class Serialization {
@@ -35,11 +36,6 @@ public class Serialization {
 	public static Object deserialize(byte[] bytes) throws Exception {
 		return serializer.deserialize(bytes);
 	}
-}
-
-interface ISerialization {
-	byte[] serialize(Object o) throws IOException;
-	Object deserialize(byte[] bytes) throws IOException, ClassNotFoundException;
 }
 
 class JavaSerialization implements ISerialization {

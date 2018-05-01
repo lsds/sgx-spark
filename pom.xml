@@ -82,6 +82,7 @@
   </mailingLists>
 
   <modules>
+    <module>shm</module>
     <module>common/sketch</module>
     <module>common/kvstore</module>
     <module>common/network-common</module>

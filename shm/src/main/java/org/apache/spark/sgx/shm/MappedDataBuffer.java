@@ -2,10 +2,9 @@ package org.apache.spark.sgx.shm;
 
 import java.nio.ByteOrder;
 
-import org.apache.spark.sgx.utils.Bits;
-
 import sun.misc.Unsafe;
 
+@SuppressWarnings("restriction")
 class MappedDataBuffer {
 	
 	protected static final Unsafe unsafe = Bits.unsafe();

@@ -1,4 +1,4 @@
-package org.apache.spark.sgx.utils;
+package org.apache.spark.sgx.shm;
 
 import java.lang.reflect.Field;
 import java.nio.ByteOrder;
