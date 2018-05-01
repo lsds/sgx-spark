@@ -5,7 +5,7 @@ import java.nio.ByteOrder;
 import sun.misc.Unsafe;
 
 @SuppressWarnings("restriction")
-class MappedDataBuffer {
+public class MappedDataBuffer {
 	
 	protected static final Unsafe unsafe = Bits.unsafe();
 	

@@ -46,11 +46,41 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     super(in, conf, recordDelimiterBytes);
     this.splitLength = splitLength;
     usingCRLF = (recordDelimiterBytes == null);
+    try {
+    	throw new RuntimeException("Exception constructor " + this);
+    } catch (Exception e) {
+    	StringBuffer sb = new StringBuffer();
+    	sb.append(" ");
+    	sb.append(e.getMessage());
+    	sb.append(System.getProperty("line.separator"));
+    	for (StackTraceElement el : e.getStackTrace()) {
+    		sb.append("  ");
+    		sb.append(el.toString());
+    		sb.append(System.getProperty("line.separator"));
+    	}
+    	System.out.println(sb.toString());
+    }
   }
 
   @Override
   protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
       throws IOException {
+	  
+	    try {
+	    	throw new RuntimeException(" Exception fillBuffer " + this);
+	    } catch (Exception e) {
+	    	StringBuffer sb = new StringBuffer();
+	    	sb.append(" ");
+	    	sb.append(e.getMessage());
+	    	sb.append(System.getProperty("line.separator"));
+	    	for (StackTraceElement el : e.getStackTrace()) {
+	    		sb.append("  ");
+	    		sb.append(el.toString());
+	    		sb.append(System.getProperty("line.separator"));
+	    	}
+	    	System.out.println(sb.toString());
+	    }	  
+	  
     int maxBytesToRead = buffer.length;
     if (totalBytesRead < splitLength) {
       long leftBytesForSplit = splitLength - totalBytesRead;
@@ -83,6 +113,21 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   public int readLine(Text str, int maxLineLength, int maxBytesToConsume)
       throws IOException {
+	    try {
+	    	throw new RuntimeException("Exception readLine " + this);
+	    } catch (Exception e) {
+	    	StringBuffer sb = new StringBuffer();
+	    	sb.append(" ");
+	    	sb.append(e.getMessage());
+	    	sb.append(System.getProperty("line.separator"));
+	    	for (StackTraceElement el : e.getStackTrace()) {
+	    		sb.append("  ");
+	    		sb.append(el.toString());
+	    		sb.append(System.getProperty("line.separator"));
+	    	}
+	    	System.out.println(sb.toString());
+	    }	  
+	  
     int bytesRead = 0;
     if (!finished) {
       // only allow at most one more record to be read after the stream
@@ -105,4 +150,6 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   protected void unsetNeedAdditionalRecordAfterSplit() {
     needAdditionalRecord = false;
   }
+  
+  
 }

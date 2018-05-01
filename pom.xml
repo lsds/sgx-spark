@@ -82,7 +82,9 @@
   </mailingLists>
 
   <modules>
+    <module>sgx</module>
     <module>shm</module>
+    <module>hadoop-2.6.5-src</module>
     <module>common/sketch</module>
     <module>common/kvstore</module>
     <module>common/network-common</module>

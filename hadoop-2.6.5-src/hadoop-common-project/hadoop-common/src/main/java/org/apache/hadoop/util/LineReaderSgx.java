@@ -26,6 +26,8 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.sgx.shm.MappedDataBuffer;
+import org.apache.spark.sgx.shm.MappedDataBufferManager;
 
 /**
  * A class that provides a line reader from an input stream.
@@ -40,11 +42,12 @@ import org.apache.hadoop.io.Text;
  */
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
-public class LineReader implements Closeable {
+public class LineReaderSgx implements Closeable {
   private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
   private byte[] buffer;
+//  private MappedDataBuffer buffer;
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
   // the current position in the buffer
@@ -62,7 +65,7 @@ public class LineReader implements Closeable {
    * @param in The input stream
    * @throws IOException
    */
-  public LineReader(InputStream in) {
+  public LineReaderSgx(InputStream in) {
     this(in, DEFAULT_BUFFER_SIZE);
     System.out.println("xxx LineReader0: " + in);
   }
@@ -74,7 +77,7 @@ public class LineReader implements Closeable {
    * @param bufferSize Size of the read buffer
    * @throws IOException
    */
-  public LineReader(InputStream in, int bufferSize) {
+  public LineReaderSgx(InputStream in, int bufferSize) {
     this.in = in;
     this.bufferSize = bufferSize;
     this.buffer = new byte[this.bufferSize];
@@ -90,7 +93,7 @@ public class LineReader implements Closeable {
    * @param conf configuration
    * @throws IOException
    */
-  public LineReader(InputStream in, Configuration conf) throws IOException {
+  public LineReaderSgx(InputStream in, Configuration conf) throws IOException {
     this(in, conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE));
     System.out.println("xxx LineReader2: " + in + ", " + conf);
   }
@@ -102,7 +105,7 @@ public class LineReader implements Closeable {
    * @param in The input stream
    * @param recordDelimiterBytes The delimiter
    */
-  public LineReader(InputStream in, byte[] recordDelimiterBytes) {
+  public LineReaderSgx(InputStream in, byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = DEFAULT_BUFFER_SIZE;
     this.buffer = new byte[this.bufferSize];
@@ -119,7 +122,7 @@ public class LineReader implements Closeable {
    * @param recordDelimiterBytes The delimiter
    * @throws IOException
    */
-  public LineReader(InputStream in, int bufferSize,
+  public LineReaderSgx(InputStream in, int bufferSize,
       byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = bufferSize;
@@ -138,7 +141,7 @@ public class LineReader implements Closeable {
    * @param recordDelimiterBytes The delimiter
    * @throws IOException
    */
-  public LineReader(InputStream in, Configuration conf,
+  public LineReaderSgx(InputStream in, Configuration conf,
       byte[] recordDelimiterBytes) throws IOException {
     this.in = in;
     this.bufferSize = conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE);

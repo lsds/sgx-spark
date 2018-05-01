@@ -33,16 +33,24 @@
   <name>Spark Project Core</name>
   <url>http://spark.apache.org/</url>
   <dependencies>
-<dependency>
-    <groupId>net.sf.trove4j</groupId>
-    <artifactId>trove4j</artifactId>
-    <version>3.0.3</version>
-</dependency>
     <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-shm_${scala.binary.version}</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
+        <groupId>net.sf.trove4j</groupId>
+        <artifactId>trove4j</artifactId>
+        <version>3.0.3</version>
+    </dependency>
+    <dependency>
+        <groupId>sgx-spark</groupId>
+        <artifactId>sgx</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <scope>system</scope>
+        <systemPath>${basedir}/../sgx/target/sgx-spark-common-0.0.1-SNAPSHOT.jar</systemPath>
+    </dependency>
+    <dependency>
+        <groupId>sgx-spark</groupId>
+        <artifactId>shm</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <scope>system</scope>
+        <systemPath>${basedir}/../shm/target/sgx-spark-shm-0.0.1-SNAPSHOT.jar</systemPath>
     </dependency>
     <dependency>
       <groupId>org.apache.avro</groupId>

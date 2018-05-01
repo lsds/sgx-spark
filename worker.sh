@@ -15,7 +15,7 @@ fi
 
 #--webui-port 8081 \
 java \
--cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/\*:shm/target/\* \
 -Xmx1g org.apache.spark.deploy.worker.Worker \
 spark://${SPARK_MASTER_HOST}:${SPARK_MASTER_PORT} 2>&1 | tee outside-worker
 

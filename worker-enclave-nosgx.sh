@@ -33,5 +33,5 @@ java \
 -XX:+AssumeMP \
 -Xint \
 -Djava.library.path=lib/ \
--cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:examples/target/scala-${SCALA_VERSION}/jars/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:examples/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/\*:shm/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-worker

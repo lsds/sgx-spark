@@ -295,6 +295,13 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-compress</artifactId>
     </dependency>
+    <dependency>
+    	<groupId>shm</groupId>
+    	<artifactId>shm</artifactId>
+    	<version>0.0.1-SNAPSHOT</version>
+	<scope>system</scope>
+	<systemPath>${basedir}/../../../shm/target/sgx-spark-shm-0.0.1-SNAPSHOT.jar</systemPath>
+    </dependency>
   </dependencies>
 
   <build>

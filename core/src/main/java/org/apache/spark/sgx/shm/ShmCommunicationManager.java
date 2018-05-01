@@ -6,6 +6,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.spark.sgx.Serialization;
 import org.apache.spark.sgx.SgxSettings;
 
 /**
@@ -48,13 +49,13 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
 			// debugging case: switch producer and consumer,
 			// since this instance of the code is acually the enclave side of things
-			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size));
-			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size));
+			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
+			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
 		}
 		else {
 			// default case
-			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size));
-			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size));
+			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
+			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
 		}
 	}
 
@@ -67,8 +68,8 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param size the size of each of those memory regions
 	 */
 	private ShmCommunicationManager(long writeBuff, long readBuff, int size) {
-		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size));
-		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size));
+		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
+		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
 	}
 	
 	@SuppressWarnings("unchecked")
