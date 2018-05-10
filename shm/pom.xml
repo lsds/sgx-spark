@@ -4,6 +4,27 @@
   <artifactId>sgx-spark-shm</artifactId>
   <name>Sgx-Spark Shared Memory</name>
   <version>0.0.1-SNAPSHOT</version>
+  
+  <dependencies>
+    <dependency>
+        <groupId>sgx-spark</groupId>
+        <artifactId>sgx-spark-common</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <scope>system</scope>
+        <systemPath>${basedir}/../sgx/target/sgx-spark-common-0.0.1-SNAPSHOT.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.5</version>
+    </dependency>
+    <dependency>
+      <groupId>de.ruedigermoeller</groupId>
+      <artifactId>fst</artifactId>
+      <version>2.57</version>
+    </dependency>
+  </dependencies>
+
   <build>
     <plugins>
       <plugin>

@@ -19,6 +19,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	
 	private RingBuffConsumer reader;
 	private RingBuffProducer writer;
+	private MappedDataBuffer common;
 
 	private final Object lockWriteBuff = new Object();
 	private final Object lockReadBuff = new Object();
@@ -48,14 +49,16 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		
 		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
 			// debugging case: switch producer and consumer,
-			// since this instance of the code is acually the enclave side of things
+			// since this instance of the code is actually the enclave side of things
 			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
 			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
+			this.common = new MappedDataBuffer(handles[2], size);
 		}
 		else {
 			// default case
 			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
 			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
+			this.common = new MappedDataBuffer(handles[2], size);
 		}
 	}
 
@@ -65,11 +68,13 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * 
 	 * @param writeBuff pointer to the memory to write to
 	 * @param readBuff pointer to the memory to read from
+	 * @param commonBuff pointer to the memory that can be used arbitrarily
 	 * @param size the size of each of those memory regions
 	 */
-	private ShmCommunicationManager(long writeBuff, long readBuff, int size) {
+	private ShmCommunicationManager(long writeBuff, long readBuff, long commonBuff, int size) {
 		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
 		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
+		this.common = new MappedDataBuffer(commonBuff, size);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -83,10 +88,10 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	}	
 	
 	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff, int size) {
+	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff, long commonBuff, int size) {
 		synchronized(lockInstance) {
 			if (_instance == null) {
-				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff, size);
+				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff, commonBuff, size);
 			}
 		}
 		return (ShmCommunicationManager<T>) _instance;

@@ -71,14 +71,16 @@ JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_in
 	snprintf(enc_to_out_file, strl + 4, "%s-eo", shm_file);
 	snprintf(out_to_enc_file, strl + 4, "%s-oe", shm_file);
 
+	void* common_mem = register_shm(shm_file, size);
 	void* enc_to_out_mem = register_shm(enc_to_out_file, size);
 	void* out_to_enc_mem = register_shm(out_to_enc_file, size);
 
-	long res[2];
+	long res[3];
 	res[0] = (long) enc_to_out_mem;
 	res[1] = (long) out_to_enc_mem;
+	res[2] = (long) common_mem;
 
-	jlongArray result = (*env)->NewLongArray(env, 2);
-	(*env)->SetLongArrayRegion(env, result, 0, 2, res);
+	jlongArray result = (*env)->NewLongArray(env, 3);
+	(*env)->SetLongArrayRegion(env, result, 0, 3, res);
 	return result;
 }

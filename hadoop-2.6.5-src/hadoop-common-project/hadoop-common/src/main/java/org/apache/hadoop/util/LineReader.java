@@ -27,6 +27,8 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 
+import org.apache.spark.sgx.shm.MappedDataBufferManager;
+
 /**
  * A class that provides a line reader from an input stream.
  * Depending on the constructor used, lines will either be terminated by:
@@ -45,6 +47,10 @@ public class LineReader implements Closeable {
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
   private byte[] buffer;
+  
+  
+  MappedDataBufferManager buf;
+  
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
   // the current position in the buffer
