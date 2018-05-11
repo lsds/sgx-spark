@@ -26,8 +26,9 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
-
-import org.apache.spark.sgx.shm.MappedDataBufferManager;
+import org.apache.spark.sgx.SgxSettings;
+import org.apache.spark.sgx.shm.MappedDataBuffer;
+import org.apache.spark.sgx.shm.ShmCommunicationManager;
 
 /**
  * A class that provides a line reader from an input stream.
@@ -48,8 +49,7 @@ public class LineReader implements Closeable {
   private InputStream in;
   private byte[] buffer;
   
-  
-  MappedDataBufferManager buf;
+  protected MappedDataBuffer sgxBuffer = ShmCommunicationManager.get().getCommon();
   
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
@@ -190,8 +190,14 @@ public class LineReader implements Closeable {
 
   protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
       throws IOException {
+    if (SgxSettings.SGX_ENABLED()) return fillBuffer(in, buffer, buffer.length, sgxBuffer, inDelimiter);
     return in.read(buffer);
   }
+  
+  protected int fillBuffer(InputStream in, byte[] buffer, int length, MappedDataBuffer sgxBuffer, boolean inDelimiter)
+	  throws IOException {
+	throw new RuntimeException("Must be implemented by subclass.");
+  }  
 
   /**
    * Read a line terminated by one of CR, LF, or CRLF.

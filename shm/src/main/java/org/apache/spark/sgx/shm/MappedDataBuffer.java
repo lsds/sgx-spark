@@ -79,7 +79,7 @@ public class MappedDataBuffer {
 		return getLong(ix(checkIndex(index, (1 << 3))));
 	}
 	
-	void put (int index, byte value) {
+	public void put (int index, byte value) {
 		unsafe.putByte(ix(checkIndex(index)), ((value)));
 	}
 	
@@ -138,7 +138,7 @@ public class MappedDataBuffer {
 		return this.getClass().getSimpleName() + "(address=" + address + ", capacity=" + capacity + ")";
 	}
 
-	int capacity() {
+	public int capacity() {
 		return capacity;
 	}
 }

@@ -26,6 +26,8 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.sgx.SgxSettings;
+import org.apache.spark.sgx.shm.MappedDataBuffer;
 
 /**
  * SplitLineReader for uncompressed files.
@@ -61,13 +63,102 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     	System.out.println(sb.toString());
     }
   }
+  
+  private int read(InputStream in, MappedDataBuffer sgxBuffer, int off, int len) throws IOException {
+      if (sgxBuffer == null) {
+          throw new NullPointerException();
+      } else if (off < 0 || len < 0 || len > sgxBuffer.capacity() - off) {
+          throw new IndexOutOfBoundsException();
+      } else if (len == 0) {
+          return 0;
+      }
+
+      int c = in.read();
+      if (c == -1) {
+          return -1;
+      }
+      sgxBuffer.put(off, (byte)c);
+
+      int i = 1;
+      try {
+          for (; i < len ; i++) {
+              c = in.read();
+              if (c == -1) {
+                  break;
+              }
+              sgxBuffer.put(off + i, (byte)c);
+          }
+      } catch (IOException ee) {
+      }
+      return i;
+  }  
+
+  @Override
+  protected int fillBuffer(InputStream in, byte[] buffer, int length, MappedDataBuffer sgxBuffer, boolean inDelimiter)
+      throws IOException {
+	  
+	    try {
+	    	throw new RuntimeException(" Exception fillBuffer new " + this);
+	    } catch (Exception e) {
+	    	StringBuffer sb = new StringBuffer();
+	    	sb.append(" ");
+	    	sb.append(e.getMessage());
+	    	sb.append(System.getProperty("line.separator"));
+	    	for (StackTraceElement el : e.getStackTrace()) {
+	    		sb.append("  ");
+	    		sb.append(el.toString());
+	    		sb.append(System.getProperty("line.separator"));
+	    	}
+	    	System.out.println(sb.toString());
+	    }	  
+	  
+    int maxBytesToRead = buffer.length;
+    if (totalBytesRead < splitLength) {
+      long leftBytesForSplit = splitLength - totalBytesRead;
+      // check if leftBytesForSplit exceed Integer.MAX_VALUE
+      if (leftBytesForSplit <= Integer.MAX_VALUE) {
+        maxBytesToRead = Math.min(maxBytesToRead, (int)leftBytesForSplit);
+      }
+    }
+    int bytesRead = in.read(buffer, 0, maxBytesToRead);
+//    read(in, sgxBuffer, 0, maxBytesToRead);
+    for (int i = 0; i < bytesRead; i++) {
+    	sgxBuffer.put((int) (totalBytesRead + i), buffer[i]);
+    }
+    
+    // SGX above: 
+    // now: read into byte[], then copy into shm: seems to be correct
+    // next step 1: read into shm, then copy into byte[]
+    // next step 2: read from shm instead of byte[] inside enclave
+    // next step 3: implement wrap-around for shm (in case we run out of memory)
+    
+
+    // If the split ended in the middle of a record delimiter then we need
+    // to read one additional record, as the consumer of the next split will
+    // not recognize the partial delimiter as a record.
+    // However if using the default delimiter and the next character is a
+    // linefeed then next split will treat it as a delimiter all by itself
+    // and the additional record read should not be performed.
+    if (totalBytesRead == splitLength && inDelimiter && bytesRead > 0) {
+      if (usingCRLF) {
+        needAdditionalRecord = (buffer[0] != '\n');
+      } else {
+        needAdditionalRecord = true;
+      }
+    }
+    if (bytesRead > 0) {
+      totalBytesRead += bytesRead;
+    }
+    return bytesRead;
+  }  
 
   @Override
   protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
       throws IOException {
-	  
+    if (SgxSettings.SGX_ENABLED()) return fillBuffer(in, buffer, buffer.length, sgxBuffer, inDelimiter);
+	    	
 	    try {
-	    	throw new RuntimeException(" Exception fillBuffer " + this);
+	    	throw new RuntimeException(" Exception fillBuffer old " + this);
 	    } catch (Exception e) {
 	    	StringBuffer sb = new StringBuffer();
 	    	sb.append(" ");

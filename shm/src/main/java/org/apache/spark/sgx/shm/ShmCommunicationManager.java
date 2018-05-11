@@ -196,6 +196,10 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		}
 	}
 	
+	public MappedDataBuffer getCommon() {
+		return common;
+	}
+	
 	@Override
 	public String toString() {
 		return this.getClass().getSimpleName();
