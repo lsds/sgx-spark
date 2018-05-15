@@ -51,7 +51,7 @@ public class MappedDataBuffer {
 		return index;
 	}
 	
-	byte get (int index) {
+	public byte get (int index) {
 		return ((unsafe.getByte(ix(checkIndex(index)))));
 	}
 	

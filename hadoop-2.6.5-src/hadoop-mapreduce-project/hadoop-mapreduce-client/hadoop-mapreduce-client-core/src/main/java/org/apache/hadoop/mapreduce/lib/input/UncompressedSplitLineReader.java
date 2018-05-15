@@ -120,17 +120,15 @@ public class UncompressedSplitLineReader extends SplitLineReader {
         maxBytesToRead = Math.min(maxBytesToRead, (int)leftBytesForSplit);
       }
     }
-    int bytesRead = in.read(buffer, 0, maxBytesToRead);
-//    read(in, sgxBuffer, 0, maxBytesToRead);
+    
+    int bytesRead = read(in, sgxBuffer, 0, maxBytesToRead);
     for (int i = 0; i < bytesRead; i++) {
-    	sgxBuffer.put((int) (totalBytesRead + i), buffer[i]);
+      buffer[i] = sgxBuffer.get((int) i);
     }
     
     // SGX above: 
-    // now: read into byte[], then copy into shm: seems to be correct
-    // next step 1: read into shm, then copy into byte[]
-    // next step 2: read from shm instead of byte[] inside enclave
-    // next step 3: implement wrap-around for shm (in case we run out of memory)
+    // next step 1: read from shm instead of byte[] inside enclave
+    // next step 2: implement wrap-around for shm (in case we run out of memory)
     
 
     // If the split ended in the middle of a record delimiter then we need
@@ -155,7 +153,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
       throws IOException {
-    if (SgxSettings.SGX_ENABLED()) return fillBuffer(in, buffer, buffer.length, sgxBuffer, inDelimiter);
+	  	if (SgxSettings.SGX_ENABLED()) return fillBuffer(in, buffer, buffer.length, sgxBuffer, inDelimiter);
 	    	
 	    try {
 	    	throw new RuntimeException(" Exception fillBuffer old " + this);
