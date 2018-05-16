@@ -37,6 +37,7 @@ import org.apache.avro.reflect.Stringable;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.spark.sgx.shm.MappedDataBuffer;
 
 /** This class stores text using standard UTF8 encoding.  It provides methods
  * to serialize, deserialize, and compare texts at byte level.  The type of
@@ -235,6 +236,12 @@ public class Text extends BinaryComparable
   public void append(byte[] utf8, int start, int len) {
     setCapacity(length + len, true);
     System.arraycopy(utf8, start, bytes, length, len);
+    length += len;
+  }
+
+  public void append(MappedDataBuffer utf8, int start, int len) {
+    setCapacity(length + len, true);
+    utf8.get(start, bytes, length, len);
     length += len;
   }
 

@@ -25,6 +25,7 @@ object LineCount extends Logging {
 
     val r = time {
       sc.textFile(inputFile).map(x => x + "x").map(x => x + x).map(x => "foo" + x + "bar").count()
+//      println(sc.textFile(inputFile).map(x => x + "x").collect().mkString("\n"))
     }
 
     // Load our input data.

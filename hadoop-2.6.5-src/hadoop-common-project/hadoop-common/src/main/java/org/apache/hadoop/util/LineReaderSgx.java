@@ -26,7 +26,6 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
-import org.apache.spark.sgx.SgxSettings;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
 import org.apache.spark.sgx.shm.ShmCommunicationManager;
 
@@ -47,9 +46,8 @@ public class LineReaderSgx implements Closeable {
   private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
-  private byte[] buffer;
   
-  protected MappedDataBuffer sgxBuffer = ShmCommunicationManager.get().getCommon();
+  protected MappedDataBuffer buffer = ShmCommunicationManager.get().getCommon();
   
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
@@ -61,6 +59,10 @@ public class LineReaderSgx implements Closeable {
 
   // The line delimiter
   private final byte[] recordDelimiterBytes;
+
+  private void ensureBufferSize() {
+	  if (buffer.capacity() < bufferSize) throw new RuntimeException("Size of SGX buffer must be at least of size " + bufferSize + " (current size is " + buffer.capacity() + ")");
+  }
 
   /**
    * Create a line reader that reads from the given stream using the
@@ -83,7 +85,7 @@ public class LineReaderSgx implements Closeable {
   public LineReaderSgx(InputStream in, int bufferSize) {
     this.in = in;
     this.bufferSize = bufferSize;
-    this.buffer = new byte[this.bufferSize];
+    ensureBufferSize();
     this.recordDelimiterBytes = null;
     System.out.println("xxx LineReader1: " + in + ", " + bufferSize + ", " + recordDelimiterBytes);
   }
@@ -111,7 +113,7 @@ public class LineReaderSgx implements Closeable {
   public LineReaderSgx(InputStream in, byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = DEFAULT_BUFFER_SIZE;
-    this.buffer = new byte[this.bufferSize];
+    ensureBufferSize();
     this.recordDelimiterBytes = recordDelimiterBytes;
     System.out.println("xxx LineReader3: " + in + ", " + bufferSize + ", " + recordDelimiterBytes);
   }
@@ -129,7 +131,7 @@ public class LineReaderSgx implements Closeable {
       byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = bufferSize;
-    this.buffer = new byte[this.bufferSize];
+    ensureBufferSize();
     this.recordDelimiterBytes = recordDelimiterBytes;
     System.out.println("xxx LineReader4: " + in + ", " + bufferSize + ", " + recordDelimiterBytes);
   }
@@ -148,7 +150,7 @@ public class LineReaderSgx implements Closeable {
       byte[] recordDelimiterBytes) throws IOException {
     this.in = in;
     this.bufferSize = conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE);
-    this.buffer = new byte[this.bufferSize];
+    ensureBufferSize();
     this.recordDelimiterBytes = recordDelimiterBytes;
     System.out.println("xxx LineReader5: " + in + ", " + bufferSize + ", " + recordDelimiterBytes + ", " + conf);
   }
@@ -188,14 +190,8 @@ public class LineReaderSgx implements Closeable {
     }
   }
 
-  protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
+  protected int fillBuffer(InputStream in, MappedDataBuffer buffer, boolean inDelimiter)
       throws IOException {
-    if (SgxSettings.SGX_ENABLED()) return fillBuffer(in, buffer, buffer.length, sgxBuffer, inDelimiter);
-    return in.read(buffer);
-  }
-  
-  protected int fillBuffer(InputStream in, byte[] buffer, int length, MappedDataBuffer sgxBuffer, boolean inDelimiter)
-	  throws IOException {
 	throw new RuntimeException("Must be implemented by subclass.");
   }  
 
@@ -238,7 +234,7 @@ public class LineReaderSgx implements Closeable {
         }
       }
       for (; bufferPosn < bufferLength; ++bufferPosn) { //search for newline
-        if (buffer[bufferPosn] == LF) {
+        if (buffer.get(bufferPosn) == LF) {
           newlineLength = (prevCharCR) ? 2 : 1;
           ++bufferPosn; // at next invocation proceed from following byte
           break;
@@ -247,7 +243,7 @@ public class LineReaderSgx implements Closeable {
           newlineLength = 1;
           break;
         }
-        prevCharCR = (buffer[bufferPosn] == CR);
+        prevCharCR = (buffer.get(bufferPosn) == CR);
       }
       int readLength = bufferPosn - startPosn;
       if (prevCharCR && newlineLength == 0) {
@@ -330,7 +326,7 @@ public class LineReaderSgx implements Closeable {
         }
       }
       for (; bufferPosn < bufferLength; ++bufferPosn) {
-        if (buffer[bufferPosn] == recordDelimiterBytes[delPosn]) {
+        if (buffer.get(bufferPosn) == recordDelimiterBytes[delPosn]) {
           delPosn++;
           if (delPosn >= recordDelimiterBytes.length) {
             bufferPosn++;
