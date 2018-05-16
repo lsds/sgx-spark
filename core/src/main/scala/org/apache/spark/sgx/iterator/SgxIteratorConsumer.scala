@@ -89,3 +89,28 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 
 	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
 }
+
+class SgxShmIteratorConsumer[T](id: Long) extends Iterator[T] with Logging {
+  
+  logDebug("Creating " + this)
+  
+  override def hasNext: Boolean = {
+    try {
+      throw new RuntimeException("SgxShmIteratorConsumer hasNext")
+    } catch {
+      case e: Exception => logDebug("Exception: " + e.getMessage) 
+    }
+    false
+	}
+
+	override def next: T = {
+    try {
+      throw new RuntimeException("SgxShmIteratorConsumer next")
+    } catch {
+      case e: Exception => logDebug("Exception: " + e.getMessage) 
+    }
+    null.asInstanceOf[T]
+	}
+	
+	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
+}

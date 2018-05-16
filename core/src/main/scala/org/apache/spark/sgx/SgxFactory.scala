@@ -23,7 +23,7 @@ object SgxFactory {
 		iter
 	}
 	
-	def newSgxShmIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProv[T] = {
+	def newSgxShmIteratorProvider[T](): SgxIteratorProv[T] = {
 		new SgxShmIteratorProvider[T]()
 	}	
 
