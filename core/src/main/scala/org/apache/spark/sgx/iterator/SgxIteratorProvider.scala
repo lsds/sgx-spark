@@ -19,7 +19,7 @@ import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
-  
+  def getIdentifier: SgxIteratorProvIdentifier[T]
 }
 
 class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with Callable[Unit] {
@@ -55,15 +55,8 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 							// Need to clone the object. Otherwise the same object will be sent multiple times.
 							// It seems that this is due to optimizations in the implementation of class NextIterator.
 							// If cloning is not possible, just add this one object and send it individually.
-							// This should actually never be the case, as the object _must_ be sent to a consumer.
-//							try {
-								q.insert(i, SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T])
-//							}
-//							catch {
-//								case e: SerializationException =>
-//									q += n
-//									break
-//							}
+							// This should never be the case, as the object _must_ be sent to a consumer.
+						  q.insert(i, SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T])
 						}
 					} else {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
@@ -88,4 +81,11 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	}
 
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
+}
+
+class SgxShmIteratorProvider[T]() extends SgxIteratorProv[T] {
+  
+  private val identifier = new SgxShmIteratorProviderIdentifier[T](scala.util.Random.nextLong())
+
+	override def getIdentifier = identifier
 }

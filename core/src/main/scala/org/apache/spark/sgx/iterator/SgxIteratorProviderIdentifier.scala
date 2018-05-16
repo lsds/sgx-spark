@@ -20,3 +20,10 @@ class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorProvIden
 
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ")"
 }
+
+class SgxShmIteratorProviderIdentifier[T](id: Long) extends SgxIteratorProvIdentifier[T] {
+
+	override def getIterator(context: String) = throw new RuntimeException("not impl")
+
+	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
+}

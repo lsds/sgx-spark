@@ -1,7 +1,9 @@
 package org.apache.spark.sgx
 
 import org.apache.spark.sgx.broadcast.SgxBroadcastProvider
+import org.apache.spark.sgx.iterator.SgxIteratorProv
 import org.apache.spark.sgx.iterator.SgxIteratorProvider
+import org.apache.spark.sgx.iterator.SgxShmIteratorProvider
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 object SgxFactory {
@@ -15,11 +17,15 @@ object SgxFactory {
 
 	private var startedBroadcastProvider = false
 
-	def newSgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProvider[T] = {
+	def newSgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProv[T] = {
 		val iter = new SgxIteratorProvider[T](delegate, doEncrypt)
 		Completor.submit(iter)
 		iter
 	}
+	
+	def newSgxShmIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean): SgxIteratorProv[T] = {
+		new SgxShmIteratorProvider[T]()
+	}	
 
 	def runSgxBroadcastProvider(): Unit = {
 		synchronized {
