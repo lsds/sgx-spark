@@ -182,7 +182,20 @@ public class LineReaderSgx implements Closeable {
    */
   public int readLine(Text str, int maxLineLength,
                       int maxBytesToConsume) throws IOException {
-	  System.out.println("xxx readLine2: " + str + ", " + (this.recordDelimiterBytes != null ? "custom" : "default"));
+	  try {
+		  throw new RuntimeException("xxx readLine2: " + str + ", " + (this.recordDelimiterBytes != null ? "custom" : "default"));
+	  } catch (Exception e) {
+	    	StringBuffer sb = new StringBuffer();
+	    	sb.append(" ");
+	    	sb.append(e.getMessage());
+	    	sb.append(System.getProperty("line.separator"));
+	    	for (StackTraceElement el : e.getStackTrace()) {
+	    		sb.append("  ");
+	    		sb.append(el.toString());
+	    		sb.append(System.getProperty("line.separator"));
+	    	}
+	    	System.out.println(sb.toString());
+	  }
     if (this.recordDelimiterBytes != null) {
       return readCustomLine(str, maxLineLength, maxBytesToConsume);
     } else {

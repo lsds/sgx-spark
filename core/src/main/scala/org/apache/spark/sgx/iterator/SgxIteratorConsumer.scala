@@ -12,6 +12,7 @@ import org.apache.spark.sgx.Completor
 import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.shm.ShmCommunicationManager;
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
@@ -92,15 +93,17 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 
 class SgxShmIteratorConsumer[T](id: Long) extends Iterator[T] with Logging {
   
+  val buffer = ShmCommunicationManager.get().getCommon();
+  
   logDebug("Creating " + this)
   
   override def hasNext: Boolean = {
     try {
       throw new RuntimeException("SgxShmIteratorConsumer hasNext")
     } catch {
-      case e: Exception => logDebug("Exception: " + e.getMessage) 
+      case e: Exception => logDebug("Exception: " + e.getMessage)
     }
-    false
+    true
 	}
 
 	override def next: T = {
@@ -112,5 +115,5 @@ class SgxShmIteratorConsumer[T](id: Long) extends Iterator[T] with Logging {
     null.asInstanceOf[T]
 	}
 	
-	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
+	override def toString() = getClass.getSimpleName + "(id=" + id + ", buffer=" + buffer + ")"
 }
