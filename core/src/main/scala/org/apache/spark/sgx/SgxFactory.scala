@@ -6,17 +6,6 @@ import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 object SgxFactory {
 	val mgr =
-//	  if (SgxSettings.IS_ENCLAVE) {
-//	    if (SgxSettings.IS_ENCLAVE_REAL) {
-//	      ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC, SgxSettings.SHMEM_SIZE)
-//	    }
-//	    else {
-//	      ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE, true)
-//	    }
-//	  }
-//	  else {
-//	    ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
-//	  }
 	if (SgxSettings.IS_ENCLAVE) {
 	  if (SgxSettings.DEBUG_IS_ENCLAVE_REAL) ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_ENC_TO_OUT, SgxSettings.SHMEM_OUT_TO_ENC, SgxSettings.SHMEM_COMMON, SgxSettings.SHMEM_SIZE)
 	  else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)

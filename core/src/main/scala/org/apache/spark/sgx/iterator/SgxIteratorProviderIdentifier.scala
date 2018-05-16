@@ -4,7 +4,11 @@ import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 import org.apache.spark.internal.Logging
 
-class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorIdentifier[T] with Logging {
+abstract class SgxIteratorProvIdentifier[T] extends SgxIteratorIdentifier[T] with Logging {
+  
+}
+
+class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorProvIdentifier[T] {
 	def connect(): SgxCommunicator = {
 		val con = ShmCommunicationManager.get().newShmCommunicator(false)
 		con.connect(myPort)

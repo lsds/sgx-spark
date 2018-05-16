@@ -18,7 +18,11 @@ import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
-class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Callable[Unit] with Logging {
+abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
+  
+}
+
+class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with Callable[Unit] {
 
 	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
