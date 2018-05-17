@@ -20,13 +20,24 @@ public class MappedDataBufferManager {
 	
 	private int freeBlocks;
 	
+	private static MappedDataBufferManager _instance = null;
+	
+	public static void init(MappedDataBuffer buffer) {
+		if (_instance != null) {
+			throw new RuntimeException("Already initialized");
+		}
+		_instance = new MappedDataBufferManager(buffer);
+	}
+	
+	public static MappedDataBufferManager get() {
+		return _instance;
+	}
+	
 	private MappedDataBufferManager(MappedDataBuffer buffer) {
 		this.buffer = buffer;
 		this.noBlocks = buffer.capacity() / blockSize;
 		this.inUse = new int[noBlocks];
-		for (int i = 0; i < noBlocks; i++) {
-			inUse[i] = (-1 * noBlocks) + i;
-		}
+		markFree(0, noBlocks);
 		
 		freeBlocks = noBlocks;
 	}
@@ -36,8 +47,22 @@ public class MappedDataBufferManager {
 		return ((r == 0) ? bytes : bytes + (blockSize - r)) / blockSize;
 	}
 	
-	public MappedDataBuffer malloc(int bytes) {
+	private void markUsed(int startBlock, int blocks) {
+		for (int i = 0; i < blocks; i++) {
+			inUse[startBlock + i] = blocks - i;
+		}
+	}
+	
+	private void markFree(int startBlock, int blocks) {
+		for (int i = 0; i < blocks; i++) {
+			inUse[startBlock + i] = (-1 * blocks) + i;
+		}
+	}	
+	
+	public MallocedMappedDataBuffer malloc(int bytes) {
+		System.out.println("malloc bytes: " + bytes);
 		int blocksNeeded = blocksNeeded(bytes);
+		System.out.println("blocks needed: " + blocksNeeded);
 		
 		if (freeBlocks < blocksNeeded) {
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + "  Bytes)");
@@ -48,15 +73,13 @@ public class MappedDataBufferManager {
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + " Bytes)");
 		}
 		
-		for (int i = 0; i < blocksNeeded; i++) {
-			inUse[startBlock + i] = blocksNeeded - i;
-		}
+		markUsed(startBlock, blocksNeeded);
 		freeBlocks -= blocksNeeded;
 		
-		return new MappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
+		return new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
 	}
 	
-	public void free(MappedDataBuffer b) {
+	public void free(MallocedMappedDataBuffer b) {
 		int startBlock = (int) ((b.address() - buffer.address()) / blockSize);
 		int blocksNeeded = blocksNeeded(b.capacity());
 		
@@ -68,9 +91,11 @@ public class MappedDataBufferManager {
 		int lastFree = findLastConsecutiveFree(startBlock);		
 		int totalFree = lastFree - firstFree + 1;
 		
-		for (int i = 0; i < totalFree; i++) {
-			inUse[firstFree + i] = (-1 * totalFree) + i;
-		}
+		markFree(firstFree, totalFree);
+	}
+	
+	public void register(MallocedMappedDataBuffer b) {
+		
 	}
 	
 	private int findFirstConsecutiveFree(int startBlock) {
@@ -113,5 +138,9 @@ public class MappedDataBufferManager {
 		}
 		
 		return startBlock;
+	}
+	
+	long startAddress() {
+		return buffer.address();
 	}
 }

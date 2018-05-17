@@ -19,7 +19,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	
 	private RingBuffConsumer reader;
 	private RingBuffProducer writer;
-	private MappedDataBuffer common;
 
 	private final Object lockWriteBuff = new Object();
 	private final Object lockReadBuff = new Object();
@@ -52,14 +51,14 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			// since this instance of the code is actually the enclave side of things
 			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
 			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
-			this.common = new MappedDataBuffer(handles[2], size);
 		}
 		else {
 			// default case
 			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
 			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
-			this.common = new MappedDataBuffer(handles[2], size);
 		}
+		
+		MappedDataBufferManager.init(new MappedDataBuffer(handles[2], size));
 	}
 
 	/**
@@ -74,7 +73,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	private ShmCommunicationManager(long writeBuff, long readBuff, long commonBuff, int size) {
 		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
 		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
-		this.common = new MappedDataBuffer(commonBuff, size);
+		MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -194,10 +193,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				inbox.add(msg.getMsg());
 			}
 		}
-	}
-	
-	public MappedDataBuffer getCommon() {
-		return common;
 	}
 	
 	@Override

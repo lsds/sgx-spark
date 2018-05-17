@@ -1,6 +1,7 @@
 package org.apache.spark.examples
 
 import org.apache.spark._
+
 import org.apache.spark.SparkContext._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD.rddToPairRDDFunctions
@@ -24,6 +25,9 @@ object LineCount extends Logging {
     val sc = new SparkContext(conf)
 
     val r = time {
+      
+      sc.hadoopConfigurationSet("textinputformat.record.delimiter","the")
+      
       sc.textFile(inputFile).map(x => x + "x").map(x => x + x).map(x => "foo" + x + "bar").count()
 //      println(sc.textFile(inputFile).map(x => x + "x").collect().mkString("\n"))
     }
