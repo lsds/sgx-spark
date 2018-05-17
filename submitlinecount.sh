@@ -10,8 +10,9 @@ export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
 
 export SPARK_JOBNAME=linecount
 
-INFILE=$(pwd)/data/mllib/kmeans_data.txt.single
+#INFILE=$(pwd)/data/mllib/kmeans_data.txt.single
 #INFILE=$(pwd)/data/mllib/kmeans_data.txt.short
+INFILE=$(pwd)/README.md
 
 ./bin/spark-submit \
 --class org.apache.spark.examples.LineCount \

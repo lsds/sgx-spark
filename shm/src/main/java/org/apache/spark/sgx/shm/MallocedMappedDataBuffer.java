@@ -2,12 +2,12 @@ package org.apache.spark.sgx.shm;
 
 public class MallocedMappedDataBuffer extends MappedDataBuffer {
 
-	private long offset;
+	private final long offset;
 	
 	public MallocedMappedDataBuffer(long address, int capacity) {
 		super(address, capacity);
 		System.out.println("MallocedMappedDataBuffer at address " + address);
-		this.offset = MappedDataBufferManager.get().startAddress() - address;
+		this.offset = address - MappedDataBufferManager.get().startAddress();
 		System.out.println("MallocedMappedDataBuffer offset is " + offset);
 	}
 	

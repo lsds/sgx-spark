@@ -58,7 +58,10 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
 		}
 		
-		MappedDataBufferManager.init(new MappedDataBuffer(handles[2], size));
+		if (!SgxSettings.IS_ENCLAVE()) {
+			System.out.println("ShmCommunicationManager: initializing MappedDataBufferManager");
+			MappedDataBufferManager.init(new MappedDataBuffer(handles[2], size));
+		}
 	}
 
 	/**
@@ -73,7 +76,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	private ShmCommunicationManager(long writeBuff, long readBuff, long commonBuff, int size) {
 		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
 		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
-		MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
+//		MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
 	}
 	
 	@SuppressWarnings("unchecked")

@@ -29,7 +29,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBufferManager;
-import org.apache.spark.sgx.shm.ShmCommunicationManager;
 
 /**
  * A class that provides a line reader from an input stream.

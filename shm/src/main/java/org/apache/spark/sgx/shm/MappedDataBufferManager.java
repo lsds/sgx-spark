@@ -1,5 +1,7 @@
 package org.apache.spark.sgx.shm;
 
+import org.apache.spark.sgx.SgxSettings;
+
 public class MappedDataBufferManager {
 	/*
 	 * The underlying memory buffer. The memory
@@ -22,14 +24,19 @@ public class MappedDataBufferManager {
 	
 	private static MappedDataBufferManager _instance = null;
 	
-	public static void init(MappedDataBuffer buffer) {
+	public static void init(MappedDataBuffer buffer) {		
 		if (_instance != null) {
 			throw new RuntimeException("Already initialized");
 		}
+		
 		_instance = new MappedDataBufferManager(buffer);
 	}
 	
 	public static MappedDataBufferManager get() {
+		if (_instance == null) {
+			throw new RuntimeException("Not initialized");
+		}
+		
 		return _instance;
 	}
 	
@@ -60,6 +67,10 @@ public class MappedDataBufferManager {
 	}	
 	
 	public MallocedMappedDataBuffer malloc(int bytes) {
+		if (SgxSettings.IS_ENCLAVE()) {
+			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
+		}
+		
 		System.out.println("malloc bytes: " + bytes);
 		int blocksNeeded = blocksNeeded(bytes);
 		System.out.println("blocks needed: " + blocksNeeded);
@@ -80,6 +91,10 @@ public class MappedDataBufferManager {
 	}
 	
 	public void free(MallocedMappedDataBuffer b) {
+		if (SgxSettings.IS_ENCLAVE()) {
+			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
+		}
+		
 		int startBlock = (int) ((b.address() - buffer.address()) / blockSize);
 		int blocksNeeded = blocksNeeded(b.capacity());
 		
