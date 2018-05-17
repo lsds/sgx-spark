@@ -596,6 +596,10 @@ class SparkContext(config: SparkConf) extends Logging {
         throw e
       }
   }
+  
+  def hadoopConfigurationSet(name: String, value: String) {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkContextFct.hadoopConfigurationSet(name, value)
+  }
 
   /**
    * Called by the web UI to obtain executor thread dumps.  This method may be expensive.

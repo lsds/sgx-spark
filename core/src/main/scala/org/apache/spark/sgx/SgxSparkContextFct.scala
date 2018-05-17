@@ -6,6 +6,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
+import org.apache.hadoop.conf.Configuration
+
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
@@ -28,6 +30,8 @@ object SgxSparkContextFct {
     if (_defaultParallelism == -1) _defaultParallelism = new SgxSparkContextDefaultParallelism().send()
     _defaultParallelism
   }
+	
+	def hadoopConfigurationSet(name: String, value: String) = new SgxSparkContextHadoopConfigurationSet(name, value).send()
 
   def parallelize[T: ClassTag](seq: Seq[T]) = new SgxSparkContextParallelize(seq).send()
 
@@ -56,6 +60,11 @@ private case class SgxTaskSparkContextCreate(conf: SparkConf) extends SgxMessage
 private case class SgxSparkContextDefaultParallelism() extends SgxMessage[Int] {
 	def execute() = Await.result( Future { SgxMain.sparkContext.defaultParallelism }, Duration.Inf)
 }
+
+private case class SgxSparkContextHadoopConfigurationSet(name: String, value: String) extends SgxMessage[Unit] {
+	def execute() = Await.result( Future { SgxMain.sparkContext.hadoopConfiguration.set(name, value) }, Duration.Inf)
+}
+
 
 private case class SgxSparkContextParallelize[T: ClassTag](seq: Seq[T]) extends SgxMessage[RDD[T]] {
 	def execute() = Await.result( Future {
