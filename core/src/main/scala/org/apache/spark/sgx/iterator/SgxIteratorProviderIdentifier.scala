@@ -22,8 +22,7 @@ class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorProvIden
 }
 
 class SgxShmIteratorProviderIdentifier[T](offset: Long, size: Int) extends SgxIteratorProvIdentifier[T] {
-  
-  logDebug("Creating x")
+
   logDebug("Creating " + this)
 
 	override def getIterator(context: String) = new SgxShmIteratorConsumer[T](offset, size)
