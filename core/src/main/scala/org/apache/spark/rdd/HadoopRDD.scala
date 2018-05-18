@@ -249,7 +249,7 @@ class HadoopRDD[K, V](
         }
       }
 
-      private var reader: RecordReader[K, V] = null
+      var reader: RecordReader[K, V] = null
       private val inputFormat = getInputFormat(jobConf)
       HadoopRDD.addLocalConfiguration(
         new SimpleDateFormat("yyyyMMddHHmmss", Locale.US).format(createTime),
@@ -325,7 +325,7 @@ class HadoopRDD[K, V](
     // The corresponding SgxIteratorConsumer lives inside the enclave.
     if (SgxSettings.SGX_ENABLED) 
       SgxFactory.newSgxIteratorProvider[(K,V)](iter, true)
-//      SgxFactory.newSgxShmIteratorProvider[(K,V)]()
+//      SgxFactory.newSgxShmIteratorProvider[(K,V)](iter.reader.getLineReader.getBufferOffset(), iter.reader.getLineReader.getBufferSize())
     else
     new InterruptibleIterator[(K, V)](context, iter)
   }

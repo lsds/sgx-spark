@@ -39,6 +39,7 @@ import org.apache.hadoop.io.compress.SplittableCompressionCodec;
 import org.apache.hadoop.mapreduce.lib.input.CompressedSplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.SplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader;
+import org.apache.hadoop.util.LineReaderSgx;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
 
@@ -289,4 +290,9 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
       }
     }
   }
+
+	@Override
+	public LineReaderSgx getLineReader() {
+		return in;
+	}
 }
