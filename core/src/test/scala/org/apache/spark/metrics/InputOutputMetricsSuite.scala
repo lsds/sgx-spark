@@ -36,6 +36,8 @@ import org.apache.spark.{SharedSparkContext, SparkFunSuite}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.util.{ThreadUtils, Utils}
 
+import org.apache.hadoop.util.LineReaderSgx;
+
 class InputOutputMetricsSuite extends SparkFunSuite with SharedSparkContext
   with BeforeAndAfter {
 
@@ -382,6 +384,8 @@ class OldCombineTextRecordReaderWrapper(
   override def getPos(): Long = delegate.getPos
   override def close(): Unit = delegate.close()
   override def getProgress(): Float = delegate.getProgress
+  
+  def getLineReader() = delegate.getLineReader
 }
 
 /**
