@@ -26,6 +26,7 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.sgx.SgxSettings;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
 
 /**
@@ -143,15 +144,17 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     if (bytesRead > 0) {
       totalBytesRead += bytesRead;
     }
-    
-    System.out.println("Buffer contains: " + (char) buffer.get(0)+ (char) buffer.get(1) + (char) buffer.get(2) + (char) buffer.get(3) + (char) buffer.get(4));
-    
+
     return bytesRead;
   }
 
   @Override
   public int readLine(Text str, int maxLineLength, int maxBytesToConsume)
       throws IOException {
+//	if (!SgxSettings.IS_ENCLAVE()) {
+//		throw new RuntimeException("readLine only allowed inside enclave");
+//	}
+
 	    try {
 	    	throw new RuntimeException("Exception readLine " + this);
 	    } catch (Exception e) {
