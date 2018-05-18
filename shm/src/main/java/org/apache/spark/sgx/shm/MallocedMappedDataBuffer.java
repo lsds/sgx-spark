@@ -6,12 +6,15 @@ public class MallocedMappedDataBuffer extends MappedDataBuffer {
 	
 	public MallocedMappedDataBuffer(long address, int capacity) {
 		super(address, capacity);
-		System.out.println("MallocedMappedDataBuffer at address " + address);
 		this.offset = address - MappedDataBufferManager.get().startAddress();
-		System.out.println("MallocedMappedDataBuffer offset is " + offset);
 	}
 	
 	public long offset() {
 		return offset;
+	}
+
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + "(address=" + address() + ", capacity=" + capacity() + ", offset=" + offset + ")";
 	}
 }
