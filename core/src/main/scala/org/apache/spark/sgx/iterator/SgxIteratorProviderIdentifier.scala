@@ -21,11 +21,12 @@ class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorProvIden
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ")"
 }
 
-class SgxShmIteratorProviderIdentifier[T](id: Long) extends SgxIteratorProvIdentifier[T] {
+class SgxShmIteratorProviderIdentifier[T](offset: Long, size: Int) extends SgxIteratorProvIdentifier[T] {
   
+  logDebug("Creating x")
   logDebug("Creating " + this)
 
-	override def getIterator(context: String) = new SgxShmIteratorConsumer[T](id)
+	override def getIterator(context: String) = new SgxShmIteratorConsumer[T](offset, size)
 
-	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
+	override def toString() = getClass.getSimpleName + "(offset=" + offset + ", size=" + size + ")"
 }

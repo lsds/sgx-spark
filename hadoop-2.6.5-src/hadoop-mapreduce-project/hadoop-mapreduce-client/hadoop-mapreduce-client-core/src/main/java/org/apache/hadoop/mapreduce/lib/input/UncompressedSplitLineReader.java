@@ -143,6 +143,9 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     if (bytesRead > 0) {
       totalBytesRead += bytesRead;
     }
+    
+    System.out.println("Buffer contains: " + (char) buffer.get(0)+ (char) buffer.get(1) + (char) buffer.get(2) + (char) buffer.get(3) + (char) buffer.get(4));
+    
     return bytesRead;
   }
 

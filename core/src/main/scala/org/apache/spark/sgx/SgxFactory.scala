@@ -23,8 +23,8 @@ object SgxFactory {
 		iter
 	}
 	
-	def newSgxShmIteratorProvider[T](): SgxIteratorProv[T] = {
-		new SgxShmIteratorProvider[T]()
+	def newSgxShmIteratorProvider[T](offset: Long, size: Int): SgxIteratorProv[T] = {
+		new SgxShmIteratorProvider[T](offset, size)
 	}	
 
 	def runSgxBroadcastProvider(): Unit = {

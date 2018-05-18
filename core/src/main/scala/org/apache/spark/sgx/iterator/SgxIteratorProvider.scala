@@ -83,9 +83,9 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
 }
 
-class SgxShmIteratorProvider[T]() extends SgxIteratorProv[T] {
+class SgxShmIteratorProvider[T](offset: Long, size: Int) extends SgxIteratorProv[T] {
   
-  private val identifier = new SgxShmIteratorProviderIdentifier[T](scala.util.Random.nextLong())
+  private val identifier = new SgxShmIteratorProviderIdentifier[T](offset, size)
   
   logDebug("Creating " + this)
 
