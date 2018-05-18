@@ -26,6 +26,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.sgx.SgxSettings;
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBufferManager;
@@ -145,7 +146,17 @@ public class LineReaderSgx implements Closeable {
     this.recordDelimiterBytes = recordDelimiterBytes;
   }
 
+  public LineReaderSgx(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes) {
+    this.in = null;
+    this.bufferSize = buffer.capacity();
+    this.buffer = buffer;
+    this.recordDelimiterBytes = recordDelimiterBytes;
+  }
 
+  public LineReaderSgx(MallocedMappedDataBuffer buffer) {
+    this(buffer, null);
+  }
+  
   /**
    * Close the underlying stream.
    * @throws IOException
@@ -172,6 +183,10 @@ public class LineReaderSgx implements Closeable {
    */
   public int readLine(Text str, int maxLineLength,
                       int maxBytesToConsume) throws IOException {
+//	if (!SgxSettings.IS_ENCLAVE()) {
+//		throw new RuntimeException("readLine only allowed inside enclave");
+//	}
+	
 	  try {
 		  throw new RuntimeException("xxx readLine2: " + str + ", " + (this.recordDelimiterBytes != null ? "custom" : "default"));
 	  } catch (Exception e) {
