@@ -93,7 +93,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 
 class SgxShmIteratorConsumer[T](id: Long) extends Iterator[T] with Logging {
   
-  val buffer = ShmCommunicationManager.get().getCommon();
+  val buffer = null
   
   logDebug("Creating " + this)
   
