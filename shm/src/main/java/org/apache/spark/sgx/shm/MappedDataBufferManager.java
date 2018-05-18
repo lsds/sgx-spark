@@ -85,9 +85,7 @@ public class MappedDataBufferManager {
 		markUsed(startBlock, blocksNeeded);
 		freeBlocks -= blocksNeeded;
 		
-		MallocedMappedDataBuffer x = new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
-		System.out.println("Creating " + x);
-		return x;
+		return new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
 	}
 	
 	public synchronized void free(MallocedMappedDataBuffer b) {
