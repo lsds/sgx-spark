@@ -66,14 +66,12 @@ public class MappedDataBufferManager {
 		}
 	}	
 	
-	public MallocedMappedDataBuffer malloc(int bytes) {
+	public synchronized MallocedMappedDataBuffer malloc(int bytes) {
 		if (SgxSettings.IS_ENCLAVE()) {
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 		}
-		
-		System.out.println("malloc bytes: " + bytes);
+
 		int blocksNeeded = blocksNeeded(bytes);
-		System.out.println("blocks needed: " + blocksNeeded);
 		
 		if (freeBlocks < blocksNeeded) {
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + "  Bytes)");
@@ -87,10 +85,12 @@ public class MappedDataBufferManager {
 		markUsed(startBlock, blocksNeeded);
 		freeBlocks -= blocksNeeded;
 		
-		return new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
+		MallocedMappedDataBuffer x = new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
+		System.out.println("Creating " + x);
+		return x;
 	}
 	
-	public void free(MallocedMappedDataBuffer b) {
+	public synchronized void free(MallocedMappedDataBuffer b) {
 		if (SgxSettings.IS_ENCLAVE()) {
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 		}
@@ -107,10 +107,6 @@ public class MappedDataBufferManager {
 		int totalFree = lastFree - firstFree + 1;
 		
 		markFree(firstFree, totalFree);
-	}
-	
-	public void register(MallocedMappedDataBuffer b) {
-		
 	}
 	
 	private int findFirstConsecutiveFree(int startBlock) {
@@ -155,7 +151,12 @@ public class MappedDataBufferManager {
 		return startBlock;
 	}
 	
-	long startAddress() {
+	public long startAddress() {
 		return buffer.address();
+	}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + "(buffer=" + buffer + ")";
 	}
 }
