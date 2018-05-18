@@ -15,6 +15,7 @@ import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.shm.ShmCommunicationManager;
 import org.apache.spark.sgx.shm.MappedDataBufferManager
 import org.apache.spark.sgx.shm.MappedDataBuffer
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
@@ -95,25 +96,27 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 
 class SgxShmIteratorConsumer[T](offset: Long, size: Int) extends Iterator[T] with Logging {
 
-  val buffer = null
-  
-  logDebug("Creating " + this)
+  val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
   
   override def hasNext: Boolean = {
     try {
       throw new RuntimeException("SgxShmIteratorConsumer hasNext")
     } catch {
       case e: Exception => logDebug("Exception: " + e.getMessage)
+      logDebug("Exception: " + e.getStackTraceString)
     }
     true
 	}
 
 	override def next: T = {
-    try {
-      throw new RuntimeException("SgxShmIteratorConsumer next")
-    } catch {
-      case e: Exception => logDebug("Exception: " + e.getMessage) 
-    }
+        	    try {
+	    	throw new RuntimeException("SgxShmIteratorConsumer.next " + this);
+	    } catch  {
+	      case e: Exception =>
+	        logDebug(e.getMessage)
+	        logDebug(e.getStackTraceString)
+	    }	
+	    
     null.asInstanceOf[T]
 	}
 	
