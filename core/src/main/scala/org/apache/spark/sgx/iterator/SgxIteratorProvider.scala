@@ -85,6 +85,8 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 
 class SgxShmIteratorProvider[T](offset: Long, size: Int) extends SgxIteratorProv[T] {
   
+  val id = offset
+  
   private val identifier = new SgxShmIteratorProviderIdentifier[T](offset, size)
   
   logDebug("Creating " + this)
