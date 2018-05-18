@@ -47,8 +47,7 @@ public class LineReaderSgx implements Closeable {
   private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
-  
-  protected MallocedMappedDataBuffer buffer;
+  private MallocedMappedDataBuffer buffer;
   
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
@@ -69,7 +68,6 @@ public class LineReaderSgx implements Closeable {
    */
   public LineReaderSgx(InputStream in) {
     this(in, DEFAULT_BUFFER_SIZE);
-    System.out.println("xxx LineReader0: " + in);
   }
 
   /**
@@ -84,7 +82,6 @@ public class LineReaderSgx implements Closeable {
     this.bufferSize = bufferSize;
     this.buffer = MappedDataBufferManager.get().malloc(bufferSize);
     this.recordDelimiterBytes = null;
-    System.out.println("xxx LineReader1: " + in + ", " + bufferSize + ", " + recordDelimiterBytes);
   }
 
   /**
@@ -97,7 +94,6 @@ public class LineReaderSgx implements Closeable {
    */
   public LineReaderSgx(InputStream in, Configuration conf) throws IOException {
     this(in, conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE));
-    System.out.println("xxx LineReader2: " + in + ", " + conf);
   }
 
   /**
@@ -112,7 +108,6 @@ public class LineReaderSgx implements Closeable {
     this.bufferSize = DEFAULT_BUFFER_SIZE;
     this.buffer = MappedDataBufferManager.get().malloc(bufferSize);
     this.recordDelimiterBytes = recordDelimiterBytes;
-    System.out.println("xxx LineReader3: " + in + ", " + bufferSize + ", " + recordDelimiterBytes);
   }
 
   /**
@@ -130,7 +125,6 @@ public class LineReaderSgx implements Closeable {
     this.bufferSize = bufferSize;
     this.buffer = MappedDataBufferManager.get().malloc(bufferSize);
     this.recordDelimiterBytes = recordDelimiterBytes;
-    System.out.println("xxx LineReader4: " + in + ", " + bufferSize + ", " + recordDelimiterBytes);
   }
 
   /**
@@ -149,7 +143,6 @@ public class LineReaderSgx implements Closeable {
     this.bufferSize = conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE);
     this.buffer = MappedDataBufferManager.get().malloc(bufferSize);
     this.recordDelimiterBytes = recordDelimiterBytes;
-    System.out.println("xxx LineReader5: " + in + ", " + bufferSize + ", " + recordDelimiterBytes + ", " + conf);
   }
 
 
@@ -392,7 +385,6 @@ public class LineReaderSgx implements Closeable {
    * @throws IOException if the underlying stream throws
    */
   public int readLine(Text str, int maxLineLength) throws IOException {
-	  System.out.println("xxx readLine0: " + str + ", " + maxLineLength);
     return readLine(str, maxLineLength, Integer.MAX_VALUE);
   }
 
@@ -403,7 +395,6 @@ public class LineReaderSgx implements Closeable {
    * @throws IOException if the underlying stream throws
    */
   public int readLine(Text str) throws IOException {
-	  System.out.println("xxx readLine1: " + str);
     return readLine(str, Integer.MAX_VALUE, Integer.MAX_VALUE);
   }
 
@@ -411,8 +402,12 @@ public class LineReaderSgx implements Closeable {
     return bufferPosn;
   }
 
-  protected int getBufferSize() {
+  public int getBufferSize() {
     return bufferSize;
+  }
+
+  public long getBufferOffset() {
+	  return buffer.offset();
   }
 
   protected void unsetNeedAdditionalRecordAfterSplit() {
