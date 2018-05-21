@@ -26,7 +26,7 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.io.Text;
-import org.apache.spark.sgx.SgxSettings;
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
 
 /**
@@ -42,6 +42,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   private long totalBytesRead = 0;
   private boolean finished = false;
   private boolean usingCRLF;
+  private boolean sgxConsumer = false;
 
   public UncompressedSplitLineReader(FSDataInputStream in, Configuration conf,
       byte[] recordDelimiterBytes, long splitLength) throws IOException {
@@ -63,6 +64,27 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     	System.out.println(sb.toString());
     }
   }
+  
+  public UncompressedSplitLineReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes, long splitLength) throws IOException {
+	    super(buffer, recordDelimiterBytes);
+	    this.sgxConsumer = true;
+	    this.splitLength = splitLength;
+	    usingCRLF = (recordDelimiterBytes == null);
+	    try {
+	    	throw new RuntimeException("Exception constructor2 " + this);
+	    } catch (Exception e) {
+	    	StringBuffer sb = new StringBuffer();
+	    	sb.append(" ");
+	    	sb.append(e.getMessage());
+	    	sb.append(System.getProperty("line.separator"));
+	    	for (StackTraceElement el : e.getStackTrace()) {
+	    		sb.append("  ");
+	    		sb.append(el.toString());
+	    		sb.append(System.getProperty("line.separator"));
+	    	}
+	    	System.out.println(sb.toString());
+	    }
+	  }  
   
   private int read(InputStream in, MappedDataBuffer buffer, int off, int len) throws IOException {
       if (buffer == null) {

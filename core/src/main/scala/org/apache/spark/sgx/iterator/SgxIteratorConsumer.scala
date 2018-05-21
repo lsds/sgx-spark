@@ -17,6 +17,19 @@ import org.apache.spark.sgx.shm.MappedDataBufferManager
 import org.apache.spark.sgx.shm.MappedDataBuffer
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
 import org.apache.spark.util.NextIterator
+import org.apache.spark.deploy.SparkHadoopUtil
+import java.io.IOException
+import org.apache.hadoop.mapred.FileSplit
+import org.apache.hadoop.mapred.lib.CombineFileSplit
+import org.apache.spark.rdd.HadoopPartition
+import org.apache.spark.Partition
+import org.apache.spark.executor.InputMetrics
+import java.text.SimpleDateFormat
+import org.apache.spark.rdd.HadoopRDD
+import java.util.Locale
+import org.apache.hadoop.mapred.RecordReader
+import org.apache.hadoop.mapred.LineRecordReader
+
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
@@ -95,7 +108,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
 }
 
-class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], offset: Long, size: Int) extends NextIterator[(K,V)] with Logging {
+class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], offset: Long, size: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends NextIterator[(K,V)] with Logging {
 
   val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
   
@@ -104,10 +117,49 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   val com = id.connect()
   
   override def close(): Unit = com.sendRecv[Unit](new SgxShmIteratorConsumerClose(offset))
-
-  override def getNext(): (K, V) = next
   
+  /* Code from HadoopRDD follows */
+  
+  val split = theSplit.asInstanceOf[HadoopPartition]
+  private val existingBytesRead = inputMetrics.bytesRead
+  
+  private val getBytesReadCallback: Option[() => Long] = split.inputSplit.value match {
+    case _: FileSplit | _: CombineFileSplit =>
+      Some(SparkHadoopUtil.get.getFSBytesReadOnThreadCallback())
+    case _ => None
+  }
+  
+  private def updateBytesRead(): Unit = {
+    getBytesReadCallback.foreach { getBytesRead =>
+      inputMetrics.setBytesRead(existingBytesRead + getBytesRead())
+    }
+  }
+  
+  var reader: RecordReader[K, V] = new LineRecordReader(buffer, delimiter, splitLength, splitStart).asInstanceOf[RecordReader[K,V]]
+  
+  private val key: K = if (reader == null) null.asInstanceOf[K] else reader.createKey()
+  private val value: V = if (reader == null) null.asInstanceOf[V] else reader.createValue()
+
+  override def getNext(): (K, V) = {
+    logDebug("G")
+    try {
+      finished = !reader.next(key, value)
+    } catch {
+      case e: IOException =>
+        logWarning(s"Skipped the rest content in the corrupted file: ${split.inputSplit}", e)
+        finished = true
+    }
+    if (!finished) {
+      inputMetrics.incRecordsRead(1)
+    }
+    if (inputMetrics.recordsRead % SparkHadoopUtil.UPDATE_INPUT_METRICS_INTERVAL_RECORDS == 0) {
+      updateBytesRead()
+    }
+    (key, value)
+  }
+
   override def hasNext: Boolean = {
+    logDebug("H")
     try {
       throw new RuntimeException("SgxShmIteratorConsumer hasNext")
     } catch {
@@ -118,7 +170,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
 	}
 
 	override def next: (K,V) = {
-	  close
+	  logDebug("I")
       try {
 	    	throw new RuntimeException("SgxShmIteratorConsumer.next " + this);
 	    } catch  {

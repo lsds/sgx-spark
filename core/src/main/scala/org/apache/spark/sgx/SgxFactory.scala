@@ -9,6 +9,9 @@ import org.apache.spark.sgx.shm.ShmCommunicationManager
 import org.apache.spark.util.NextIterator
 import org.apache.hadoop.util.LineReader
 import org.apache.hadoop.mapred.RecordReader
+import org.apache.spark.rdd.HadoopPartition
+import org.apache.spark.executor.InputMetrics
+import org.apache.spark.Partition
 
 
 object SgxFactory {
@@ -28,8 +31,8 @@ object SgxFactory {
 		iter
 	}
 	
-	def newSgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V]): SgxIteratorProv[(K,V)] = {
-		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize())		
+	def newSgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]): SgxIteratorProv[(K,V)] = {
+		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)		
 	  Completor.submit(prov)
 	  prov
 	}	

@@ -43,6 +43,7 @@ import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownH
 
 import org.apache.spark.sgx.SgxFactory
 import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.executor.InputMetrics
 
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
@@ -216,11 +217,11 @@ class HadoopRDD[K, V](
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
     val iter = new NextIterator[(K, V)] {
 
-      private val split = theSplit.asInstanceOf[HadoopPartition]
+      val split = theSplit.asInstanceOf[HadoopPartition]
       logInfo("Input split: " + split.inputSplit)
       private val jobConf = getJobConf()
 
-      private val inputMetrics = context.taskMetrics().inputMetrics
+      val inputMetrics = context.taskMetrics().inputMetrics
       private val existingBytesRead = inputMetrics.bytesRead
 
       // Sets InputFileBlockHolder for the file block's information
@@ -313,7 +314,7 @@ class HadoopRDD[K, V](
                      split.inputSplit.value.isInstanceOf[CombineFileSplit]) {
             // If we can't get the bytes read from the FS stats, fall back to the split size,
             // which may be inaccurate.
-            try {
+            try {              
               inputMetrics.incBytesRead(split.inputSplit.value.getLength)
             } catch {
               case e: java.io.IOException =>
@@ -327,7 +328,7 @@ class HadoopRDD[K, V](
     // The corresponding SgxIteratorConsumer lives inside the enclave.
     if (SgxSettings.SGX_ENABLED) 
 //      SgxFactory.newSgxIteratorProvider[(K,V)](iter, true)
-      SgxFactory.newSgxShmIteratorProvider[K,V](iter, iter.reader)
+      SgxFactory.newSgxShmIteratorProvider[K,V](iter, iter.reader, theSplit, iter.inputMetrics, iter.split.inputSplit.value.getLength, iter.split.inputSplit.value.asInstanceOf[FileSplit].getStart, iter.reader.getLineReader.getRecordDelimiterBytes)
     else
     new InterruptibleIterator[(K, V)](context, iter)
   }

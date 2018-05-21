@@ -458,4 +458,8 @@ public class LineReader implements Closeable {
     // needed for custom multi byte line delimiters only
     // see MAPREDUCE-6549 for details
   }
+  
+  public byte[] getRecordDelimiterBytes() {
+	  return recordDelimiterBytes;
+  }
 }

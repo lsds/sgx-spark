@@ -17,6 +17,9 @@ import org.apache.spark.sgx.Encrypted
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.shm.ShmCommunicationManager
+import org.apache.spark.rdd.HadoopPartition
+import org.apache.spark.executor.InputMetrics
+import org.apache.spark.Partition
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
@@ -83,13 +86,11 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
 }
 
-class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], offset: Long, size: Int) extends SgxIteratorProv[(K,V)] with Callable[Unit] {
-  
-  val id = offset
+class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], offset: Long, size: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with Callable[Unit] {
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
-	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, offset, size)
+	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, offset, size, theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
   

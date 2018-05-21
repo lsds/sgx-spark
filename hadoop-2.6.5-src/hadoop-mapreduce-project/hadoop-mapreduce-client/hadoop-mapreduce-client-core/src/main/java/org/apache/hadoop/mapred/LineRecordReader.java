@@ -39,6 +39,7 @@ import org.apache.hadoop.io.compress.SplittableCompressionCodec;
 import org.apache.hadoop.mapreduce.lib.input.CompressedSplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.SplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader;
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
 
@@ -136,6 +137,14 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
       start += in.readLine(new Text(), 0, maxBytesToConsume(start));
     }
     this.pos = start;
+  }
+  
+  // SGX
+  public LineRecordReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiter, long splitLength, long splitStart) throws IOException {
+	  in = new UncompressedSplitLineReader(buffer, recordDelimiter, splitLength);
+      start = splitStart;
+      end = start + splitLength;
+      filePosition = null;
   }
 
   public LineRecordReader(InputStream in, long offset, long endOffset,
