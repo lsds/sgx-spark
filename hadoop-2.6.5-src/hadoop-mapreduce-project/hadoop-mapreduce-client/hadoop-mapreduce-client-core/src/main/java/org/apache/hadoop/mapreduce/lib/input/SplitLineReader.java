@@ -27,7 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
-public class SplitLineReader extends org.apache.hadoop.util.LineReaderSgx {
+public class SplitLineReader extends org.apache.hadoop.util.LineReader {
   public SplitLineReader(InputStream in, byte[] recordDelimiterBytes) {
     super(in, recordDelimiterBytes);
   }

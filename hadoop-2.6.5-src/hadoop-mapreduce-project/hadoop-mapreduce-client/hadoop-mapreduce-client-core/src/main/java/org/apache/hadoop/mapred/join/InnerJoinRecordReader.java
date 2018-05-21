@@ -26,6 +26,8 @@ import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * Full inner join.
  */
@@ -50,5 +52,9 @@ public class InnerJoinRecordReader<K extends WritableComparable>
       }
     }
     return true;
+  }
+
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }

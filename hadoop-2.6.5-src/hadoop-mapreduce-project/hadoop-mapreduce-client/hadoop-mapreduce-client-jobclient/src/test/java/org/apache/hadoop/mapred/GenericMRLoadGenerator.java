@@ -228,6 +228,10 @@ public class GenericMRLoadGenerator extends Configured implements Tool {
         public long getPos() { return 0; }
         public void close() { }
         public float getProgress() { return 0.0f; }
+
+        public org.apache.hadoop.util.LineReader getLineReader() {
+          throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+        }
       };
     }
   }

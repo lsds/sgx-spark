@@ -685,6 +685,10 @@ public class TestPipeApplication {
     public void close() throws IOException {
 
     }
+
+    public org.apache.hadoop.util.LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+    }
   }
 
 
@@ -725,6 +729,10 @@ public class TestPipeApplication {
     public void close() throws IOException {
 
     }
+
+    public org.apache.hadoop.util.LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+    }
   }
 
   private class FakeCollector extends
@@ -746,5 +754,9 @@ public class TestPipeApplication {
     public Map<IntWritable, Text> getCollect() {
       return collect;
     }
+  }
+
+  public org.apache.hadoop.util.LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }

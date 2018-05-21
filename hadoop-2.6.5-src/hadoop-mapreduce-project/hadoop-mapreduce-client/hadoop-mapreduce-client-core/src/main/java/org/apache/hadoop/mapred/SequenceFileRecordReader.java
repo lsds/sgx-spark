@@ -29,6 +29,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import org.apache.hadoop.util.LineReader;
+
 /** 
  * An {@link RecordReader} for {@link SequenceFile}s. 
  */
@@ -129,6 +131,9 @@ public class SequenceFileRecordReader<K, V> implements RecordReader<K, V> {
     in.seek(pos);
   }
   public synchronized void close() throws IOException { in.close(); }
-  
+
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+  }  
 }
 

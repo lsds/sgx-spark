@@ -27,6 +27,8 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * This class converts the input keys and values to their String forms by calling toString()
  * method. This class to SequenceFileAsTextInputFormat class is as LineRecordReader
@@ -82,5 +84,8 @@ public class SequenceFileAsTextRecordReader
   public synchronized void close() throws IOException {
     sequenceFileRecordReader.close();
   }
-  
+
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+  }
 }

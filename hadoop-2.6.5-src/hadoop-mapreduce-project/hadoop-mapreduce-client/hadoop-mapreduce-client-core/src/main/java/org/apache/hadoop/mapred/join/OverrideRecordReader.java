@@ -29,6 +29,8 @@ import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * Prefer the &quot;rightmost&quot; data source for this key.
  * For example, <tt>override(S1,S2,S3)</tt> will prefer values
@@ -94,4 +96,7 @@ public class OverrideRecordReader<K extends WritableComparable,
     }
   }
 
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+  }
 }

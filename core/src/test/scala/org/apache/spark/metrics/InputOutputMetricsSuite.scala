@@ -36,7 +36,7 @@ import org.apache.spark.{SharedSparkContext, SparkFunSuite}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.util.{ThreadUtils, Utils}
 
-import org.apache.hadoop.util.LineReaderSgx;
+import org.apache.hadoop.util.LineReader;
 
 class InputOutputMetricsSuite extends SparkFunSuite with SharedSparkContext
   with BeforeAndAfter {

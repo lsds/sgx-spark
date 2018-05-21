@@ -20,6 +20,10 @@ import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.iterator.SgxIterator
 
+import org.apache.hadoop.util.LineReader
+
+object LineReaderMaps extends IdentifierManager[LineReader]() {}
+
 object SgxFct {
 		
   def externalAppendOnlyMapIterator[K,V](id: SizeTrackingAppendOnlyMapIdentifier) =
@@ -70,10 +74,18 @@ private case class ExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
+//private case class FillBuffer(
+//	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Unit] {
+//
+//	def execute() = Await.result( Future {
+//		it.getIterator.getNext[T]()
+//	}, Duration.Inf)
+//}
+
 private case class GetPartitionFirstOfPair(partitioner: Partitioner, enc: Encrypted) extends SgxMessage[Int] {
 
   def execute() = Await.result( Future {
-		partitioner.getPartition(enc.decrypt[Pair[Any,Any]]._1)
+		partitioner.getPartition(enc.decrypt[Product2[Any,Any]]._1)
 	}, Duration.Inf)
 }
 

@@ -298,4 +298,8 @@ public class StreamXmlRecordReader extends StreamBaseRecordReader {
   int firstMatchEnd_ = 0;
 
   boolean synched_;
+
+  public org.apache.hadoop.util.LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+  }
 }

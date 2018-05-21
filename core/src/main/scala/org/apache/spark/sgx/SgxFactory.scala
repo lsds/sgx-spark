@@ -6,6 +6,9 @@ import org.apache.spark.sgx.iterator.SgxIteratorProvider
 import org.apache.spark.sgx.iterator.SgxShmIteratorProvider
 import org.apache.spark.sgx.shm.ShmCommunicationManager
 
+import org.apache.spark.util.NextIterator
+import org.apache.hadoop.util.LineReader
+
 object SgxFactory {
 	val mgr =
 	if (SgxSettings.IS_ENCLAVE) {
@@ -23,8 +26,10 @@ object SgxFactory {
 		iter
 	}
 	
-	def newSgxShmIteratorProvider[T](offset: Long, size: Int): SgxIteratorProv[T] = {
-		new SgxShmIteratorProvider[T](offset, size)
+	def newSgxShmIteratorProvider[T](delegate: NextIterator[T], lineReader: LineReader): SgxIteratorProv[T] = {
+		val prov = new SgxShmIteratorProvider[T](lineReader.getBufferOffset(), lineReader.getBufferSize())		
+	  LineReaderMaps.put(prov.id, lineReader)
+	  prov
 	}	
 
 	def runSgxBroadcastProvider(): Unit = {

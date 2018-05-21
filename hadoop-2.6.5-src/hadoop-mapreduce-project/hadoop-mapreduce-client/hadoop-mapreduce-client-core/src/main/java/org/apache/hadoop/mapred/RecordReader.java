@@ -22,7 +22,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.util.LineReaderSgx;
+import org.apache.hadoop.util.LineReader;
 
 /**
  * <code>RecordReader</code> reads &lt;key, value&gt; pairs from an 
@@ -87,5 +87,5 @@ public interface RecordReader<K, V> {
    */
   float getProgress() throws IOException;
   
-  LineReaderSgx getLineReader();
+  LineReader getLineReader();
 }

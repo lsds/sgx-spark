@@ -276,6 +276,7 @@ class HadoopRDD[K, V](
       private val value: V = if (reader == null) null.asInstanceOf[V] else reader.createValue()
 
       override def getNext(): (K, V) = {
+        
         try {
           finished = !reader.next(key, value)
         } catch {
@@ -325,7 +326,7 @@ class HadoopRDD[K, V](
     // The corresponding SgxIteratorConsumer lives inside the enclave.
     if (SgxSettings.SGX_ENABLED) 
       SgxFactory.newSgxIteratorProvider[(K,V)](iter, true)
-//      SgxFactory.newSgxShmIteratorProvider[(K,V)](iter.reader.getLineReader.getBufferOffset(), iter.reader.getLineReader.getBufferSize())
+//      SgxFactory.newSgxShmIteratorProvider[(K,V)](iter, iter.reader)
     else
     new InterruptibleIterator[(K, V)](context, iter)
   }

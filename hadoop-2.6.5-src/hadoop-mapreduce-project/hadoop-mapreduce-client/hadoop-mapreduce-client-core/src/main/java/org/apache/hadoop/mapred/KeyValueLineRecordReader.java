@@ -26,6 +26,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * This class treats a line in the input as a key/value pair separated by a 
  * separator character. The separator can be specified in config file 
@@ -99,5 +101,9 @@ public class KeyValueLineRecordReader implements RecordReader<Text, Text> {
 
   public synchronized void close() throws IOException { 
     lineRecordReader.close();
+  }
+
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }
