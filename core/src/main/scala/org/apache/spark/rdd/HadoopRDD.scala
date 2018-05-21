@@ -294,6 +294,7 @@ class HadoopRDD[K, V](
       }
 
       override def close(): Unit = {
+        logDebug("closing")
         if (reader != null) {
           InputFileBlockHolder.unset()
           try {
@@ -325,8 +326,8 @@ class HadoopRDD[K, V](
     // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
     // The corresponding SgxIteratorConsumer lives inside the enclave.
     if (SgxSettings.SGX_ENABLED) 
-      SgxFactory.newSgxIteratorProvider[(K,V)](iter, true)
-//      SgxFactory.newSgxShmIteratorProvider[(K,V)](iter, iter.reader)
+//      SgxFactory.newSgxIteratorProvider[(K,V)](iter, true)
+      SgxFactory.newSgxShmIteratorProvider[K,V](iter, iter.reader)
     else
     new InterruptibleIterator[(K, V)](context, iter)
   }

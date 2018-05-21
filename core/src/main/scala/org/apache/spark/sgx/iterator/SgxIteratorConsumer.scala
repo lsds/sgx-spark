@@ -16,6 +16,7 @@ import org.apache.spark.sgx.shm.ShmCommunicationManager;
 import org.apache.spark.sgx.shm.MappedDataBufferManager
 import org.apache.spark.sgx.shm.MappedDataBuffer
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
+import org.apache.spark.util.NextIterator
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
@@ -94,9 +95,17 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
 }
 
-class SgxShmIteratorConsumer[T](offset: Long, size: Int) extends Iterator[T] with Logging {
+class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], offset: Long, size: Int) extends NextIterator[(K,V)] with Logging {
 
   val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
+  
+  logDebug("Creating " + this)
+  
+  val com = id.connect()
+  
+  override def close(): Unit = com.sendRecv[Unit](new SgxShmIteratorConsumerClose(offset))
+
+  override def getNext(): (K, V) = next
   
   override def hasNext: Boolean = {
     try {
@@ -108,8 +117,9 @@ class SgxShmIteratorConsumer[T](offset: Long, size: Int) extends Iterator[T] wit
     true
 	}
 
-	override def next: T = {
-        	    try {
+	override def next: (K,V) = {
+	  close
+      try {
 	    	throw new RuntimeException("SgxShmIteratorConsumer.next " + this);
 	    } catch  {
 	      case e: Exception =>
@@ -117,7 +127,7 @@ class SgxShmIteratorConsumer[T](offset: Long, size: Int) extends Iterator[T] wit
 	        logDebug(e.getStackTraceString)
 	    }	
 	    
-    null.asInstanceOf[T]
+    null.asInstanceOf[(K,V)]
 	}
 	
 	override def toString() = getClass.getSimpleName + "(offset=" + offset + ", size=" + size + ", buffer=" + buffer + ")"

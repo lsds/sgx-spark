@@ -20,9 +20,9 @@ import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.iterator.SgxIterator
 
-import org.apache.hadoop.util.LineReader
+import org.apache.hadoop.mapred.RecordReader
 
-object LineReaderMaps extends IdentifierManager[LineReader]() {}
+object RecordReaderMaps extends IdentifierManager[RecordReader[_,_]]() {}
 
 object SgxFct {
 		

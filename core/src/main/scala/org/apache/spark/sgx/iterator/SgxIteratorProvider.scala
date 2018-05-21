@@ -83,15 +83,33 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
 }
 
-class SgxShmIteratorProvider[T](offset: Long, size: Int) extends SgxIteratorProv[T] {
+class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], offset: Long, size: Int) extends SgxIteratorProv[(K,V)] with Callable[Unit] {
   
   val id = offset
   
-  private val identifier = new SgxShmIteratorProviderIdentifier[T](offset, size)
+  private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+
+	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, offset, size)
+
+	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
   
   logDebug("Creating " + this)
 
 	override def getIdentifier = identifier
+	
+	def call(): Unit = {
+	  val com = do_accept
+	  logDebug(this + " got connection: " + com)
+
+	  var running = true
+	  while (running) {
+	    com.recvOne() match {
+			  case c: SgxShmIteratorConsumerClose => {
+			    delegate.closeIfNeeded()
+			  }
+	    }
+	  }
+  }
 	
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ")"
 }

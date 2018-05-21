@@ -8,6 +8,8 @@ import org.apache.spark.sgx.shm.ShmCommunicationManager
 
 import org.apache.spark.util.NextIterator
 import org.apache.hadoop.util.LineReader
+import org.apache.hadoop.mapred.RecordReader
+
 
 object SgxFactory {
 	val mgr =
@@ -26,9 +28,9 @@ object SgxFactory {
 		iter
 	}
 	
-	def newSgxShmIteratorProvider[T](delegate: NextIterator[T], lineReader: LineReader): SgxIteratorProv[T] = {
-		val prov = new SgxShmIteratorProvider[T](lineReader.getBufferOffset(), lineReader.getBufferSize())		
-	  LineReaderMaps.put(prov.id, lineReader)
+	def newSgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V]): SgxIteratorProv[(K,V)] = {
+		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize())		
+	  Completor.submit(prov)
 	  prov
 	}	
 
