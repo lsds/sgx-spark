@@ -20,6 +20,8 @@ import org.apache.spark.sgx.shm.ShmCommunicationManager
 import org.apache.spark.rdd.HadoopPartition
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.Partition
+import org.apache.hadoop.mapred.RecordReader
+import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
@@ -86,11 +88,11 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
 }
 
-class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], offset: Long, size: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with Callable[Unit] {
+class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with Callable[Unit] {
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
-	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, offset, size, theSplit, inputMetrics, splitLength, splitStart, delimiter)
+	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
   
@@ -104,10 +106,17 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], offset: Long, s
 
 	  var running = true
 	  while (running) {
-	    com.recvOne() match {
-			  case c: SgxShmIteratorConsumerClose => {
+	    val ret = com.recvOne() match {
+			  case c: SgxShmIteratorConsumerClose =>
 			    delegate.closeIfNeeded()
-			  }
+			  case f: SgxShmIteratorConsumerFillBufferMsg =>
+			    logDebug("Received SgxShmIteratorConsumerFillBufferMsg")
+			    val x = recordReader.getLineReader.fillBuffer(f.inDelimiter)
+			    logDebug("Done fillBuffer: " + x)
+			    x
+	    }
+	    if (ret != Unit) {
+	      com.sendOne(ret)
 	    }
 	  }
   }

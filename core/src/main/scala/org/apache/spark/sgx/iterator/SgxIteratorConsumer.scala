@@ -116,7 +116,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   
   val com = id.connect()
   
-  override def close(): Unit = com.sendRecv[Unit](new SgxShmIteratorConsumerClose(offset))
+  override def close(): Unit = com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
   
   /* Code from HadoopRDD follows */
   
@@ -135,7 +135,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     }
   }
   
-  var reader: RecordReader[K, V] = new LineRecordReader(buffer, delimiter, splitLength, splitStart).asInstanceOf[RecordReader[K,V]]
+  var reader: RecordReader[K, V] = new LineRecordReader(buffer, delimiter, splitLength, splitStart, new SgxShmIteratorConsumerFillBuffer(com)).asInstanceOf[RecordReader[K,V]]
   
   private val key: K = if (reader == null) null.asInstanceOf[K] else reader.createKey()
   private val value: V = if (reader == null) null.asInstanceOf[V] else reader.createValue()
@@ -158,29 +158,29 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     (key, value)
   }
 
-  override def hasNext: Boolean = {
-    logDebug("H")
-    try {
-      throw new RuntimeException("SgxShmIteratorConsumer hasNext")
-    } catch {
-      case e: Exception => logDebug("Exception: " + e.getMessage)
-      logDebug("Exception: " + e.getStackTraceString)
-    }
-    true
-	}
-
-	override def next: (K,V) = {
-	  logDebug("I")
-      try {
-	    	throw new RuntimeException("SgxShmIteratorConsumer.next " + this);
-	    } catch  {
-	      case e: Exception =>
-	        logDebug(e.getMessage)
-	        logDebug(e.getStackTraceString)
-	    }	
-	    
-    null.asInstanceOf[(K,V)]
-	}
+//  override def hasNext: Boolean = {
+//    logDebug("H")
+//    try {
+//      throw new RuntimeException("SgxShmIteratorConsumer hasNext")
+//    } catch {
+//      case e: Exception => logDebug("Exception: " + e.getMessage)
+//      logDebug("Exception: " + e.getStackTraceString)
+//    }
+//    true
+//	}
+//
+//	override def next: (K,V) = {
+//	  logDebug("I")
+//      try {
+//	    	throw new RuntimeException("SgxShmIteratorConsumer.next " + this);
+//	    } catch  {
+//	      case e: Exception =>
+//	        logDebug(e.getMessage)
+//	        logDebug(e.getStackTraceString)
+//	    }	
+//	    
+//    null.asInstanceOf[(K,V)]
+//	}
 	
 	override def toString() = getClass.getSimpleName + "(offset=" + offset + ", size=" + size + ", buffer=" + buffer + ")"
 }

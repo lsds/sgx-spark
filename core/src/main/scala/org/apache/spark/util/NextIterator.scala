@@ -17,8 +17,10 @@
 
 package org.apache.spark.util
 
+import org.apache.spark.internal.Logging
+
 /** Provides a basic/boilerplate Iterator implementation. */
-private[spark] abstract class NextIterator[U] extends Iterator[U] {
+private[spark] abstract class NextIterator[U] extends Iterator[U] with Logging {
 
   private var gotNext = false
   private var nextValue: U = _
@@ -77,6 +79,7 @@ private[spark] abstract class NextIterator[U] extends Iterator[U] {
         gotNext = true
       }
     }
+    logDebug("hasNext: " + (!finished))
     !finished
   }
 
@@ -85,6 +88,7 @@ private[spark] abstract class NextIterator[U] extends Iterator[U] {
       throw new NoSuchElementException("End of stream")
     }
     gotNext = false
+    logDebug("hasNext: " + nextValue)
     nextValue
   }
 }

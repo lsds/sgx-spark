@@ -32,7 +32,7 @@ object SgxFactory {
 	}
 	
 	def newSgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]): SgxIteratorProv[(K,V)] = {
-		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)		
+		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader, theSplit, inputMetrics, splitLength, splitStart, delimiter)		
 	  Completor.submit(prov)
 	  prov
 	}	

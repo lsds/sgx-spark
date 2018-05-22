@@ -26,6 +26,8 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.sgx.IFillBuffer;
+import org.apache.spark.sgx.SgxSettings;
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
 
@@ -43,6 +45,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   private boolean finished = false;
   private boolean usingCRLF;
   private boolean sgxConsumer = false;
+  private IFillBuffer fillBuffer = null;
 
   public UncompressedSplitLineReader(FSDataInputStream in, Configuration conf,
       byte[] recordDelimiterBytes, long splitLength) throws IOException {
@@ -65,10 +68,11 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     }
   }
   
-  public UncompressedSplitLineReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes, long splitLength) throws IOException {
+  public UncompressedSplitLineReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes, long splitLength, IFillBuffer fillBuffer) throws IOException {
 	    super(buffer, recordDelimiterBytes);
 	    this.sgxConsumer = true;
 	    this.splitLength = splitLength;
+	    this.fillBuffer = fillBuffer;
 	    usingCRLF = (recordDelimiterBytes == null);
 	    try {
 	    	throw new RuntimeException("Exception constructor2 " + this);
@@ -87,6 +91,21 @@ public class UncompressedSplitLineReader extends SplitLineReader {
 	  }  
   
   private int read(InputStream in, MappedDataBuffer buffer, int off, int len) throws IOException {
+	    try {
+	    	throw new RuntimeException("Invoking read(off="+off+", len="+len+")");
+	    } catch (Exception e) {
+	    	StringBuffer sb = new StringBuffer();
+	    	sb.append(" ");
+	    	sb.append(e.getMessage());
+	    	sb.append(System.getProperty("line.separator"));
+	    	for (StackTraceElement el : e.getStackTrace()) {
+	    		sb.append("  ");
+	    		sb.append(el.toString());
+	    		sb.append(System.getProperty("line.separator"));
+	    	}
+	    	System.out.println(sb.toString());
+	    }	  
+	  
       if (buffer == null) {
           throw new NullPointerException();
       } else if (off < 0 || len < 0 || len > buffer.capacity() - off) {
@@ -120,7 +139,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
       throws IOException {
 	  
 	    try {
-	    	throw new RuntimeException(" Exception fillBuffer new " + this);
+	    	throw new RuntimeException("Exception fillBuffer new " + this);
 	    } catch (Exception e) {
 	    	StringBuffer sb = new StringBuffer();
 	    	sb.append(" ");
@@ -132,7 +151,11 @@ public class UncompressedSplitLineReader extends SplitLineReader {
 	    		sb.append(System.getProperty("line.separator"));
 	    	}
 	    	System.out.println(sb.toString());
-	    }	  
+	    }
+	    
+	if (SgxSettings.SGX_ENABLED() && SgxSettings.IS_ENCLAVE()) {
+		return fillBuffer.fillBuffer(inDelimiter);
+	}
 	  
     int maxBytesToRead = buffer.capacity();
     if (totalBytesRead < splitLength) {

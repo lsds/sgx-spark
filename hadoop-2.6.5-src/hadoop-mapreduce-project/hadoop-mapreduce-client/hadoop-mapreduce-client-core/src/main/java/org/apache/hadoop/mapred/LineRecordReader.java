@@ -21,6 +21,8 @@ package org.apache.hadoop.mapred;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -39,9 +41,8 @@ import org.apache.hadoop.io.compress.SplittableCompressionCodec;
 import org.apache.hadoop.mapreduce.lib.input.CompressedSplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.SplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader;
+import org.apache.spark.sgx.IFillBuffer;
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
-import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.Log;
 
 /**
  * Treats keys as offset in file and value as line. 
@@ -140,11 +141,12 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
   }
   
   // SGX
-  public LineRecordReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiter, long splitLength, long splitStart) throws IOException {
-	  in = new UncompressedSplitLineReader(buffer, recordDelimiter, splitLength);
-      start = splitStart;
-      end = start + splitLength;
-      filePosition = null;
+  public LineRecordReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiter, long splitLength, long splitStart, IFillBuffer fillBuffer) throws IOException {
+	  this.maxLineLength = buffer.capacity();
+	  this.in = new UncompressedSplitLineReader(buffer, recordDelimiter, splitLength, fillBuffer);
+	  this.start = splitStart;
+	  this.end = start + splitLength;
+	  this.filePosition = null;
   }
 
   public LineRecordReader(InputStream in, long offset, long endOffset,

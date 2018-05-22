@@ -30,7 +30,6 @@ import org.apache.spark.sgx.SgxSettings;
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
 import org.apache.spark.sgx.shm.MappedDataBufferManager;
-import org.apache.spark.sgx.shm.ShmCommunicationManager;
 
 /**
  * A class that provides a line reader from an input stream.
@@ -50,7 +49,7 @@ public class LineReader implements Closeable {
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
   private byte[] plainBuffer;
-  private MallocedMappedDataBuffer sgxBuffer;
+  private MallocedMappedDataBuffer sgxBuffer = null;
   
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
@@ -162,10 +161,6 @@ public class LineReader implements Closeable {
     this.sgxBuffer = sgxBuffer;
     this.recordDelimiterBytes = recordDelimiterBytes;
   }
-
-  public LineReader(MallocedMappedDataBuffer sgxBuffer) {
-    this(sgxBuffer, null);
-  }
   
   /**
    * Close the underlying stream.
@@ -216,7 +211,7 @@ public class LineReader implements Closeable {
 
   protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
       throws IOException {
-    return in.read(buffer);
+	return in.read(buffer);
   }
 
   protected int fillBuffer(InputStream in, MappedDataBuffer buffer, boolean inDelimiter)
@@ -351,6 +346,7 @@ public class LineReader implements Closeable {
     *         the delimiter ( as mentioned in the example ), 
     *         then we have to include the ambiguous characters in str. 
     */
+	  System.out.println("Calling readCustomLine("+maxLineLength+", "+maxBytesToConsume+")");
     str.clear();
     int txtLength = 0; // tracks str.getLength(), as an optimization
     long bytesConsumed = 0;
@@ -415,6 +411,7 @@ public class LineReader implements Closeable {
     if (bytesConsumed > Integer.MAX_VALUE) {
       throw new IOException("Too many bytes before delimiter: " + bytesConsumed);
     }
+    System.out.println("Returning readCustomLine: "+str.toString()+", " + bytesConsumed);
     return (int) bytesConsumed; 
   }
 
@@ -461,5 +458,9 @@ public class LineReader implements Closeable {
   
   public byte[] getRecordDelimiterBytes() {
 	  return recordDelimiterBytes;
+  }
+  
+  public int fillBuffer(boolean inDelimiter) throws IOException {
+	  return fillBuffer(in, inDelimiter);
   }
 }
