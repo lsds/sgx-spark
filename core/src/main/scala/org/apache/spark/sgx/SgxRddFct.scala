@@ -110,6 +110,10 @@ object SgxRddFct {
 
 	def zip[T,U:ClassTag](rddId1: Int, rddId2: Int) =
 		new Zip[T,U](rddId1, rddId2).send()
+
+	def zipPartitions[T,B: ClassTag, V: ClassTag]
+	(rddId1: Int, rddId2: Int, preservesPartitioning: Boolean, f: (Iterator[T], Iterator[B]) => Iterator[V]) =
+		new ZippedPartitionsRDD2[T,B,V](rddId1, rddId2, preservesPartitioning, f).send()
 }
 
 private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
@@ -287,6 +291,15 @@ private case class Unpersist[T](rddId: Int) extends SgxTaskRDD[Unit](rddId) {
 private case class Zip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxTaskRDD[RDD[(T,U)]](-1) {
 	def execute() = Await.result( Future {
 		val r = SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[T]].zip(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[U]])
+		SgxMain.rddIds.put(r.id, r)
+	}, Duration.Inf)
+
+	override def toString = this.getClass.getSimpleName + "(rddId1=" + rddId1 + ", rddId2=" + rddId2 + ")"
+}
+
+private case class ZippedPartitionsRDD2[T, B: ClassTag, V: ClassTag](rddId1: Int, rddId2: Int, preservesPartitioning: Boolean, f: (Iterator[T], Iterator[B]) => Iterator[V]) extends SgxTaskRDD[RDD[V]](-1) {
+	def execute() = Await.result( Future {
+		val r = SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[T]].zipPartitions(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[B]], preservesPartitioning)(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 

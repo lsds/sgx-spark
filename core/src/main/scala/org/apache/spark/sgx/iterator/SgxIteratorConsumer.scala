@@ -15,8 +15,11 @@ import org.apache.spark.sgx.SgxSettings
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
 	def call(): Unit = {
 		val num = SgxSettings.PREFETCH - consumer.objects.size
+			logDebug("num is = " + num)
 		if (num > 0) {
+			logDebug("waiting for sendRecv to complete with num = " + num)
 			val list = consumer.com.sendRecv[Queue[Encrypted]](new MsgIteratorReqNextN(num))
+			logDebug("something has been received; list size = " + list.size)
 			if (list.size == 0) {
 				consumer.close
 			}
@@ -24,6 +27,7 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 				if (SgxSettings.IS_ENCLAVE) {
 					val l = list.map(n => n.decrypt[T])
 //					if (l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
+					logDebug("IS_ENCLAVE, before potentially throwing an exception")
 					if (consumer.context == "" && l.size > 0 && l.front.isInstanceOf[Pair[Any,Any]] && l.front.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
 					  try{
 					    new RuntimeException("moep")
