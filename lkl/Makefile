@@ -91,6 +91,5 @@ clean:
 	rm -rf *.txt
 	rm -rf ../work
 	rm -rf output
-	pkill -9 java ; true
 	pkill -9 sgx-lkl-starter  ; true
 	pkill -9 spark ; true
