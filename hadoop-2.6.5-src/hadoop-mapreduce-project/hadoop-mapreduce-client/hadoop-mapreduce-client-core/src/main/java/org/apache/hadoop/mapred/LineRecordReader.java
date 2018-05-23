@@ -141,7 +141,7 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
     }
     }
     this.pos = start;
-    System.out.println("Creating LineRecordReader end ("+split.getLength()+", "+split.getStart()+", "+start+", "+pos+", "+filePosition+")");
+//    System.out.println("Creating LineRecordReader end ("+split.getLength()+", "+split.getStart()+", "+start+", "+pos+", "+filePosition+")");
   }
   
   // SGX
@@ -156,7 +156,7 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
         start += in.readLine(new Text(), 0, maxBytesToConsume(start));
     }
     this.pos = start;	  
-    System.out.println("Creating LineRecordReader end ("+splitLength+", "+splitStart+", "+start+", "+pos+", "+filePosition+")");
+//    System.out.println("Creating LineRecordReader end ("+splitLength+", "+splitStart+", "+start+", "+pos+", "+filePosition+")");
   }
 
   public LineRecordReader(InputStream in, long offset, long endOffset,

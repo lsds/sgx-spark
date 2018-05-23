@@ -45,7 +45,7 @@ import org.apache.spark.sgx.shm.MappedDataBufferManager;
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
 public class LineReader implements Closeable {
-  private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
+  private static final int DEFAULT_BUFFER_SIZE = 64 * 1024 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
   private byte[] plainBuffer;
@@ -188,20 +188,20 @@ public class LineReader implements Closeable {
    */
   public int readLine(Text str, int maxLineLength,
                       int maxBytesToConsume) throws IOException {	
-	  try {
-		  throw new RuntimeException("xxx readLine2: " + str + ", " + (this.recordDelimiterBytes != null ? "custom" : "default"));
-	  } catch (Exception e) {
-	    	StringBuffer sb = new StringBuffer();
-	    	sb.append(" ");
-	    	sb.append(e.getMessage());
-	    	sb.append(System.getProperty("line.separator"));
-	    	for (StackTraceElement el : e.getStackTrace()) {
-	    		sb.append("  ");
-	    		sb.append(el.toString());
-	    		sb.append(System.getProperty("line.separator"));
-	    	}
-	    	System.out.println(sb.toString());
-	  }
+//	  try {
+//		  throw new RuntimeException("xxx readLine2: " + str + ", " + (this.recordDelimiterBytes != null ? "custom" : "default"));
+//	  } catch (Exception e) {
+//	    	StringBuffer sb = new StringBuffer();
+//	    	sb.append(" ");
+//	    	sb.append(e.getMessage());
+//	    	sb.append(System.getProperty("line.separator"));
+//	    	for (StackTraceElement el : e.getStackTrace()) {
+//	    		sb.append("  ");
+//	    		sb.append(el.toString());
+//	    		sb.append(System.getProperty("line.separator"));
+//	    	}
+//	    	System.out.println(sb.toString());
+//	  }
     if (this.recordDelimiterBytes != null) {
       return readCustomLine(str, maxLineLength, maxBytesToConsume);
     } else {
@@ -220,7 +220,7 @@ public class LineReader implements Closeable {
   }
 
   private byte getBuf(int pos) {
-    if (SgxSettings.SGX_ENABLED()) return sgxBuffer.get(pos);
+    if (SgxSettings.SGX_ENABLED()) return ba[pos];
     else return plainBuffer[pos];
   }
   
@@ -233,6 +233,8 @@ public class LineReader implements Closeable {
 	if (SgxSettings.SGX_ENABLED()) str.append(sgxBuffer, start, len);
 	else str.append(plainBuffer, start, len);
   }
+  
+  byte[] ba = new byte[1024];
 
   /**
    * Read a line terminated by one of CR, LF, or CRLF.
@@ -255,7 +257,7 @@ public class LineReader implements Closeable {
      * consuming it until we have a chance to look at the char that
      * follows.
      */
-	  System.out.println(Thread.currentThread().getId() + ": Calling readDefaultLine("+maxLineLength+", "+maxBytesToConsume+")");
+//	  System.out.println(Thread.currentThread().getId() + ": Calling readDefaultLine("+maxLineLength+", "+maxBytesToConsume+")");
     str.clear();
     int txtLength = 0; //tracks str.getLength(), as an optimization
     int newlineLength = 0; //length of terminating newline
@@ -268,13 +270,20 @@ public class LineReader implements Closeable {
         if (prevCharCR) {
           ++bytesConsumed; //account for CR from previous read
         }
-        bufferLength = fillBuffer(in, prevCharCR);
+        bufferLength = fillBuffer(in, prevCharCR);        
         if (bufferLength <= 0) {
           break; // EOF
         }
+        if (SgxSettings.SGX_ENABLED()) {
+          if (ba.length < bufferLength) {
+            ba = new byte[bufferLength];
+          }
+          sgxBuffer.get(0, ba);
+        }
       }
       for (; bufferPosn < bufferLength; ++bufferPosn) { //search for newline
-        if (getBuf(bufferPosn) == LF) {
+    	byte b = getBuf(bufferPosn);
+        if (b == LF) {
           newlineLength = (prevCharCR) ? 2 : 1;
           ++bufferPosn; // at next invocation proceed from following byte
           break;
@@ -283,7 +292,7 @@ public class LineReader implements Closeable {
           newlineLength = 1;
           break;
         }
-        prevCharCR = (getBuf(bufferPosn) == CR);
+        prevCharCR = (b == CR);
       }
       int readLength = bufferPosn - startPosn;
       if (prevCharCR && newlineLength == 0) {
@@ -303,7 +312,7 @@ public class LineReader implements Closeable {
     if (bytesConsumed > Integer.MAX_VALUE) {
       throw new IOException("Too many bytes before newline: " + bytesConsumed);
     }
-    System.out.println(Thread.currentThread().getId() + ": Returning readDefaultLine: "+str.toString()+", " + bytesConsumed);
+//    System.out.println(Thread.currentThread().getId() + ": Returning readDefaultLine: "+str.toString()+", " + bytesConsumed);
     return (int)bytesConsumed;
   }
 
@@ -348,7 +357,7 @@ public class LineReader implements Closeable {
     *         the delimiter ( as mentioned in the example ), 
     *         then we have to include the ambiguous characters in str. 
     */
-	  System.out.println("Calling readCustomLine("+maxLineLength+", "+maxBytesToConsume+")");
+//	  System.out.println("Calling readCustomLine("+maxLineLength+", "+maxBytesToConsume+")");
     str.clear();
     int txtLength = 0; // tracks str.getLength(), as an optimization
     long bytesConsumed = 0;
@@ -413,7 +422,7 @@ public class LineReader implements Closeable {
     if (bytesConsumed > Integer.MAX_VALUE) {
       throw new IOException("Too many bytes before delimiter: " + bytesConsumed);
     }
-    System.out.println("Returning readCustomLine: "+str.toString()+", " + bytesConsumed);
+//    System.out.println("Returning readCustomLine: "+str.toString()+", " + bytesConsumed);
     return (int) bytesConsumed; 
   }
 

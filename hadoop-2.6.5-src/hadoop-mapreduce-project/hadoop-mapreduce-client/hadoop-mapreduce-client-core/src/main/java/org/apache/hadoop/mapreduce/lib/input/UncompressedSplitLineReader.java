@@ -44,68 +44,24 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   private long totalBytesRead = 0;
   private boolean finished = false;
   private boolean usingCRLF;
-  private boolean sgxConsumer = false;
   private IFillBuffer fillBuffer = null;
+  private final boolean sgxEnabled = SgxSettings.SGX_ENABLED();
 
   public UncompressedSplitLineReader(FSDataInputStream in, Configuration conf,
       byte[] recordDelimiterBytes, long splitLength) throws IOException {
     super(in, conf, recordDelimiterBytes);
     this.splitLength = splitLength;
     usingCRLF = (recordDelimiterBytes == null);
-    try {
-    	throw new RuntimeException("Exception constructor " + this);
-    } catch (Exception e) {
-    	StringBuffer sb = new StringBuffer();
-    	sb.append(" ");
-    	sb.append(e.getMessage());
-    	sb.append(System.getProperty("line.separator"));
-    	for (StackTraceElement el : e.getStackTrace()) {
-    		sb.append("  ");
-    		sb.append(el.toString());
-    		sb.append(System.getProperty("line.separator"));
-    	}
-    	System.out.println(sb.toString());
-    }
   }
   
   public UncompressedSplitLineReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes, long splitLength, IFillBuffer fillBuffer) throws IOException {
 	    super(buffer, recordDelimiterBytes);
-	    this.sgxConsumer = true;
 	    this.splitLength = splitLength;
 	    this.fillBuffer = fillBuffer;
 	    usingCRLF = (recordDelimiterBytes == null);
-	    try {
-	    	throw new RuntimeException("Exception constructor2 " + this);
-	    } catch (Exception e) {
-	    	StringBuffer sb = new StringBuffer();
-	    	sb.append(" ");
-	    	sb.append(e.getMessage());
-	    	sb.append(System.getProperty("line.separator"));
-	    	for (StackTraceElement el : e.getStackTrace()) {
-	    		sb.append("  ");
-	    		sb.append(el.toString());
-	    		sb.append(System.getProperty("line.separator"));
-	    	}
-	    	System.out.println(sb.toString());
-	    }
 	  }  
   
-  private int read(InputStream in, MappedDataBuffer buffer, int off, int len) throws IOException {
-	    try {
-	    	throw new RuntimeException("Invoking read(off="+off+", len="+len+")");
-	    } catch (Exception e) {
-	    	StringBuffer sb = new StringBuffer();
-	    	sb.append(" ");
-	    	sb.append(e.getMessage());
-	    	sb.append(System.getProperty("line.separator"));
-	    	for (StackTraceElement el : e.getStackTrace()) {
-	    		sb.append("  ");
-	    		sb.append(el.toString());
-	    		sb.append(System.getProperty("line.separator"));
-	    	}
-	    	System.out.println(sb.toString());
-	    }	  
-	  
+  private int read(InputStream in, MappedDataBuffer buffer, int off, int len) throws IOException {	  
       if (buffer == null) {
           throw new NullPointerException();
       } else if (off < 0 || len < 0 || len > buffer.capacity() - off) {
@@ -137,23 +93,8 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   protected int fillBuffer(InputStream in, MappedDataBuffer buffer, boolean inDelimiter)
       throws IOException {
-	  
-	    try {
-	    	throw new RuntimeException("Exception fillBuffer new " + this);
-	    } catch (Exception e) {
-	    	StringBuffer sb = new StringBuffer();
-	    	sb.append(" ");
-	    	sb.append(e.getMessage());
-	    	sb.append(System.getProperty("line.separator"));
-	    	for (StackTraceElement el : e.getStackTrace()) {
-	    		sb.append("  ");
-	    		sb.append(el.toString());
-	    		sb.append(System.getProperty("line.separator"));
-	    	}
-	    	System.out.println(sb.toString());
-	    }
 	    
-	if (SgxSettings.SGX_ENABLED() && SgxSettings.IS_ENCLAVE()) {
+	if (sgxEnabled && SgxSettings.IS_ENCLAVE()) {
 		return fillBuffer.fillBuffer(inDelimiter);
 	}
 	  
@@ -166,12 +107,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
       }
     }
     
-    int bytesRead = read(in, buffer, 0, maxBytesToRead);
-    
-    // SGX above: 
-    // next step 1: read from shm instead of byte[] inside enclave
-    // next step 2: implement wrap-around for shm (in case we run out of memory)
-    
+    int bytesRead = read(in, buffer, 0, maxBytesToRead);    
 
     // If the split ended in the middle of a record delimiter then we need
     // to read one additional record, as the consumer of the next split will
@@ -196,21 +132,6 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   public int readLine(Text str, int maxLineLength, int maxBytesToConsume)
       throws IOException {
-
-	    try {
-	    	throw new RuntimeException("Exception readLine " + this);
-	    } catch (Exception e) {
-	    	StringBuffer sb = new StringBuffer();
-	    	sb.append(" ");
-	    	sb.append(e.getMessage());
-	    	sb.append(System.getProperty("line.separator"));
-	    	for (StackTraceElement el : e.getStackTrace()) {
-	    		sb.append("  ");
-	    		sb.append(el.toString());
-	    		sb.append(System.getProperty("line.separator"));
-	    	}
-	    	System.out.println(sb.toString());
-	    }	  
 	  
     int bytesRead = 0;
     if (!finished) {
@@ -233,7 +154,5 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   protected void unsetNeedAdditionalRecordAfterSplit() {
     needAdditionalRecord = false;
-  }
-  
-  
+  }  
 }

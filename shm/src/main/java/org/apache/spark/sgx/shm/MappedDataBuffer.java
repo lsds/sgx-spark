@@ -94,7 +94,7 @@ public class MappedDataBuffer {
 		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(checkIndex(index, from + length)), length);
 	}
 	
-	byte[] get(int index, byte[] value) {
+	public byte[] get(int index, byte[] value) {
 		return get(index, value, 0, value.length);
 	}
 	
