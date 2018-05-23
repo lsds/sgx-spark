@@ -255,6 +255,7 @@ public class LineReader implements Closeable {
      * consuming it until we have a chance to look at the char that
      * follows.
      */
+	  System.out.println(Thread.currentThread().getId() + ": Calling readDefaultLine("+maxLineLength+", "+maxBytesToConsume+")");
     str.clear();
     int txtLength = 0; //tracks str.getLength(), as an optimization
     int newlineLength = 0; //length of terminating newline
@@ -302,6 +303,7 @@ public class LineReader implements Closeable {
     if (bytesConsumed > Integer.MAX_VALUE) {
       throw new IOException("Too many bytes before newline: " + bytesConsumed);
     }
+    System.out.println(Thread.currentThread().getId() + ": Returning readDefaultLine: "+str.toString()+", " + bytesConsumed);
     return (int)bytesConsumed;
   }
 

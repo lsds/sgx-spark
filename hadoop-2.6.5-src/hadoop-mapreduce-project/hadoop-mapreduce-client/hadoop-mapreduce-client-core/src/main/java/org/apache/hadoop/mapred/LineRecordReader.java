@@ -42,6 +42,7 @@ import org.apache.hadoop.mapreduce.lib.input.CompressedSplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.SplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader;
 import org.apache.spark.sgx.IFillBuffer;
+import org.apache.spark.sgx.SgxSettings;
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 
 /**
@@ -134,19 +135,28 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
     // If this is not the first split, we always throw away first record
     // because we always (except the last split) read one extra line in
     // next() method.
+    if (!SgxSettings.SGX_ENABLED()) {
     if (start != 0) {
       start += in.readLine(new Text(), 0, maxBytesToConsume(start));
     }
+    }
     this.pos = start;
+    System.out.println("Creating LineRecordReader end ("+split.getLength()+", "+split.getStart()+", "+start+", "+pos+", "+filePosition+")");
   }
   
   // SGX
   public LineRecordReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiter, long splitLength, long splitStart, IFillBuffer fillBuffer) throws IOException {
-	  this.maxLineLength = buffer.capacity();
-	  this.in = new UncompressedSplitLineReader(buffer, recordDelimiter, splitLength, fillBuffer);
-	  this.start = splitStart;
-	  this.end = start + splitLength;
-	  this.filePosition = null;
+    System.out.println("Creating LineRecordReader start ("+splitLength+", "+splitStart+")");
+    this.maxLineLength = buffer.capacity();
+    this.in = new UncompressedSplitLineReader(buffer, recordDelimiter, splitLength, fillBuffer);
+    this.start = splitStart;
+    this.end = start + splitLength;
+    this.filePosition = null;
+    if (start != 0) {
+        start += in.readLine(new Text(), 0, maxBytesToConsume(start));
+    }
+    this.pos = start;	  
+    System.out.println("Creating LineRecordReader end ("+splitLength+", "+splitStart+", "+start+", "+pos+", "+filePosition+")");
   }
 
   public LineRecordReader(InputStream in, long offset, long endOffset,

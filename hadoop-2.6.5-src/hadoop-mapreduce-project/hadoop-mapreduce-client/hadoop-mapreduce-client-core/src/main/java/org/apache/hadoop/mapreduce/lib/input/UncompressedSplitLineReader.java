@@ -196,9 +196,6 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   public int readLine(Text str, int maxLineLength, int maxBytesToConsume)
       throws IOException {
-//	if (!SgxSettings.IS_ENCLAVE()) {
-//		throw new RuntimeException("readLine only allowed inside enclave");
-//	}
 
 	    try {
 	    	throw new RuntimeException("Exception readLine " + this);
