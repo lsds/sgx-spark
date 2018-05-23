@@ -141,12 +141,10 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
     }
     }
     this.pos = start;
-//    System.out.println("Creating LineRecordReader end ("+split.getLength()+", "+split.getStart()+", "+start+", "+pos+", "+filePosition+")");
   }
   
   // SGX
   public LineRecordReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiter, long splitLength, long splitStart, IFillBuffer fillBuffer) throws IOException {
-    System.out.println("Creating LineRecordReader start ("+splitLength+", "+splitStart+")");
     this.maxLineLength = buffer.capacity();
     this.in = new UncompressedSplitLineReader(buffer, recordDelimiter, splitLength, fillBuffer);
     this.start = splitStart;

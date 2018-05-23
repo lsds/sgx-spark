@@ -205,11 +205,6 @@ public class LineReader implements Closeable {
       throws IOException {
 	throw new RuntimeException("Must be implemented by subclass.");
   }
-
-//  private byte getBuf(int pos) {
-//    if (sgxEnabled) return ba[pos];
-//    else return plainBuffer[pos];
-//  }
   
   private int fillBuffer(InputStream in, boolean inDelimiter) throws IOException {
 	if (sgxEnabled) return fillBuffer(in, sgxBuffer, inDelimiter);

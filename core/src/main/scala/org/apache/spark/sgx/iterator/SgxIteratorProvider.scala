@@ -110,10 +110,7 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 			  case c: SgxShmIteratorConsumerClose =>
 			    delegate.closeIfNeeded()
 			  case f: SgxShmIteratorConsumerFillBufferMsg =>
-			    logDebug("Received SgxShmIteratorConsumerFillBufferMsg")
-			    val x = recordReader.getLineReader.fillBuffer(f.inDelimiter)
-			    logDebug("Done fillBuffer: " + x)
-			    x
+			    recordReader.getLineReader.fillBuffer(f.inDelimiter)
 	    }
 	    if (ret != Unit) {
 	      com.sendOne(ret)

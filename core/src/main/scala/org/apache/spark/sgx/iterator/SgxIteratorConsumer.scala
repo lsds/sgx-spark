@@ -141,7 +141,6 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   private val value: V = if (reader == null) null.asInstanceOf[V] else reader.createValue()
 
   override def getNext(): (K, V) = {
-    logDebug("G")
     try {
       finished = !reader.next(key, value)
     } catch {
@@ -157,30 +156,6 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     }
     (key, value)
   }
-
-//  override def hasNext: Boolean = {
-//    logDebug("H")
-//    try {
-//      throw new RuntimeException("SgxShmIteratorConsumer hasNext")
-//    } catch {
-//      case e: Exception => logDebug("Exception: " + e.getMessage)
-//      logDebug("Exception: " + e.getStackTraceString)
-//    }
-//    true
-//	}
-//
-//	override def next: (K,V) = {
-//	  logDebug("I")
-//      try {
-//	    	throw new RuntimeException("SgxShmIteratorConsumer.next " + this);
-//	    } catch  {
-//	      case e: Exception =>
-//	        logDebug(e.getMessage)
-//	        logDebug(e.getStackTraceString)
-//	    }	
-//	    
-//    null.asInstanceOf[(K,V)]
-//	}
 	
 	override def toString() = getClass.getSimpleName + "(offset=" + offset + ", size=" + size + ", buffer=" + buffer + ")"
 }

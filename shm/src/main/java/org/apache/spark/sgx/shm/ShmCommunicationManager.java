@@ -42,9 +42,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param size
 	 */
 	private ShmCommunicationManager(String file, int size) {
-		System.out.println("ShmCommunicationManager: " + file + " " + size);
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
-		System.out.println("ShmCommunicationManager: " + file + " " + size + " initialized: " + handles[0] + ", " + handles[1]);
 		
 		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
 			// debugging case: switch producer and consumer,

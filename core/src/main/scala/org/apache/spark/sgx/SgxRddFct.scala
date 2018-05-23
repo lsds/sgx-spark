@@ -22,9 +22,6 @@ object SgxRddFct {
 	def collect[T](rddId: Int) =
 		new Collect[T](rddId).send().decrypt[Array[T]]
 
-//	def collectAsMap[K:ClassTag, V:ClassTag](rddId: Int) =
-//		new CollectAsMap[K, V](rddId).send()
-
 	def combineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 		rddId: Int,
 		createCombiner: V => C,
@@ -89,13 +86,6 @@ object SgxRddFct {
 	def saveAsTextFile[T](rddId: Int, path: String) =
 		new SaveAsTextFile[T](rddId, path).send()
 
-//	def sortBy[T,K](
-//		f: (T) => K,
-//		ascending: Boolean = true,
-//		numPartitions: Int = this.partitions.length)
-//		(implicit ord: Ordering[K], ctag: ClassTag[K]) =
-//			new SortBy[T,K](f, ascending, numPartitions)(ord, ctag).send()
-
 	def sortByKey[
 			K : Ordering : ClassTag,
 			V: ClassTag,
@@ -124,12 +114,6 @@ private case class Collect[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect())
 	}, Duration.Inf)
 }
-
-//private case class CollectAsMap[K:ClassTag, V:ClassTag](rddId: Int) extends SgxMessage[scala.collection.Map[K, V]] {
-//	def execute() = Await.result( Future {
-//		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]].collectAsMap()
-//	}, Duration.Inf)
-//}
 
 private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
       rddId: Int,
@@ -255,13 +239,6 @@ private case class SaveAsTextFile[T](rddId: Int, path: String) extends SgxTaskRD
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].saveAsTextFile(path)
 	}, Duration.Inf)
 }
-
-//private case class SortBy[T,K](f: (T) => K, ascending: Boolean = true, numPartitions: Int = this.partitions.length) (implicit ord: Ordering[K], ctag: ClassTag[K]) extends SgxTaskRDD[RDD[T]](rddId) {
-//	def execute() = Await.result( Future {
-//		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sortBy(f, ascending, numPartitions)(ord, ctag)
-//		SgxMain.rddIds.put(r.id, r)
-//	}, Duration.Inf)
-//}
 
 private case class SortByKey[
 		K : Ordering : ClassTag,

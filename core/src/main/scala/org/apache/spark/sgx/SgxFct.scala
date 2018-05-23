@@ -74,14 +74,6 @@ private case class ExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
-//private case class FillBuffer(
-//	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Unit] {
-//
-//	def execute() = Await.result( Future {
-//		it.getIterator.getNext[T]()
-//	}, Duration.Inf)
-//}
-
 private case class GetPartitionFirstOfPair(partitioner: Partitioner, enc: Encrypted) extends SgxMessage[Int] {
 
   def execute() = Await.result( Future {

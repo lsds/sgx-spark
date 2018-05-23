@@ -79,7 +79,6 @@ private[spark] abstract class NextIterator[U] extends Iterator[U] with Logging {
         gotNext = true
       }
     }
-    logDebug("hasNext: " + (!finished))
     !finished
   }
 
@@ -88,7 +87,6 @@ private[spark] abstract class NextIterator[U] extends Iterator[U] with Logging {
       throw new NoSuchElementException("End of stream")
     }
     gotNext = false
-    logDebug("hasNext: " + nextValue)
     nextValue
   }
 }

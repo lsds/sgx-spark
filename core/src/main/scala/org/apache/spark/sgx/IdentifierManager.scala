@@ -14,14 +14,10 @@ class IdentifierManager[T]() extends Logging {
 	}
 
 	def get(id: Long): T = this.synchronized {
-		logDebug("get("+id+")")
-		val x = identifiers.get(id)
-		logDebug("get("+id+") = " + x)
-		x
+	  identifiers.get(id)
 	}
 
 	def remove[X](id: Long): X = this.synchronized {
-		logDebug("remove("+id+")")
 		identifiers.remove(id).asInstanceOf[X]
 	}
 }
