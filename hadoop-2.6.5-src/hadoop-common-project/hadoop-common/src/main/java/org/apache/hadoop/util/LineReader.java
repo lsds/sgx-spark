@@ -50,6 +50,7 @@ public class LineReader implements Closeable {
   private InputStream in;
   private byte[] plainBuffer;
   private MallocedMappedDataBuffer sgxBuffer = null;
+  private final boolean sgxEnabled = SgxSettings.SGX_ENABLED();
   
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
@@ -82,7 +83,7 @@ public class LineReader implements Closeable {
   public LineReader(InputStream in, int bufferSize) {
     this.in = in;
     this.bufferSize = bufferSize;
-    if (SgxSettings.SGX_ENABLED()) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
     else
     this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = null;
@@ -110,7 +111,7 @@ public class LineReader implements Closeable {
   public LineReader(InputStream in, byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = DEFAULT_BUFFER_SIZE;
-    if (SgxSettings.SGX_ENABLED()) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
     else
     this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = recordDelimiterBytes;
@@ -129,7 +130,7 @@ public class LineReader implements Closeable {
       byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = bufferSize;
-    if (SgxSettings.SGX_ENABLED()) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
     else
     this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = recordDelimiterBytes;
@@ -149,7 +150,7 @@ public class LineReader implements Closeable {
       byte[] recordDelimiterBytes) throws IOException {
     this.in = in;
     this.bufferSize = conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE);
-    if (SgxSettings.SGX_ENABLED()) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
     else
     this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = recordDelimiterBytes;
@@ -188,20 +189,6 @@ public class LineReader implements Closeable {
    */
   public int readLine(Text str, int maxLineLength,
                       int maxBytesToConsume) throws IOException {	
-//	  try {
-//		  throw new RuntimeException("xxx readLine2: " + str + ", " + (this.recordDelimiterBytes != null ? "custom" : "default"));
-//	  } catch (Exception e) {
-//	    	StringBuffer sb = new StringBuffer();
-//	    	sb.append(" ");
-//	    	sb.append(e.getMessage());
-//	    	sb.append(System.getProperty("line.separator"));
-//	    	for (StackTraceElement el : e.getStackTrace()) {
-//	    		sb.append("  ");
-//	    		sb.append(el.toString());
-//	    		sb.append(System.getProperty("line.separator"));
-//	    	}
-//	    	System.out.println(sb.toString());
-//	  }
     if (this.recordDelimiterBytes != null) {
       return readCustomLine(str, maxLineLength, maxBytesToConsume);
     } else {
@@ -219,18 +206,18 @@ public class LineReader implements Closeable {
 	throw new RuntimeException("Must be implemented by subclass.");
   }
 
-  private byte getBuf(int pos) {
-    if (SgxSettings.SGX_ENABLED()) return ba[pos];
-    else return plainBuffer[pos];
-  }
+//  private byte getBuf(int pos) {
+//    if (sgxEnabled) return ba[pos];
+//    else return plainBuffer[pos];
+//  }
   
   private int fillBuffer(InputStream in, boolean inDelimiter) throws IOException {
-	if (SgxSettings.SGX_ENABLED()) return fillBuffer(in, sgxBuffer, inDelimiter);
+	if (sgxEnabled) return fillBuffer(in, sgxBuffer, inDelimiter);
 	else return fillBuffer(in, plainBuffer, inDelimiter);
   }
   
   private void strAppend(Text str, int start, int len) {
-	if (SgxSettings.SGX_ENABLED()) str.append(sgxBuffer, start, len);
+	if (sgxEnabled) str.append(sgxBuffer, start, len);
 	else str.append(plainBuffer, start, len);
   }
   
@@ -257,12 +244,12 @@ public class LineReader implements Closeable {
      * consuming it until we have a chance to look at the char that
      * follows.
      */
-//	  System.out.println(Thread.currentThread().getId() + ": Calling readDefaultLine("+maxLineLength+", "+maxBytesToConsume+")");
     str.clear();
     int txtLength = 0; //tracks str.getLength(), as an optimization
     int newlineLength = 0; //length of terminating newline
     boolean prevCharCR = false; //true of prev char was CR
     long bytesConsumed = 0;
+    byte b;
     do {
       int startPosn = bufferPosn; //starting from where we left off the last time
       if (bufferPosn >= bufferLength) {
@@ -274,7 +261,7 @@ public class LineReader implements Closeable {
         if (bufferLength <= 0) {
           break; // EOF
         }
-        if (SgxSettings.SGX_ENABLED()) {
+        if (sgxEnabled) {
           if (ba.length < bufferLength) {
             ba = new byte[bufferLength];
           }
@@ -282,7 +269,7 @@ public class LineReader implements Closeable {
         }
       }
       for (; bufferPosn < bufferLength; ++bufferPosn) { //search for newline
-    	byte b = getBuf(bufferPosn);
+    	b = sgxEnabled ? ba[bufferPosn] : plainBuffer[bufferPosn];
         if (b == LF) {
           newlineLength = (prevCharCR) ? 2 : 1;
           ++bufferPosn; // at next invocation proceed from following byte
@@ -312,7 +299,6 @@ public class LineReader implements Closeable {
     if (bytesConsumed > Integer.MAX_VALUE) {
       throw new IOException("Too many bytes before newline: " + bytesConsumed);
     }
-//    System.out.println(Thread.currentThread().getId() + ": Returning readDefaultLine: "+str.toString()+", " + bytesConsumed);
     return (int)bytesConsumed;
   }
 
@@ -357,7 +343,6 @@ public class LineReader implements Closeable {
     *         the delimiter ( as mentioned in the example ), 
     *         then we have to include the ambiguous characters in str. 
     */
-//	  System.out.println("Calling readCustomLine("+maxLineLength+", "+maxBytesToConsume+")");
     str.clear();
     int txtLength = 0; // tracks str.getLength(), as an optimization
     long bytesConsumed = 0;
@@ -377,7 +362,7 @@ public class LineReader implements Closeable {
         }
       }
       for (; bufferPosn < bufferLength; ++bufferPosn) {
-        if (getBuf(bufferPosn) == recordDelimiterBytes[delPosn]) {
+        if ((sgxEnabled ? ba[bufferPosn] : plainBuffer[bufferPosn]) == recordDelimiterBytes[delPosn]) {
           delPosn++;
           if (delPosn >= recordDelimiterBytes.length) {
             bufferPosn++;
@@ -422,7 +407,6 @@ public class LineReader implements Closeable {
     if (bytesConsumed > Integer.MAX_VALUE) {
       throw new IOException("Too many bytes before delimiter: " + bytesConsumed);
     }
-//    System.out.println("Returning readCustomLine: "+str.toString()+", " + bytesConsumed);
     return (int) bytesConsumed; 
   }
 
@@ -456,7 +440,7 @@ public class LineReader implements Closeable {
   }
 
   public long getBufferOffset() {
-	  if (!SgxSettings.SGX_ENABLED()) {
+	  if (!sgxEnabled) {
 		  throw new RuntimeException("Method only available in SGX mode.");
 	  }
 	  return sgxBuffer.offset();
