@@ -18,6 +18,7 @@ export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
 # -Dcom.sun.management.jmxremote.authenticate=false \
 # -Dcom.sun.management.jmxremote.ssl=false \
 #../sgx-lkl/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
+#-Xint \
 java \
 -XX:InitialCodeCacheSize=${JVM_INITIAL_CODE_CACHE_SIZE} \
 -XX:ReservedCodeCacheSize=${JVM_RESERVED_CODE_CACHE_SIZE} \
@@ -28,7 +29,6 @@ java \
 -XX:+UseCompressedClassPointers \
 -XX:+UseMembar \
 -XX:+AssumeMP \
--Xint \
 -Djava.library.path=lib/ \
 -cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:examples/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/\*:shm/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-driver

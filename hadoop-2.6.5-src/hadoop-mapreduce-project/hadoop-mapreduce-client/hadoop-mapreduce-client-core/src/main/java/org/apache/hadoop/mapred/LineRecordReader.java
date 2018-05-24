@@ -153,8 +153,7 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
     if (start != 0) {
         start += in.readLine(new Text(), 0, maxBytesToConsume(start));
     }
-    this.pos = start;	  
-//    System.out.println("Creating LineRecordReader end ("+splitLength+", "+splitStart+", "+start+", "+pos+", "+filePosition+")");
+    this.pos = start;
   }
 
   public LineRecordReader(InputStream in, long offset, long endOffset,

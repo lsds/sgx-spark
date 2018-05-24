@@ -75,19 +75,19 @@ public class MappedDataBuffer {
 		return Bits.getLong (a, bigEndian);
 	}
 	
-	long getLong (int index) {
+	long getLong(int index) {
 		return getLong(ix(checkIndex(index, (1 << 3))));
 	}
 	
-	public void put (int index, byte value) {
+	public void put(int index, byte value) {
 		unsafe.putByte(ix(checkIndex(index)), ((value)));
 	}
 	
-	void put (int index, byte[] value) {
+	public void put(int index, byte[] value) {
 		put(index, value, 0, value.length);
 	}
 	
-	void put (int index, byte[] value, int from, int length) {
+	public void put(int index, byte[] value, int from, int length) {
 		if (from < 0 || from >= value.length || from + length > value.length ) {
 			throw new RuntimeException("Invalid index: from=" + from + ", length=" + length + " for array of size " + value.length + ".");
 		}

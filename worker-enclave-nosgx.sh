@@ -19,6 +19,7 @@ export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
 # -Dcom.sun.management.jmxremote.ssl=false \
 # -Xdebug -Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=n \
 #echo gdb --args \
+#-Xint \
 #../sgx-lkl-sim/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
 java \
 -XX:InitialCodeCacheSize=${JVM_INITIAL_CODE_CACHE_SIZE} \
@@ -31,7 +32,6 @@ java \
 -XX:+PreserveFramePointer \
 -XX:+UseMembar \
 -XX:+AssumeMP \
--Xint \
 -Djava.library.path=lib/ \
 -cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:examples/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/\*:shm/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-worker

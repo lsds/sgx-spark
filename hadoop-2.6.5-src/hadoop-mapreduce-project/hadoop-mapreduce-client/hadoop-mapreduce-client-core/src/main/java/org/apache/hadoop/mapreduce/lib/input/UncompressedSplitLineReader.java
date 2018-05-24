@@ -55,11 +55,13 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   }
   
   public UncompressedSplitLineReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes, long splitLength, IFillBuffer fillBuffer) throws IOException {
-	    super(buffer, recordDelimiterBytes);
-	    this.splitLength = splitLength;
-	    this.fillBuffer = fillBuffer;
-	    usingCRLF = (recordDelimiterBytes == null);
-	  }  
+    super(buffer, recordDelimiterBytes);
+    this.splitLength = splitLength;
+    this.fillBuffer = fillBuffer;
+    usingCRLF = (recordDelimiterBytes == null);
+  }
+  
+  private byte[] ba = new byte[1024];
   
   private int read(InputStream in, MappedDataBuffer buffer, int off, int len) throws IOException {	  
       if (buffer == null) {
@@ -69,25 +71,19 @@ public class UncompressedSplitLineReader extends SplitLineReader {
       } else if (len == 0) {
           return 0;
       }
-
-      int c = in.read();
-      if (c == -1) {
-          return -1;
-      }
-      buffer.put(off, (byte)c);
-
-      int i = 1;
-      try {
-          for (; i < len ; i++) {
-              c = in.read();
-              if (c == -1) {
-                  break;
-              }
-              buffer.put(off + i, (byte)c);
-          }
-      } catch (IOException ee) {
-      }
-      return i;
+      
+    if (len > ba.length) {
+	  ba = new byte[len];
+    }
+      
+    int c = in.read(ba, 0, len);
+    if (c == -1) {
+    	return -1;
+    }
+    
+    buffer.put(off, ba, 0, c);
+      
+    return c;
   }  
 
   @Override
