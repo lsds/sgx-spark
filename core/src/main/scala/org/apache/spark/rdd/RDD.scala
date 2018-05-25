@@ -971,8 +971,8 @@ abstract class RDD[T: ClassTag](
     // SGX: no return statement allowed at this point
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.collect[T](this.id)
     else {
-      val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
-      Array.concat(results: _*)
+    val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
+    Array.concat(results: _*)
     }
   }
 
@@ -1377,7 +1377,8 @@ abstract class RDD[T: ClassTag](
    * an exception if called on an RDD of `Nothing` or `Null`.
    */
   def take(num: Int): Array[T] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.take[T](this.id, num)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.take[T](this.id, num)
+    else {
     val scaleUpFactor = Math.max(conf.getInt("spark.rdd.limit.scaleUpFactor", 4), 2)
     if (num == 0) {
       new Array[T](0)
@@ -1411,6 +1412,7 @@ abstract class RDD[T: ClassTag](
       }
 
       buf.toArray
+    }
     }
   }
 
