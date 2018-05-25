@@ -2,7 +2,7 @@ package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
 
-class RingBuffConsumer {
+public class RingBuffConsumer {
 	private AlignedMappedDataBuffer buffer;
 	private ISerialization serializer;
 	
@@ -10,12 +10,12 @@ class RingBuffConsumer {
 	
 	private byte[] bytes = new byte[1024];
 
-	RingBuffConsumer(MappedDataBuffer buffer, ISerialization serializer) {
+	public RingBuffConsumer(MappedDataBuffer buffer, ISerialization serializer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
 		this.serializer = serializer;
 	}
 
-	Object read() {
+	public Object read() {
 		Object obj = null;
 
 		do {

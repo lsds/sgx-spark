@@ -22,6 +22,13 @@ import org.apache.spark.executor.InputMetrics
 import org.apache.spark.Partition
 import org.apache.hadoop.mapred.RecordReader
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader
+import org.apache.spark.sgx.shm.MappedDataBufferManager
+import org.apache.spark.sgx.shm.RingBuffProducer
+import org.apache.spark.sgx.shm.MappedDataBuffer
+import org.apache.spark.sgx.shm.RingBuffConsumer
+import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.shm.RingBuffProducer
+import org.apache.spark.sgx.shm.RingBuffConsumer
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
@@ -91,8 +98,14 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with Callable[Unit] {
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+  
+	val buf1 = MappedDataBufferManager.get.malloc(536870912);
+  val buf2 = MappedDataBufferManager.get.malloc(536870912);
+  
+  val reader = new RingBuffConsumer(buf1, Serialization.serializer);
+  val writer = new RingBuffProducer(buf2, Serialization.serializer);
 
-	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
+	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](buf1.offset, buf2.offset, com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
   
@@ -102,18 +115,23 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 	
 	def call(): Unit = {
 	  val com = do_accept
+	
+	val x = reader.read
+	  
 	  logDebug(this + " got connection: " + com)
 
 	  var running = true
 	  while (running) {
-	    val ret = com.recvOne() match {
+	    val ret = reader.read match {
 			  case c: SgxShmIteratorConsumerClose =>
 			    delegate.closeIfNeeded()
+			    MappedDataBufferManager.get.free(buf1)
+			    MappedDataBufferManager.get.free(buf2)
 			  case f: SgxShmIteratorConsumerFillBufferMsg =>
 			    recordReader.getLineReader.fillBuffer(f.inDelimiter)
 	    }
 	    if (ret != Unit) {
-	      com.sendOne(ret)
+	      writer.write(ret)
 	    }
 	  }
   }

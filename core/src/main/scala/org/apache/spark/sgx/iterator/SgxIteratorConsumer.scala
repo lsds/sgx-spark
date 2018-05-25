@@ -29,6 +29,11 @@ import org.apache.spark.rdd.HadoopRDD
 import java.util.Locale
 import org.apache.hadoop.mapred.RecordReader
 import org.apache.hadoop.mapred.LineRecordReader
+import org.apache.spark.sgx.shm.RingBuffProducer
+import org.apache.spark.sgx.shm.RingBuffConsumer
+import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.shm.RingBuffProducer
+import org.apache.spark.sgx.shm.RingBuffConsumer
 
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
@@ -108,15 +113,20 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
 }
 
-class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], offset: Long, size: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends NextIterator[(K,V)] with Logging {
+class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], writerOff: Long, readerOff: Long, offset: Long, size: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends NextIterator[(K,V)] with Logging {
 
   val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
+  
+  val readr = new RingBuffConsumer(new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + readerOff, size), Serialization.serializer);
+  val writer = new RingBuffProducer(new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + writerOff, size), Serialization.serializer);  
   
   logDebug("Creating " + this)
   
   val com = id.connect()
   
-  override def close(): Unit = com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
+  writer.write(1234);
+  
+  override def close(): Unit = 1//com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
   
   /* Code from HadoopRDD follows */
   
@@ -135,7 +145,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     }
   }
   
-  var reader: RecordReader[K, V] = new LineRecordReader(buffer, delimiter, splitLength, splitStart, new SgxShmIteratorConsumerFillBuffer(com)).asInstanceOf[RecordReader[K,V]]
+  var reader: RecordReader[K, V] = new LineRecordReader(buffer, delimiter, splitLength, splitStart, new SgxShmIteratorConsumerFillBuffer(com, readr, writer)).asInstanceOf[RecordReader[K,V]]
   
   private val key: K = if (reader == null) null.asInstanceOf[K] else reader.createKey()
   private val value: V = if (reader == null) null.asInstanceOf[V] else reader.createValue()

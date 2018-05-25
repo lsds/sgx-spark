@@ -5,6 +5,8 @@ import org.apache.spark.sgx.RecordReaderMaps
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.IFillBuffer
 import org.apache.spark.sgx.SgxMessage
+import org.apache.spark.sgx.shm.RingBuffProducer
+import org.apache.spark.sgx.shm.RingBuffConsumer
 
 case class MsgIteratorReqNextN(num: Int) extends Serializable {}
 object MsgIteratorReqClose extends Serializable {}
@@ -18,9 +20,11 @@ case class SgxShmIteratorConsumerClose() extends Serializable {}
 case class SgxShmIteratorConsumerFillBufferMsg(inDelimiter: Boolean) extends Serializable {
 }
 
-case class SgxShmIteratorConsumerFillBuffer(com: SgxCommunicator) extends IFillBuffer with Serializable {
+case class SgxShmIteratorConsumerFillBuffer(com: SgxCommunicator, reader: RingBuffConsumer, writer: RingBuffProducer) extends IFillBuffer with Serializable {
   
   def fillBuffer(inDelimiter: Boolean) = {
-    com.sendRecv[Int](new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
+//    com.sendRecv[Int](new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
+    writer.write(new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
+    reader.read().asInstanceOf[Int]
   }
 }

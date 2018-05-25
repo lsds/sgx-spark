@@ -2,13 +2,13 @@ package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
 
-class RingBuffProducer {
+public class RingBuffProducer {
 	private AlignedMappedDataBuffer buffer;
 	private ISerialization serializer;
 	
 	private int pos = 0;
 	
-	RingBuffProducer(MappedDataBuffer buffer, ISerialization serializer) {
+	public RingBuffProducer(MappedDataBuffer buffer, ISerialization serializer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
 		this.serializer = serializer;
 	}
@@ -21,7 +21,7 @@ class RingBuffProducer {
 	 * - madvise: do not page out
 	 */
 	
-	void write(Object o) {
+	public void write(Object o) {
 		boolean success = false;
 		
 		do {
