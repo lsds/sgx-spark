@@ -113,12 +113,12 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	override def toString() = getClass.getSimpleName + "(id=" + id + ")"
 }
 
-class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], writerOff: Long, readerOff: Long, offset: Long, size: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends NextIterator[(K,V)] with Logging {
+class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], writerOff: Long, readerOff: Long, offset: Long, size: Int, size2: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends NextIterator[(K,V)] with Logging {
 
   val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
   
-  val readr = new RingBuffConsumer(new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + readerOff, size), Serialization.serializer);
-  val writer = new RingBuffProducer(new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + writerOff, size), Serialization.serializer);  
+  val readr = new RingBuffConsumer(new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + readerOff, size2), Serialization.serializer);
+  val writer = new RingBuffProducer(new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + writerOff, size2), Serialization.serializer);  
   
   logDebug("Creating " + this)
   

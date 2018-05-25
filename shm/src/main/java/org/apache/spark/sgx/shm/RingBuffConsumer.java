@@ -17,23 +17,58 @@ public class RingBuffConsumer {
 
 	public Object read() {
 		Object obj = null;
-
-		do {
-			try {
-				int len = buffer.waitWhile(pos, 0);
-				if (len > bytes.length) {
-					bytes = new byte[len];
-				}
-				buffer.getBytes(pos+1, bytes, 0, len);
-				buffer.putInt(pos, 0);
-				pos += buffer.slotsNeeded(len) + 1;
-				obj = serializer.deserialize(bytes);
-			} catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				obj = null;
+		
+		try {			
+			int len = buffer.waitWhile(pos, 0);
+			int slotsNeeded = buffer.slotsNeeded(len);
+			
+			if (len > bytes.length) {
+				bytes = new byte[len];
 			}
-		} while (obj == null);
+			
+			if (pos == buffer.slots() - 1) {
+				// We are at the very last slot.
+				// Read the payload at the beginning of the buffer.
+				buffer.getBytes(0, bytes, 0, len);
+			} else if (buffer.isValid(pos + slotsNeeded)) {
+				// There was enough space before the end of the buffer.
+				// We can read the payload in one go.
+				buffer.getBytes(pos + 1, bytes, 0, len);
+			} else {
+				// There was not enough space. So we had to divide up the payload data.
+				int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
+				buffer.getBytes(pos + 1, bytes, 0, wrapPoint);
+				buffer.getBytes(0, bytes, wrapPoint, len - wrapPoint);
+			}
+			
+			buffer.putInt(pos, 0);
+			pos += (slotsNeeded + 1) % buffer.slots();
+			obj = serializer.deserialize(bytes);
+			
+//			// Writer follows
+//
+//			if (pos == buffer.slots() - 1) {
+//				// We are at the very last slot.
+//				// Write the size here and the payload at the beginning of the buffer.
+//				buffer.putBytes(0, bytes);
+//				buffer.putInt(pos, bytes.length);
+//			} else if (buffer.isValid(pos + slotsNeeded)) {
+//				// There is enough space before the end of the buffer.
+//				// Write the size here and the payload right after.
+//				buffer.putBytes(pos+1, bytes);
+//				buffer.putInt(pos, bytes.length);
+//			} else {
+//				// There is not enough space. So we need to divide up the payload data.
+//				int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
+//				buffer.putBytes(pos+1, bytes, 0, wrapPoint);
+//				buffer.putBytes(0, bytes, wrapPoint, bytes.length - wrapPoint);
+//				buffer.putInt(pos, bytes.length);
+//			}
+			
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		
 		return obj;
 	}
 	

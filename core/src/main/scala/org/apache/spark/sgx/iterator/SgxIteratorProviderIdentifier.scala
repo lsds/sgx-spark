@@ -26,9 +26,9 @@ class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorProvIden
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ")"
 }
 
-class SgxShmIteratorProviderIdentifier[K,V](writerOff: Long, readerOff: Long, myPort:Long, offset: Long, size: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProvIdentifier[(K,V)](myPort) {
+class SgxShmIteratorProviderIdentifier[K,V](writerOff: Long, readerOff: Long, myPort:Long, offset: Long, size: Int, size2: Int, theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProvIdentifier[(K,V)](myPort) {
   
-	override def getIterator(context: String) = new SgxShmIteratorConsumer[K,V](this, writerOff, readerOff, offset, size, theSplit, inputMetrics, splitLength, splitStart, delimiter)
+	override def getIterator(context: String) = new SgxShmIteratorConsumer[K,V](this, writerOff, readerOff, offset, size, size2, theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ", offset=" + offset + ", size=" + size + ")"
 }

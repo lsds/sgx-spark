@@ -99,13 +99,15 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
   
-	val buf1 = MappedDataBufferManager.get.malloc(536870912);
-  val buf2 = MappedDataBufferManager.get.malloc(536870912);
+  val bsize = 33554432
+  
+	val buf1 = MappedDataBufferManager.get.malloc(bsize);
+  val buf2 = MappedDataBufferManager.get.malloc(bsize);
   
   val reader = new RingBuffConsumer(buf1, Serialization.serializer);
   val writer = new RingBuffProducer(buf2, Serialization.serializer);
 
-	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](buf1.offset, buf2.offset, com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
+	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](buf1.offset, buf2.offset, com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), bsize, theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
   

@@ -41,7 +41,11 @@ class AlignedMappedDataBuffer {
 	}
 	
 	private void check(int slot) {
-		if (slot < 0 || slot >= this.slots) throw new RuntimeException("Invalid slot: " + slot);
+		if (!isValid(slot)) throw new RuntimeException("Invalid slot: " + slot);
+	}
+	
+	public boolean isValid(int slot) {
+		return slot >= 0 && slot < this.slots;
 	}
 	
 	private void check(int slot, int length) {
