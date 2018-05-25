@@ -51,9 +51,9 @@ public class MappedDataBuffer {
 		return index;
 	}
 	
-	public byte get (int index) {
-		return ((unsafe.getByte(ix(checkIndex(index)))));
-	}
+//	public byte get (int index) {
+//		return ((unsafe.getByte(ix(checkIndex(index)))));
+//	}
 	
 	private int getInt (long a) {
 		if (unaligned) {
@@ -79,9 +79,9 @@ public class MappedDataBuffer {
 		return getLong(ix(checkIndex(index, (1 << 3))));
 	}
 	
-	public void put(int index, byte value) {
-		unsafe.putByte(ix(checkIndex(index)), ((value)));
-	}
+//	public void put(int index, byte value) {
+//		unsafe.putByte(ix(checkIndex(index)), ((value)));
+//	}
 	
 	public void put(int index, byte[] value) {
 		put(index, value, 0, value.length);

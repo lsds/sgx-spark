@@ -7,6 +7,8 @@ class RingBuffConsumer {
 	private ISerialization serializer;
 	
 	private int pos = 0;
+	
+	private byte[] bytes = new byte[1024];
 
 	RingBuffConsumer(MappedDataBuffer buffer, ISerialization serializer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
@@ -15,21 +17,23 @@ class RingBuffConsumer {
 
 	Object read() {
 		Object obj = null;
-		boolean exception = false;
 
 		do {
 			try {
 				int len = buffer.waitWhile(pos, 0);
-				byte[] bytes = new byte[len];
-				buffer.getBytes(pos+1, bytes);
+				if (len > bytes.length) {
+					bytes = new byte[len];
+				}
+				buffer.getBytes(pos+1, bytes, 0, len);
 				buffer.putInt(pos, 0);
 				pos += buffer.slotsNeeded(len) + 1;
 				obj = serializer.deserialize(bytes);
 			} catch (Exception e) {
+				System.err.println(e.getMessage());
 				e.printStackTrace();
-				exception = true;
+				obj = null;
 			}
-		} while (obj == null && !exception);
+		} while (obj == null);
 		return obj;
 	}
 	

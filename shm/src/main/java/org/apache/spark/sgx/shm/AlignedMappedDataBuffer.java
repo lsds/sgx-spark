@@ -1,16 +1,18 @@
 package org.apache.spark.sgx.shm;
 
+import org.apache.spark.sgx.SgxSettings;
+
 class AlignedMappedDataBuffer {
 	
-	private MappedDataBuffer buffer;
+	private final MappedDataBuffer buffer;
 	
 	private final int alignment;
 	private final int slots;
 	private final int power;
 	
 	// Exponential backoff wait times (milliseconds)
-	private static int MAX_WAIT = 16;
-	private static int MIN_WAIT = 1;
+	private final int MIN_WAIT = SgxSettings.BACKOFF_WAIT_MIN();
+	private final int MAX_WAIT = SgxSettings.BACKOFF_WAIT_MAX();
 	
 	/**
 	 * An {@link AlignedMappedDataBuffer} aligns the specified buffer to
@@ -97,13 +99,13 @@ class AlignedMappedDataBuffer {
 		int res;
 		int index = toIndex(slot);
 		while ((res = buffer.getInt(index)) == value) {	
-			Thread.sleep(wait);			
+			Thread.sleep(wait);
 			wait = Math.min(wait << 1, MAX_WAIT);
 		}
 		
 		return res;
 	}
-	
+
 	int waitUntil(int slot, int value) throws InterruptedException {
 		int wait = MIN_WAIT;
 		int res;

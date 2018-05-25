@@ -12,11 +12,15 @@ export SPARK_JOBNAME=linecount
 
 #INFILE=$(pwd)/data/mllib/kmeans_data.txt.single
 #INFILE=$(pwd)/data/mllib/kmeans_data.txt.short
-INFILE=$(pwd)/README.md
+#INFILE=$(pwd)/README.md.16
+#INFILE=$(pwd)/README.md.256
+#INFILE=$(pwd)/README.md.4096
+INFILE=$(pwd)/README.md.65536
+#INFILE=$(pwd)/README.md.131072
 
 ./bin/spark-submit \
 --class org.apache.spark.examples.LineCount \
---master spark://kiwi01.doc.res.ic.ac.uk:${SPARK_MASTER_PORT} \
+--master spark://${SPARK_MASTER_HOST}:${SPARK_MASTER_PORT} \
 --deploy-mode client \
 --verbose \
 --executor-memory 1g \

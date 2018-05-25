@@ -14,18 +14,14 @@ class RingBuffProducer {
 	}
 
 	/*
-	 * TODO:
-	 * - Align with cache line 64 Byte
+	 * Potential TODO:
 	 * - Deserialization: do not copy first into local, deserialize directly from shared memory
 	 * - Wrapping at end of buffer
-	 * - Use shared files between enclave and outside
-	 * - Use shared directories betweene enclave and outside
 	 * - Use System.arracopy
 	 * - madvise: do not page out
 	 */
 	
 	void write(Object o) {
-		boolean exception = false;
 		boolean success = false;
 		
 		do {
@@ -38,9 +34,9 @@ class RingBuffProducer {
 				success = true;
 			} catch (Exception e) {
 				e.printStackTrace();
-				exception = true;
+				success = false;
 			}
-		} while (!success && !exception);
+		} while (!success);
 	}
 	
 	@Override

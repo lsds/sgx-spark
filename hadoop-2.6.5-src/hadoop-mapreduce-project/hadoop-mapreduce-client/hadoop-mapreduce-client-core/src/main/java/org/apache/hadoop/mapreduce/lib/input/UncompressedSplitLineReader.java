@@ -75,7 +75,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     if (len > ba.length) {
 	  ba = new byte[len];
     }
-      
+
     int c = in.read(ba, 0, len);
     if (c == -1) {
     	return -1;
@@ -113,7 +113,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     // and the additional record read should not be performed.
     if (totalBytesRead == splitLength && inDelimiter && bytesRead > 0) {
       if (usingCRLF) {
-        needAdditionalRecord = (buffer.get(0) != '\n');
+        needAdditionalRecord = (ba[0] != '\n');
       } else {
         needAdditionalRecord = true;
       }

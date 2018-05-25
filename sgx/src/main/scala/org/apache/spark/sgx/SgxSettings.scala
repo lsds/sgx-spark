@@ -19,6 +19,9 @@ object SgxSettings {
 
 	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt
 	
+	val BACKOFF_WAIT_MIN = sys.env.get("BACKOFF_WAIT_MIN").getOrElse("2").toInt
+	val BACKOFF_WAIT_MAX = sys.env.get("BACKOFF_WAIT_MAX").getOrElse("256").toInt
+	
 	/*
 	 * Serializer to use.
 	 * See Serialization.getSerializer() for valid options.
