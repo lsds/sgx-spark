@@ -76,6 +76,7 @@ private case class ExternalSorterInsertAllCreateKey[K](
 private case class GetPartitionFirstOfPair(partitioner: Partitioner, enc: Encrypted) extends SgxMessage[Int] {
 
   def execute() = Await.result( Future {
+  	//PL TODO: need to encrypt result
 		partitioner.getPartition(enc.decrypt[Pair[Any,Any]]._1)
 	}, Duration.Inf)
 }

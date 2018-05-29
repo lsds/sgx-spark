@@ -165,6 +165,7 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     while (records.hasNext()) {
       final Object r = records.next();
       if (SgxSettings.SGX_ENABLED() && r instanceof Encrypted) {
+      //PL: very inefficient
       	partitionWriters[SgxFct.getPartitionFirstOfPair(partitioner, (Encrypted) r)].write(r, new SgxFakePairIndicator());
       }
       else if (r instanceof Product2) {
