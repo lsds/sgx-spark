@@ -20,11 +20,11 @@ case class SgxShmIteratorConsumerClose() extends Serializable {}
 case class SgxShmIteratorConsumerFillBufferMsg(inDelimiter: Boolean) extends Serializable {
 }
 
-case class SgxShmIteratorConsumerFillBuffer(com: SgxCommunicator, reader: RingBuffConsumer, writer: RingBuffProducer) extends IFillBuffer with Serializable {
+case class SgxShmIteratorConsumerFillBuffer(com: SgxCommunicator) extends IFillBuffer with Serializable {
   
   def fillBuffer(inDelimiter: Boolean) = {
-//    com.sendRecv[Int](new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
-    writer.write(new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
-    reader.read().asInstanceOf[Int]
+    com.sendRecv[Int](new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
+//    writer.write(new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
+//    reader.read().asInstanceOf[Int]
   }
 }

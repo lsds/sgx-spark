@@ -157,6 +157,20 @@ public class LineReader implements Closeable {
   }
 
   public LineReader(MallocedMappedDataBuffer sgxBuffer, byte[] recordDelimiterBytes) {
+	  try {
+		  throw new RuntimeException("LineReader.init");
+	  } catch (Exception e) {
+			StringBuffer sb = new StringBuffer();
+			sb.append(" ");
+			sb.append(e.getMessage());
+			sb.append(System.getProperty("line.separator"));
+			for (StackTraceElement el : e.getStackTrace()) {
+				sb.append("  ");
+				sb.append(el.toString());
+				sb.append(System.getProperty("line.separator"));
+			}
+			System.out.println(sb.toString());
+	  }
     this.in = null;
     this.bufferSize = sgxBuffer.capacity();
     this.sgxBuffer = sgxBuffer;
