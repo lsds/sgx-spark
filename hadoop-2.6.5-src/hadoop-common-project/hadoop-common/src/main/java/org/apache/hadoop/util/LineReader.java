@@ -45,12 +45,13 @@ import org.apache.spark.sgx.shm.MappedDataBufferManager;
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
 public class LineReader implements Closeable {
-  private static final int DEFAULT_BUFFER_SIZE = 64 * 1024 * 1024;
+  private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
   private byte[] plainBuffer;
   private MallocedMappedDataBuffer sgxBuffer = null;
   private final boolean sgxEnabled = SgxSettings.SGX_ENABLED();
+  byte[] ba = new byte[1024];
   
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
@@ -157,20 +158,20 @@ public class LineReader implements Closeable {
   }
 
   public LineReader(MallocedMappedDataBuffer sgxBuffer, byte[] recordDelimiterBytes) {
-	  try {
-		  throw new RuntimeException("LineReader.init");
-	  } catch (Exception e) {
-			StringBuffer sb = new StringBuffer();
-			sb.append(" ");
-			sb.append(e.getMessage());
-			sb.append(System.getProperty("line.separator"));
-			for (StackTraceElement el : e.getStackTrace()) {
-				sb.append("  ");
-				sb.append(el.toString());
-				sb.append(System.getProperty("line.separator"));
-			}
-			System.out.println(sb.toString());
-	  }
+//	  try {
+//		  throw new RuntimeException("LineReader.init");
+//	  } catch (Exception e) {
+//			StringBuffer sb = new StringBuffer();
+//			sb.append(" ");
+//			sb.append(e.getMessage());
+//			sb.append(System.getProperty("line.separator"));
+//			for (StackTraceElement el : e.getStackTrace()) {
+//				sb.append("  ");
+//				sb.append(el.toString());
+//				sb.append(System.getProperty("line.separator"));
+//			}
+//			System.out.println(sb.toString());
+//	  }
     this.in = null;
     this.bufferSize = sgxBuffer.capacity();
     this.sgxBuffer = sgxBuffer;
@@ -182,7 +183,10 @@ public class LineReader implements Closeable {
    * @throws IOException
    */
   public void close() throws IOException {
-    in.close();
+    if (in != null) in.close();
+    plainBuffer = null;
+    ba = null;
+    if (sgxEnabled && !SgxSettings.IS_ENCLAVE()) MappedDataBufferManager.get().free(sgxBuffer);
   }
   
   /**
@@ -229,8 +233,6 @@ public class LineReader implements Closeable {
 	if (sgxEnabled) str.append(sgxBuffer, start, len);
 	else str.append(plainBuffer, start, len);
   }
-  
-  byte[] ba = new byte[1024];
 
   /**
    * Read a line terminated by one of CR, LF, or CRLF.

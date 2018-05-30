@@ -60,7 +60,6 @@ finalize-image:
 	sudo umount $(MOUNTPOINT)
 
 clean:
-	rm -rf alpine*
 	rm -rf *.txt
 	rm -rf ../work
 	rm -rf output

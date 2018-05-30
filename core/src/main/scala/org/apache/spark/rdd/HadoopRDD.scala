@@ -295,7 +295,6 @@ class HadoopRDD[K, V](
       }
 
       override def close(): Unit = {
-        logDebug("closing")
         if (reader != null) {
           InputFileBlockHolder.unset()
           try {

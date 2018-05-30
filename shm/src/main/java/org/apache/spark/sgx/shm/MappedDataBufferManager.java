@@ -24,7 +24,7 @@ public class MappedDataBufferManager {
 	
 	private static MappedDataBufferManager _instance = null;
 	
-	public static void init(MappedDataBuffer buffer) {		
+	public static void init(MappedDataBuffer buffer) {
 		if (_instance != null) {
 			throw new RuntimeException("Already initialized");
 		}
@@ -47,6 +47,8 @@ public class MappedDataBufferManager {
 		markFree(0, noBlocks);
 		
 		freeBlocks = noBlocks;
+		
+		System.out.println("MappedDataBufferManager: " + this);
 	}
 	
 	private int blocksNeeded(int bytes) {
@@ -67,43 +69,52 @@ public class MappedDataBufferManager {
 	}	
 	
 	public synchronized MallocedMappedDataBuffer malloc(int bytes) {
-		  try {
-			  throw new RuntimeException("Mallocing " + bytes);
-		  } catch (Exception e) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(" ");
-				sb.append(e.getMessage());
-				sb.append(System.getProperty("line.separator"));
-				for (StackTraceElement el : e.getStackTrace()) {
-					sb.append("  ");
-					sb.append(el.toString());
-					sb.append(System.getProperty("line.separator"));
-				}
-				System.out.println(sb.toString());
-		  }
+//		  try {
+//			  throw new RuntimeException("MappedDataBufferManager Mallocing " + bytes);
+//		  } catch (Exception e) {
+//				StringBuffer sb = new StringBuffer();
+//				sb.append(" ");
+//				sb.append(e.getMessage());
+//				sb.append(System.getProperty("line.separator"));
+//				for (StackTraceElement el : e.getStackTrace()) {
+//					sb.append("  ");
+//					sb.append(el.toString());
+//					sb.append(System.getProperty("line.separator"));
+//				}
+//				System.out.println(sb.toString());
+//		  }
 		  
 		if (SgxSettings.IS_ENCLAVE()) {
+			System.out.println("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 		}
 
 		int blocksNeeded = blocksNeeded(bytes);
 		
 		if (freeBlocks < blocksNeeded) {
+			System.out.println("The requested amount of memory is not available (" + bytes + "  Bytes)");
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + "  Bytes)");
 		}
 		
 		int startBlock = findConsecutiveFreeBlocks(blocksNeeded);
 		if (startBlock == -1) {
+			System.out.println("The requested amount of memory is not available (" + bytes + " Bytes)");
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + " Bytes)");
 		}
 		
 		markUsed(startBlock, blocksNeeded);
 		freeBlocks -= blocksNeeded;
 		
+//		System.out.println("MappedDataBufferManager Malloced " + bytes + " bytes at address " + (buffer.address() + (startBlock * blockSize)));
+		
 		return new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
 	}
 	
 	public synchronized void free(MallocedMappedDataBuffer b) {
+		if (b == null ) {
+			return;
+		}
+		
 		if (SgxSettings.IS_ENCLAVE()) {
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 		}
@@ -170,6 +181,6 @@ public class MappedDataBufferManager {
 	
 	@Override
 	public String toString() {
-		return this.getClass().getSimpleName() + "(buffer=" + buffer + ")";
+		return this.getClass().getSimpleName() + "(buffer=" + buffer + ", noBlocks=" + noBlocks + ", freeBlocks=" + freeBlocks + ")";
 	}
 }

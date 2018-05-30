@@ -24,8 +24,6 @@ object SgxBroadcastEnclave extends Logging {
 	def value[T](bc: Broadcast[T]): T = {
 		com.sendRecv[T](new MsgBroadcastValue(bc))
 	}
-
-	override def toString(): String = this.getClass.getSimpleName
 }
 
 abstract class MsgBroadcast[R] extends Serializable {

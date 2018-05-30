@@ -45,6 +45,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   private boolean finished = false;
   private boolean usingCRLF;
   private IFillBuffer fillBuffer = null;
+  private byte[] ba = new byte[1024];
   private final boolean sgxEnabled = SgxSettings.SGX_ENABLED();
 
   public UncompressedSplitLineReader(FSDataInputStream in, Configuration conf,
@@ -60,8 +61,6 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     this.fillBuffer = fillBuffer;
     usingCRLF = (recordDelimiterBytes == null);
   }
-  
-  private byte[] ba = new byte[1024];
   
   private int read(InputStream in, MappedDataBuffer buffer, int off, int len) throws IOException {	  
       if (buffer == null) {

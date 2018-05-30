@@ -1,4 +1,4 @@
-package org.apache.spark.sgx
+ package org.apache.spark.sgx
 
 import java.util.concurrent.{Executors, Callable, ExecutorCompletionService}
 

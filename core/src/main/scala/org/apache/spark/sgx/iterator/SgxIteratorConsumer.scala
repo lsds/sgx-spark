@@ -155,6 +155,9 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     }
     if (!finished) {
       inputMetrics.incRecordsRead(1)
+    } else {
+      reader.close
+      reader = null
     }
     if (inputMetrics.recordsRead % SparkHadoopUtil.UPDATE_INPUT_METRICS_INTERVAL_RECORDS == 0) {
       updateBytesRead()

@@ -1,7 +1,5 @@
 package org.apache.spark.sgx.iterator
 
-import java.util.concurrent.Callable
-
 import scala.collection.mutable.ArrayBuffer
 
 import scala.util.control.Breaks._
@@ -27,6 +25,7 @@ import org.apache.spark.sgx.shm.RingBuffProducer
 import org.apache.spark.sgx.shm.MappedDataBuffer
 import org.apache.spark.sgx.shm.RingBuffConsumer
 import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.SgxCallable
 import org.apache.spark.sgx.shm.RingBuffProducer
 import org.apache.spark.sgx.shm.RingBuffConsumer
 
@@ -34,7 +33,7 @@ abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) w
   def getIdentifier: SgxIteratorProvIdentifier[T]
 }
 
-class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with Callable[Unit] {
+class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with SgxCallable[Unit] {
 
 	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
@@ -56,8 +55,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 		val com = do_accept
 		logDebug(this + " got connection: " + com)
 
-		var running = true
-		while (running) {
+		while (isRunning) {
 			com.recvOne() match {
 				case num: MsgIteratorReqNextN => {
 					val q = new ArrayBuffer[T](num.num)
@@ -79,23 +77,18 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 					com.sendOne(qe)
 				}
 				case MsgIteratorReqClose =>
-					stop(com)
-					running = false
+					stop
+					com.close()
 
 				case x: Any => logDebug(this + ": Unknown input message provided.")
 			}
 		}
 	}
 
-	def stop(com: SgxCommunicator) = {
-		logDebug(this + ": Stopping ")
-		com.close()
-	}
-
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
 }
 
-class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with Callable[Unit] {
+class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with SgxCallable[Unit] {
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 //  
@@ -122,10 +115,10 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 	  
 	  logDebug(this + " got connection: " + com)
 
-	  var running = true
-	  while (running) {
+	  while (isRunning) {
 	    val ret = com.recvOne() match {
 			  case c: SgxShmIteratorConsumerClose =>
+			    stop
 			    delegate.closeIfNeeded()
 //			    MappedDataBufferManager.get.free(buf1)
 //			    MappedDataBufferManager.get.free(buf2)

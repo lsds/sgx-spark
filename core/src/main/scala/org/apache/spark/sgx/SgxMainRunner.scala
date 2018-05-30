@@ -1,16 +1,14 @@
 package org.apache.spark.sgx
 
-import java.util.concurrent.Callable
-
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
 import org.apache.spark.sgx.broadcast.SgxBroadcastProviderIdentifier
 import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
 
-class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
+class SgxMainRunner(com: SgxCommunicator) extends SgxCallable[Unit] with Logging {
 	def call(): Unit = {
-		while(true) {
+		while(isRunning) {
 			val recv = com.recvOne()
 			logDebug("Received: " + recv)
 
@@ -18,7 +16,6 @@ class SgxMainRunner(com: SgxCommunicator) extends Callable[Unit] with Logging {
 				case x: SgxMessage[_] => x.execute()
 
 				case x: SgxBroadcastProviderIdentifier =>
-					logDebug("Accessing broadcast provider " + x)
 					x.connect()
 					true
 			}
