@@ -40,16 +40,49 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 
 	override def getIterator(context: String) = {
 	  new Iterator[T] with Logging {
-	    val i = FakeIterators.remove[Iterator[T]](id)
+	    private val i = FakeIterators.remove[Iterator[T]](id)
 	    
-	    override def next = {
+	    private var _type = 0
+	    private var _next: T = null.asInstanceOf[T]
+	    
+	    override def hasNext: Boolean = {
+	      if (!i.hasNext) return false
+	      
 	      val n = i.next()
-	      if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
-	        n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
-	      } else n
+	      
+	      if (_type == 0) {
+	        if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) _type = 1
+	      }
+	      
+	      _next = _type match {
+	        case 1 =>
+	          n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
+	        case default =>
+            n
+	      }
+	      
+	      true
 	    }
 	    
-	    override def hasNext = i.hasNext
+	    override def next = {
+	      _next
+	    }
+	    
+//	    override def next = {
+//	      val n = i.next()
+//	      if (_type == 0) {
+//	        if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) _type = 1
+//	      }
+//	      
+//	      _type match {
+//	        case 1 =>
+//	          n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
+//	        case default =>
+//            n
+//	      }
+//	    }
+//	    
+//	    override def hasNext = i.hasNext
 	  }
 	}
 

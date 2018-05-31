@@ -14,7 +14,7 @@ object SgxSettings {
 	 */
 	val DEBUG_IS_ENCLAVE_REAL = sys.env.get("DEBUG_IS_ENCLAVE_REAL").getOrElse("true").toBoolean
 
-	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("1").toInt
+	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("8").toInt
 	val PREFETCH = sys.env.get("PREFETCH").getOrElse("128").toInt
 
 	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt

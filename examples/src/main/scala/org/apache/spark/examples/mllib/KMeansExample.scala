@@ -41,7 +41,7 @@ object KMeansExample extends Logging {
     val numClusters = 2
     val numIterations = 20
     val clusters = KMeans.train(parsedData, numClusters, numIterations)
-    logDebug("kmeans done: " + clusters.clusterCenters.mkString("[", ",", "]"))
+    println("KMeans result: " + clusters.clusterCenters.mkString("[", ",", "]"))
 
     // Evaluate clustering by computing Within Set Sum of Squared Errors
     val WSSSE = clusters.computeCost(parsedData)
