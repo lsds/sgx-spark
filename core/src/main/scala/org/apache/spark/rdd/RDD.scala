@@ -194,7 +194,8 @@ abstract class RDD[T: ClassTag](
    * have a storage level set yet. Local checkpointing is an exception.
    */
   def persist(newLevel: StorageLevel): this.type = {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.persist[T](this.id, newLevel).asInstanceOf[RDD.this.type]
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.persist[T](this.id, newLevel).asInstanceOf[RDD.this.type]
+    else
     if (isLocallyCheckpointed) {
       // This means the user previously called localCheckpoint(), which should have already
       // marked this RDD for persisting. Here we should override the old storage level with
@@ -261,7 +262,8 @@ abstract class RDD[T: ClassTag](
    * RDD is checkpointed or not.
    */
   final def partitions: Array[Partition] = {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.partitions(this.id)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.partitions(this.id)
+    else
     checkpointRDD.map(_.partitions).getOrElse {
       if (partitions_ == null) {
         partitions_ = getPartitions
@@ -386,9 +388,11 @@ abstract class RDD[T: ClassTag](
    * Return a new RDD by applying a function to all elements of this RDD.
    */
   def map[U: ClassTag](f: T => U): RDD[U] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.map(this.id, f)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.map(this.id, f)
+    else {
     val cleanF = sc.clean(f)
     new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))
+    }
   }
 
   /**
@@ -396,21 +400,25 @@ abstract class RDD[T: ClassTag](
    *  RDD, and then flattening the results.
    */
   def flatMap[U: ClassTag](f: T => TraversableOnce[U]): RDD[U] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.flatMap(this.id, f)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.flatMap(this.id, f)
+    else {
     val cleanF = sc.clean(f)
     new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.flatMap(cleanF))
+    }
   }
 
   /**
    * Return a new RDD containing only the elements that satisfy a predicate.
    */
   def filter(f: T => Boolean): RDD[T] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.filter(this.id, f)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.filter(this.id, f)
+    else {
     val cleanF = sc.clean(f)
     new MapPartitionsRDD[T, T](
       this,
       (context, pid, iter) => iter.filter(cleanF),
       preservesPartitioning = true)
+    }
   }
 
   /**
@@ -513,7 +521,8 @@ abstract class RDD[T: ClassTag](
     require(fraction >= 0,
       s"Fraction must be nonnegative, but got ${fraction}")
 
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.sample(this.id, withReplacement, fraction, seed)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.sample(this.id, withReplacement, fraction, seed)
+    else {
     withScope {
       require(fraction >= 0.0, "Negative fraction value: " + fraction)
       if (withReplacement) {
@@ -521,6 +530,7 @@ abstract class RDD[T: ClassTag](
       } else {
         new PartitionwiseSampledRDD[T, T](this, new BernoulliSampler[T](fraction), true, seed)
       }
+    }
     }
   }
 
@@ -820,12 +830,14 @@ abstract class RDD[T: ClassTag](
   def mapPartitions[U: ClassTag](
       f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.mapPartitions(this.id, f, preservesPartitioning)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.mapPartitions(this.id, f, preservesPartitioning)
+    else {
     val cleanedF = sc.clean(f)
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
       preservesPartitioning)
+    }
   }
 
   /**
@@ -868,12 +880,14 @@ abstract class RDD[T: ClassTag](
   def mapPartitionsWithIndex[U: ClassTag](
       f: (Int, Iterator[T]) => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.mapPartitionsWithIndex(this.id, f, preservesPartitioning)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.mapPartitionsWithIndex(this.id, f, preservesPartitioning)
+    else {
     val cleanedF = sc.clean(f)
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
       preservesPartitioning)
+    }
   }
 
   /**
@@ -883,7 +897,8 @@ abstract class RDD[T: ClassTag](
    * a map on the other).
    */
   def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.zip[T,U](this.id, other.id)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.zip[T,U](this.id, other.id)
+    else {
     zipPartitions(other, preservesPartitioning = false) { (thisIter, otherIter) =>
       new Iterator[(T, U)] with Serializable {
         def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
@@ -894,6 +909,7 @@ abstract class RDD[T: ClassTag](
         }
         def next(): (T, U) = (thisIter.next(), otherIter.next())
       }
+    }
     }
   }
 
@@ -906,7 +922,8 @@ abstract class RDD[T: ClassTag](
   def zipPartitions[B: ClassTag, V: ClassTag]
       (rdd2: RDD[B], preservesPartitioning: Boolean)
       (f: (Iterator[T], Iterator[B]) => Iterator[V]): RDD[V] = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.zipPartitions[T,B,V](this.id, rdd2.id, preservesPartitioning, f)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.zipPartitions[T,B,V](this.id, rdd2.id, preservesPartitioning, f)
+    else
     new ZippedPartitionsRDD2(sc, sc.clean(f), this, rdd2, preservesPartitioning)
   }
 
@@ -1047,7 +1064,8 @@ abstract class RDD[T: ClassTag](
    * associative binary operator.
    */
   def reduce(f: (T, T) => T): T = withScope {
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.reduce(this.id, f)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.reduce(this.id, f)
+    else {
     val cleanF = sc.clean(f)
     val reducePartition: Iterator[T] => Option[T] = iter => {
       if (iter.hasNext) {
@@ -1068,6 +1086,7 @@ abstract class RDD[T: ClassTag](
     sc.runJob(this, reducePartition, mergeResult)
     // Get the final result out of our Option, or throw an exception if the RDD was empty
     jobResult.getOrElse(throw new UnsupportedOperationException("empty collection"))
+    }
   }
 
   /**
@@ -1124,7 +1143,8 @@ abstract class RDD[T: ClassTag](
    */
   def fold(zeroValue: T)(op: (T, T) => T): T = withScope {
     // Clone the zero value since we will also be serializing it as part of tasks
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.fold(this.id, zeroValue, op)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.fold(this.id, zeroValue, op)
+    else {
     var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
     val cleanOp = sc.clean(op)
     val zeroValueC = jobResult
@@ -1133,6 +1153,7 @@ abstract class RDD[T: ClassTag](
     val mergeResult = (index: Int, taskResult: T) => jobResult = op(jobResult, taskResult)
     sc.runJob(this, foldPartition, mergeResult)
     jobResult
+    }
   }
 
   /**
@@ -1202,7 +1223,7 @@ abstract class RDD[T: ClassTag](
    * Return the number of elements in the RDD.
    */
   def count(): Long =
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.count(this.id)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.count(this.id)
     else
     sc.runJob(this, Utils.getIteratorSize _).sum
 
@@ -1531,7 +1552,8 @@ abstract class RDD[T: ClassTag](
     //
     // Therefore, here we provide an explicit Ordering `null` to make sure the compiler generate
     // same bytecodes for `saveAsTextFile`.
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.saveAsTextFile[T](this.id, path)
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.saveAsTextFile[T](this.id, path)
+    else {
     val nullWritableClassTag = implicitly[ClassTag[NullWritable]]
     val textClassTag = implicitly[ClassTag[Text]]
     val r = this.mapPartitions { iter =>
@@ -1543,6 +1565,7 @@ abstract class RDD[T: ClassTag](
     }
     RDD.rddToPairRDDFunctions(r)(nullWritableClassTag, textClassTag, null)
       .saveAsHadoopFile[TextOutputFormat[NullWritable, Text]](path)
+    }
   }
 
   /**
