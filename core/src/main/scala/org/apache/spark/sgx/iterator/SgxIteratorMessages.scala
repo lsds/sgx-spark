@@ -5,8 +5,6 @@ import org.apache.spark.sgx.RecordReaderMaps
 import org.apache.spark.sgx.SgxCommunicator
 import org.apache.spark.sgx.IFillBuffer
 import org.apache.spark.sgx.SgxMessage
-import org.apache.spark.sgx.shm.RingBuffProducer
-import org.apache.spark.sgx.shm.RingBuffConsumer
 
 case class MsgIteratorReqNextN(num: Int) extends Serializable {}
 object MsgIteratorReqClose extends Serializable {}

@@ -2,29 +2,30 @@ package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
 
-public class RingBuffConsumer {
+class RingBuffConsumer {
 	private AlignedMappedDataBuffer buffer;
 	private ISerialization serializer;
 	
 	private int pos = 0;
-	
-	private byte[] bytes = new byte[1024];
 
 	public RingBuffConsumer(MappedDataBuffer buffer, ISerialization serializer) {
 		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
 		this.serializer = serializer;
 	}
 
-	public Object read() {
-		Object obj = null;
-		
-		try {			
+	public Object read() {		
+		try {
+			return serializer.deserialize(readAsBytes());
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	public byte[] readAsBytes() throws InterruptedException {
 			int len = buffer.waitWhile(pos, 0);
 			int slotsNeeded = buffer.slotsNeeded(len);
 			
-			if (len > bytes.length) {
-				bytes = new byte[len];
-			}
+			byte[] bytes = new byte[len];
 			
 			if (pos == buffer.slots() - 1) {
 				// We are at the very last slot.
@@ -43,13 +44,7 @@ public class RingBuffConsumer {
 			
 			buffer.putInt(pos, 0);
 			pos += (slotsNeeded + 1) % buffer.slots();
-			obj = serializer.deserialize(bytes);
-			
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		
-		return obj;
+			return bytes;
 	}
 	
 	@Override

@@ -29,14 +29,13 @@ import org.apache.spark.rdd.HadoopRDD
 import java.util.Locale
 import org.apache.hadoop.mapred.RecordReader
 import org.apache.hadoop.mapred.LineRecordReader
-import org.apache.spark.sgx.shm.RingBuffProducer
-import org.apache.spark.sgx.shm.RingBuffConsumer
 import org.apache.spark.sgx.Serialization
-import org.apache.spark.sgx.shm.RingBuffProducer
-import org.apache.spark.sgx.shm.RingBuffConsumer
+import org.apache.spark.util.collection.WritablePartitionedIterator
+import org.apache.spark.storage.DiskBlockObjectWriter
 
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
+  
 	def call(): Unit = {
 		val num = SgxSettings.PREFETCH //- consumer.objects.size
 		if (num > 0) {
@@ -166,4 +165,21 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   }
 	
 	override def toString() = getClass.getSimpleName + "(offset=" + offset + ", size=" + size + ", buffer=" + buffer + ")"
+}
+
+
+
+class SgxWritablePartitionedIteratorConsumer(id: SgxWritablePartitionedIteratorProviderIdentifier) extends WritablePartitionedIterator with Logging {
+  
+  logDebug("Creating " + this)
+  
+  val com = id.connect()
+  
+  def hasNext(): Boolean = throw new RuntimeException("Not implemented: hasNext()")
+  
+  def nextPartition(): Int = throw new RuntimeException("Not implemented: nextPartition()")
+
+  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new RuntimeException("Not implemented: writeNext()")
+
+	override def toString() = getClass.getSimpleName + "(com=" + com + ")"
 }

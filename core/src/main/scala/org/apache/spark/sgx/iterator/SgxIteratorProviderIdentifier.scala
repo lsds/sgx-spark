@@ -16,7 +16,7 @@ abstract class SgxIteratorProvIdentifier[T](myPort: Long) extends SgxIteratorIde
 		con.connect(myPort)
 		con.sendOne(con.getMyPort)
 		con
-	}  
+	}
 }
 
 class SgxIteratorProviderIdentifier[T](myPort: Long) extends SgxIteratorProvIdentifier[T](myPort) {
@@ -31,4 +31,18 @@ class SgxShmIteratorProviderIdentifier[K,V](myPort:Long, offset: Long, size: Int
 	override def getIterator(context: String) = new SgxShmIteratorConsumer[K,V](this, offset, size, theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ", offset=" + offset + ", size=" + size + ")"
+}
+
+class SgxWritablePartitionedIteratorProviderIdentifier(myPort:Long) {
+ 
+	def connect(): SgxCommunicator = {
+		val con = ShmCommunicationManager.get().newShmCommunicator(false)
+		con.connect(myPort)
+		con.sendOne(con.getMyPort)
+		con
+	}
+  
+	def getIterator(context: String) = new SgxWritablePartitionedIteratorConsumer(this)
+
+	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ")"
 }

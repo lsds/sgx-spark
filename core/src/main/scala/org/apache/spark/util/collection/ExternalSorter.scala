@@ -190,13 +190,13 @@ private[spark] class ExternalSorter[K, V, C](
     val shouldCombine = aggregator.isDefined
     if (SgxSettings.SGX_ENABLED) {
       val it = if (records.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) records.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
-      else SgxFactory.newSgxIteratorProvider(records, true).getIdentifier
-        if (shouldCombine) {
-          val mergeValue = aggregator.get.mergeValue
-          val createCombiner = aggregator.get.createCombiner
-          SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](it, map.id, mergeValue, createCombiner, shouldPartition, partitioner)
+        else SgxFactory.newSgxIteratorProvider(records, true).getIdentifier
+      if (shouldCombine) {
+        val mergeValue = aggregator.get.mergeValue
+        val createCombiner = aggregator.get.createCombiner
+        SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](it, map.id, mergeValue, createCombiner, shouldPartition, partitioner)
     	} else {
-          throw new Exception("not implemented ExternalSorter.insertAll")
+        throw new Exception("not implemented ExternalSorter.insertAll")
     	}
     }
     else {
@@ -713,6 +713,18 @@ private[spark] class ExternalSorter[K, V, C](
     if (spills.isEmpty) {
       // Case where we only have in-memory data
       val collection = if (aggregator.isDefined) map else buffer
+      if (SgxSettings.SGX_ENABLED) {
+        val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
+        while (it.hasNext) {
+          val partitionId = it.nextPartition()
+          
+          
+          
+          val segment = writer.commitAndGet()
+          lengths(partitionId) = segment.length          
+        }
+      } else {
+      // SGX: below is original code.
       val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
       while (it.hasNext) {
         val partitionId = it.nextPartition()
@@ -721,6 +733,7 @@ private[spark] class ExternalSorter[K, V, C](
         }
         val segment = writer.commitAndGet()
         lengths(partitionId) = segment.length
+      }
       }
     } else {
       // We must perform merge-sort; get an iterator by partition and write everything directly.

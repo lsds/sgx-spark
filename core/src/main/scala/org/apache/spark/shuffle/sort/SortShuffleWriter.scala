@@ -70,6 +70,7 @@ private[spark] class SortShuffleWriter[K, V, C](
     try {
       val blockId = ShuffleBlockId(dep.shuffleId, mapId, IndexShuffleBlockResolver.NOOP_REDUCE_ID)
       val partitionLengths = sorter.writePartitionedFile(blockId, tmp)
+      logDebug("xxx 4: blockId="+blockId+", tmp="+tmp)
       shuffleBlockResolver.writeIndexFileAndCommit(dep.shuffleId, mapId, partitionLengths, tmp)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths)
     } finally {

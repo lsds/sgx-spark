@@ -23,6 +23,16 @@ import org.apache.spark.storage.DiskBlockObjectWriter
 import org.apache.spark.sgx.Encrypt
 import org.apache.spark.sgx.Encrypted
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
+import org.apache.spark.sgx.shm.MappedDataBufferManager
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.shm.RingBuffProducer
+import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.shm.RingBuffProducer
+import org.apache.spark.sgx.iterator.SgxShmIteratorProviderIdentifier
+import org.apache.spark.sgx.SgxFactory
+
 /**
  * A common interface for size-tracking collections of key-value pairs that
  *
@@ -48,10 +58,37 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
    * returned in order of their partition ID and then the given comparator.
    * This may destroy the underlying collection.
    */
-  def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]])
+  def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]], bufOffset: Long = -1, bufCapacity: Int = -1)
     : WritablePartitionedIterator = {
     val it = partitionedDestructiveSortedIterator(keyComparator)
+    if (SgxSettings.SGX_ENABLED) {
+      SgxFactory.newSgxWritablePartitionedIteratorProvider(
+       new WritablePartitionedIterator with Logging {
+         
+        logDebug("xxx creating " + this)
+        
+        private[this] var cur = if (it.hasNext) it.next() else null
+  
+        def writeNext(writer: DiskBlockObjectWriter): Unit = {
+          writer.write(cur._1._2, cur._2)
+          cur = if (it.hasNext) it.next() else null
+        }
+  
+        def hasNext(): Boolean = cur != null
+  
+        def nextPartition(): Int = cur._1._1
+  
+  //      def getNext[T]() = {
+  //    	  val c = cur.asInstanceOf[T]
+  //    	  cur = if (it.hasNext) it.next() else null
+  //    	  Encrypt(c)
+  //      }
+        }
+      )
+    }
+    else 
     new WritablePartitionedIterator {
+      
       private[this] var cur = if (it.hasNext) it.next() else null
 
       def writeNext(writer: DiskBlockObjectWriter): Unit = {
@@ -62,12 +99,6 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
       def hasNext(): Boolean = cur != null
 
       def nextPartition(): Int = cur._1._1
-
-      def getNext[T]() = {
-    	  val c = cur.asInstanceOf[T]
-    	  cur = if (it.hasNext) it.next() else null
-    	  Encrypt(c)
-      }
     }
   }
 }
@@ -110,5 +141,5 @@ private[spark] trait WritablePartitionedIterator {
 
   def nextPartition(): Int
 
-  def getNext[T](): Encrypted
+//  def getNext[T](): Encrypted
 }

@@ -2,7 +2,7 @@ package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
 
-public class RingBuffProducer {
+class RingBuffProducer {
 	private AlignedMappedDataBuffer buffer;
 	private ISerialization serializer;
 	
@@ -12,18 +12,16 @@ public class RingBuffProducer {
 		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
 		this.serializer = serializer;
 	}
-
-	/*
-	 * Potential TODO:
-	 * - Deserialization: do not copy first into local, deserialize directly from shared memory
-	 * - Wrapping at end of buffer
-	 * - Use System.arracopy
-	 * - madvise: do not page out
-	 */
 	
 	public void write(Object o) {
-		try {				
-			byte[] bytes = serializer.serialize(o);
+		try {
+			write(serializer.serialize(o));
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	public void write(byte[] bytes) throws InterruptedException {
 			if (bytes.length > (buffer.slots() - 1) * buffer.alignment()) {
 				throw new RuntimeException("Buffer too small to hold an element of size " + bytes.length);
 			}
@@ -47,9 +45,6 @@ public class RingBuffProducer {
 			}
 			buffer.putInt(pos, bytes.length);
 			pos += (slotsNeeded + 1) % buffer.slots();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
 	}
 	
 	@Override

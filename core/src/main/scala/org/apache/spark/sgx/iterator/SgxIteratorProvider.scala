@@ -21,19 +21,24 @@ import org.apache.spark.Partition
 import org.apache.hadoop.mapred.RecordReader
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader
 import org.apache.spark.sgx.shm.MappedDataBufferManager
-import org.apache.spark.sgx.shm.RingBuffProducer
 import org.apache.spark.sgx.shm.MappedDataBuffer
-import org.apache.spark.sgx.shm.RingBuffConsumer
 import org.apache.spark.sgx.Serialization
 import org.apache.spark.sgx.SgxCallable
-import org.apache.spark.sgx.shm.RingBuffProducer
-import org.apache.spark.sgx.shm.RingBuffConsumer
+import org.apache.spark.util.collection.WritablePartitionedIterator
+import org.apache.spark.storage.DiskBlockObjectWriter
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
+  
+  def writeNext(writer: DiskBlockObjectWriter): Unit = {
+    logError("Method writeNext() must be implemented by subclass")
+    throw new RuntimeException("Method writeNext() must be implemented by subclass")
+  }  
 }
 
 class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with SgxCallable[Unit] {
+  
+  logDebug("xxx creating " + this)
 
 	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
@@ -62,6 +67,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 					if (delegate.isInstanceOf[NextIterator[T]] && delegate.hasNext) {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
 							val n = delegate.next
+						  logDebug("Providing: " + n)
 							// Need to clone the object. Otherwise the same object will be sent multiple times.
 							// It seems that this is due to optimizations in the implementation of class NextIterator.
 							// If cloning is not possible, just add this one object and send it individually.
@@ -70,7 +76,9 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 						}
 					} else {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
-							q.insert(i, delegate.next)
+						  val n = delegate.next
+						  logDebug("Providing: " + n)
+							q.insert(i, n)
 						}
 					}
 					val qe = if (doEncrypt) Encrypt(q) else q
@@ -91,14 +99,6 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with SgxCallable[Unit] {
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
-//  
-//  val bsize = 16777216 // 16MB for metadata in each direction
-//  
-//	val buf1 = MappedDataBufferManager.get.malloc(bsize);
-//  val buf2 = MappedDataBufferManager.get.malloc(bsize);
-//  
-//  val reader = new RingBuffConsumer(buf1, Serialization.serializer);
-//  val writer = new RingBuffProducer(buf2, Serialization.serializer);
 
 	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
@@ -110,8 +110,6 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 	
 	def call(): Unit = {
 	  val com = do_accept
-	
-//	val x = reader.read
 	  
 	  logDebug(this + " got connection: " + com)
 
@@ -120,13 +118,10 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 			  case c: SgxShmIteratorConsumerClose =>
 			    stop
 			    delegate.closeIfNeeded()
-//			    MappedDataBufferManager.get.free(buf1)
-//			    MappedDataBufferManager.get.free(buf2)
 			  case f: SgxShmIteratorConsumerFillBufferMsg =>
 			    recordReader.getLineReader.fillBuffer(f.inDelimiter)
 	    }
 	    if (ret != Unit) {
-//	      writer.write(ret)
 	      com.sendOne(ret)
 	    }
 	  }
@@ -134,3 +129,49 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 	
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ")"
 }
+
+
+class SgxWritablePartitionedIteratorProvider(delegate: WritablePartitionedIterator) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
+  
+  private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+
+	private val identifier = new SgxWritablePartitionedIteratorProviderIdentifier(com.getMyPort)
+
+	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
+  
+  logDebug("Creating " + this)
+
+	def getIdentifier = identifier
+	
+  def hasNext(): Boolean = throw new UnsupportedOperationException("Access this iterator via shared memnory")
+  
+  def nextPartition(): Int = throw new UnsupportedOperationException("Access this iterator via shared memnory")
+
+  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new UnsupportedOperationException("Access this iterator via shared memnory")	
+	
+	def call(): Unit = {
+	  val com = do_accept
+	  
+	  logDebug(this + " got connection: " + com)
+
+	  while (isRunning) {
+	    val r = com.recvOne()
+	    logDebug("received: " + r)
+	    val ret: Any = null
+//	    match {
+//			  case c: SgxShmIteratorConsumerClose =>
+//			    stop
+//			    delegate.closeIfNeeded()
+//			  case f: SgxShmIteratorConsumerFillBufferMsg =>
+//			    recordReader.getLineReader.fillBuffer(f.inDelimiter)
+//	    }
+	    if (ret != null) {
+	      com.sendOne(ret)
+	    }
+	  }
+  }
+	
+	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ")"
+}
+
+

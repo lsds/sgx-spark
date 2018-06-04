@@ -64,25 +64,7 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 	      true
 	    }
 	    
-	    override def next = {
-	      _next
-	    }
-	    
-//	    override def next = {
-//	      val n = i.next()
-//	      if (_type == 0) {
-//	        if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) _type = 1
-//	      }
-//	      
-//	      _type match {
-//	        case 1 =>
-//	          n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
-//	        case default =>
-//            n
-//	      }
-//	    }
-//	    
-//	    override def hasNext = i.hasNext
+	    override def next = _next
 	  }
 	}
 
@@ -93,60 +75,67 @@ private object WritablePartitionedFakeIterators extends IdentifierManager[Writab
 
 case class SgxWritablePartitionedFakeIterator[K,V](@transient val delegate: WritablePartitionedIterator) extends WritablePartitionedIterator with Logging {
 
-	// delegate lives inside enclave
+	// Delegate lives inside enclave.
+  // We communicate via shared memory.
+  
+  // CONSUMER
 
 	val id = scala.util.Random.nextLong
 
 	WritablePartitionedFakeIterators.put(id, delegate)
 
 	override def writeNext(writer: DiskBlockObjectWriter) = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.writeNext(writer)
-		}
-		else if (SgxSettings.IS_WORKER) {
-			val cur = SgxFct.writablePartitionedIteratorGetNext[K,V,((Int,K),V)](this)
-			writer.write(cur)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
+	  throw new RuntimeException(this + ".writeNext, " +  id)
+//		if (SgxSettings.IS_DRIVER) {
+//			delegate.writeNext(writer)
+//		}
+//		else if (SgxSettings.IS_WORKER) {
+////			val cur = SgxFct.writablePartitionedIteratorGetNext[K,V,((Int,K),V)](this)
+//		  val cur = null
+//			writer.write(cur)
+//		}
+//		else {
+//			throw SgxFakeIteratorException(id)
+//		}
 	}
 
 	override def hasNext: Boolean = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.hasNext()
-		}
-		else if (SgxSettings.IS_WORKER) {
-			SgxFct.writablePartitionedIteratorHasNext(this)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
+	  throw new RuntimeException(this + ".hasNext, " +  id)
+//		if (SgxSettings.IS_DRIVER) {
+//			delegate.hasNext()
+//		}
+//		else if (SgxSettings.IS_WORKER) {
+//			SgxFct.writablePartitionedIteratorHasNext(this)
+//		}
+//		else {
+//			throw SgxFakeIteratorException(id)
+//		}
 	}
 
 	override def nextPartition() = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.nextPartition()
-		}
-		else if (SgxSettings.IS_WORKER) {
-			SgxFct.writablePartitionedIteratorNextPartition(this)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
+	  throw new RuntimeException(this + ".nextPartition, " +  id)
+//		if (SgxSettings.IS_DRIVER) {
+//			delegate.nextPartition()
+//		}
+//		else if (SgxSettings.IS_WORKER) {
+//			SgxFct.writablePartitionedIteratorNextPartition(this)
+//		}
+//		else {
+//			throw SgxFakeIteratorException(id)
+//		}
 	}
 
-	override def getNext[T]() = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.getNext[T]()
-		}
-		else if (SgxSettings.IS_WORKER) {
-			SgxFct.writablePartitionedIteratorGetNext[K,V,T](this)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
-	}
+//	override def getNext[T]() = {
+//		if (SgxSettings.IS_DRIVER) {
+//			delegate.getNext[T]()
+//		}
+//		else if (SgxSettings.IS_WORKER) {
+//			SgxFct.writablePartitionedIteratorGetNext[K,V,T](this)
+//		}
+//		else {
+//			throw SgxFakeIteratorException(id)
+//		}
+//	}
 
 	def getIterator = WritablePartitionedFakeIterators.get(id)
 }

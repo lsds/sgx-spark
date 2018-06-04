@@ -12,7 +12,8 @@ import org.apache.hadoop.mapred.RecordReader
 import org.apache.spark.rdd.HadoopPartition
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.Partition
-
+import org.apache.spark.util.collection.WritablePartitionedIterator
+import org.apache.spark.sgx.iterator.SgxWritablePartitionedIteratorProvider
 
 object SgxFactory {
 	val mgr =
@@ -35,7 +36,13 @@ object SgxFactory {
 		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader, theSplit, inputMetrics, splitLength, splitStart, delimiter)		
 	  Completor.submit(prov)
 	  prov
-	}	
+	}
+	
+	def newSgxWritablePartitionedIteratorProvider(delegate: WritablePartitionedIterator): WritablePartitionedIterator = {
+		val prov = new SgxWritablePartitionedIteratorProvider(delegate)		
+	  Completor.submit(prov)
+	  prov
+	}
 
 	def runSgxBroadcastProvider(): Unit = {
 		synchronized {
