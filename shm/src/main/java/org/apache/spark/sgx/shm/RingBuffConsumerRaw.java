@@ -1,14 +1,30 @@
 package org.apache.spark.sgx.shm;
 
 public class RingBuffConsumerRaw {
-	private AlignedMappedDataBuffer buffer;
-	private int pos = 0;
+	private final AlignedMappedDataBuffer buffer;
+	private final int FIRST_POS;
+	private int pos;
 
-	public RingBuffConsumerRaw(MappedDataBuffer buffer) {
+	public RingBuffConsumerRaw(MappedDataBuffer buffer, int reserved_slots) {
 		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
+		FIRST_POS = reserved_slots;
+		pos = FIRST_POS;
 	}
 	
-	public byte[] readAsBytes() throws InterruptedException {
+	public long readLong() throws InterruptedException {
+		byte[] bytes = readBytes();
+		
+		return bytes[0] << 56
+			+  bytes[1] << 48
+			+  bytes[2] << 40
+			+  bytes[3] << 32
+			+  bytes[4] << 24
+			+  bytes[5] << 16
+			+  bytes[6] << 8
+			+  bytes[7];
+	}
+
+	public byte[] readBytes() throws InterruptedException {
 			int len = buffer.waitWhile(pos, 0);
 			int slotsNeeded = buffer.slotsNeeded(len);
 			
@@ -17,7 +33,7 @@ public class RingBuffConsumerRaw {
 			if (pos == buffer.slots() - 1) {
 				// We are at the very last slot.
 				// Read the payload at the beginning of the buffer.
-				buffer.getBytes(0, bytes, 0, len);
+				buffer.getBytes(FIRST_POS, bytes, 0, len);
 			} else if (buffer.isValid(pos + slotsNeeded)) {
 				// There was enough space before the end of the buffer.
 				// We can read the payload in one go.
@@ -26,12 +42,21 @@ public class RingBuffConsumerRaw {
 				// There was not enough space. So we had to divide up the payload data.
 				int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
 				buffer.getBytes(pos + 1, bytes, 0, wrapPoint);
-				buffer.getBytes(0, bytes, wrapPoint, len - wrapPoint);
+				buffer.getBytes(FIRST_POS, bytes, wrapPoint, len - wrapPoint);
 			}
 			
 			buffer.putInt(pos, 0);
-			pos += (slotsNeeded + 1) % buffer.slots();
+			pos += (slotsNeeded + 1);
+			if (pos > buffer.slots()) {
+				pos -= buffer.slots();
+				pos += FIRST_POS;
+			}
+			shareReadPos();
 			return bytes;
+	}
+	
+	private void shareReadPos() {
+		buffer.putInt(0, pos);
 	}
 	
 	@Override

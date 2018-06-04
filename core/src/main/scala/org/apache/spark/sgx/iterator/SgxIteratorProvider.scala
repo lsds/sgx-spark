@@ -27,7 +27,7 @@ import org.apache.spark.sgx.SgxCallable
 import org.apache.spark.util.collection.WritablePartitionedIterator
 import org.apache.spark.storage.DiskBlockObjectWriter
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
-import org.apache.spark.sgx.shm.RingBuffProducerRaw
+import org.apache.spark.sgx.shm.RingBuffProducer
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
@@ -132,11 +132,17 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ")"
 }
 
+class SgxObj extends Serializable {}
 
-class SgxWritablePartitionedIteratorProvider[K,V](@transient delegate: WritablePartitionedIterator, offset: Long, size: Int) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
+class SgxPair[K,V](key: K, value: V) extends SgxObj {}
+
+class SgxPartition extends SgxObj {}
+
+
+class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Product2[Product2[Int,K],V]], offset: Long, size: Int) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
   
   private val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
-  val writer = new RingBuffProducerRaw(buffer)
+  val writer = new RingBuffProducer(buffer, Serialization.serializer)
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
@@ -148,14 +154,43 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient delegate: WritableP
 
 	def getIdentifier = identifier
 	
-  def hasNext(): Boolean = throw new UnsupportedOperationException("Access this iterator via shared memnory")
-  
-  def nextPartition(): Int = throw new UnsupportedOperationException("Access this iterator via shared memnory")
+  private[this] var cur = if (it.hasNext) it.next() else null
 
-  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new UnsupportedOperationException("Access this iterator via shared memnory")
+  def writeNext(writer: DiskBlockObjectWriter): Unit = {
+    writer.write(cur._1._2, cur._2)
+    cur = if (it.hasNext) it.next() else null
+  }
+
+  def hasNext(): Boolean = cur != null
+
+  def nextPartition(): Int = cur._1._1
   
   def fill() = {
     logDebug("filling " + this)
+
+//          while (it.hasNext) {
+//        val partitionId = it.nextPartition()
+//        while (it.hasNext && it.nextPartition() == partitionId) {
+//          it.writeNext(writer)
+//        }
+//        val segment = writer.commitAndGet()
+//        lengths(partitionId) = segment.length
+//      }
+    
+    while (it.hasNext) {
+      val partitionId = nextPartition()
+      while (hasNext && nextPartition() == partitionId) {
+        logDebug("write("+cur._1._2+","+cur._2+")")
+        writer.write(new SgxPair(cur._1._2, cur._2))
+        logDebug("wrote("+cur._1._2+","+cur._2+")")
+        cur = if (it.hasNext) it.next() else null
+        logDebug("cur = " + cur)  
+      }
+      val x = new SgxPartition
+      logDebug("write("+ x +")")
+      writer.write(x)
+        logDebug("wrote("+x+")")
+    }
   }
 	
 	def call(): Unit = {

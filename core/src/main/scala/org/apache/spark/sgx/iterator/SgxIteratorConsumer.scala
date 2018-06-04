@@ -32,9 +32,7 @@ import org.apache.hadoop.mapred.LineRecordReader
 import org.apache.spark.sgx.Serialization
 import org.apache.spark.util.collection.WritablePartitionedIterator
 import org.apache.spark.storage.DiskBlockObjectWriter
-import org.apache.spark.sgx.shm.RingBuffConsumerRaw
-import org.apache.spark.sgx.shm.RingBuffConsumerRaw
-import org.apache.spark.sgx.shm.RingBuffConsumerRaw
+import org.apache.spark.sgx.shm.RingBuffConsumer
 
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
@@ -175,7 +173,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
 class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIteratorProviderIdentifier[K,V], offset: Long, size: Int) extends WritablePartitionedIterator with Logging {
   
   val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
-  val reader = new RingBuffConsumerRaw(buffer)
+  val reader = new RingBuffConsumer(buffer, Serialization.serializer)
   
   val com = id.connect()
   

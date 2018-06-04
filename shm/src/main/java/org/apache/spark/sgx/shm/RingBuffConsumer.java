@@ -2,20 +2,21 @@ package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
 
-class RingBuffConsumer extends RingBuffConsumerRaw {
+public class RingBuffConsumer extends RingBuffConsumerRaw {
 	private ISerialization serializer;
 
 	public RingBuffConsumer(MappedDataBuffer buffer, ISerialization serializer) {
-		super(buffer);
+		super(buffer, 2);
 		if (serializer == null) {
 			throw new RuntimeException("Must specify a serializer in order to write objects.");
 		}
 		this.serializer = serializer;
 	}
 
-	public Object read() {		
+	@SuppressWarnings("unchecked")
+	public <T> T read() {		
 		try {
-			return serializer.deserialize(readAsBytes());
+			return (T) serializer.deserialize(readBytes());
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

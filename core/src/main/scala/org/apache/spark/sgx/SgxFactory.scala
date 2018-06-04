@@ -38,7 +38,7 @@ object SgxFactory {
 	  prov
 	}
 	
-	def newSgxWritablePartitionedIteratorProvider(delegate: WritablePartitionedIterator, offset: Long, size: Int): WritablePartitionedIterator = {
+	def newSgxWritablePartitionedIteratorProvider[K,V](delegate: Iterator[Product2[Product2[Int,K],V]], offset: Long, size: Int): WritablePartitionedIterator = {
 		val prov = new SgxWritablePartitionedIteratorProvider(delegate, offset, size)		
 	  Completor.submit(prov)
 	  prov

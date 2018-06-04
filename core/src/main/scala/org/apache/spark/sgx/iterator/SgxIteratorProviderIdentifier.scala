@@ -11,8 +11,6 @@ import org.apache.spark.storage.DiskBlockObjectWriter
 
 abstract class SgxIteratorProvIdentifier[T](myPort: Long) extends SgxIteratorIdentifier[T] with Logging {
   
-  logDebug("Creating " + this)
-  
 	def connect(): SgxCommunicator = {
 		val con = ShmCommunicationManager.get().newShmCommunicator(false)
 		con.connect(myPort)

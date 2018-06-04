@@ -22,6 +22,8 @@ public class MappedDataBufferManager {
 	
 	private int freeBlocks;
 	
+	byte[] zeroes = new byte[blockSize];
+	
 	private static MappedDataBufferManager _instance = null;
 	
 	public static void init(MappedDataBuffer buffer) {
@@ -105,8 +107,6 @@ public class MappedDataBufferManager {
 		markUsed(startBlock, blocksNeeded);
 		freeBlocks -= blocksNeeded;
 		
-//		System.out.println("MappedDataBufferManager Malloced " + bytes + " bytes at address " + (buffer.address() + (startBlock * blockSize)));
-		
 		return new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
 	}
 	
@@ -114,18 +114,18 @@ public class MappedDataBufferManager {
 		if (b == null ) {
 			return;
 		}
-		
+
 		if (SgxSettings.IS_ENCLAVE()) {
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 		}
-		
+
 		int startBlock = (int) ((b.address() - buffer.address()) / blockSize);
 		int blocksNeeded = blocksNeeded(b.capacity());
-		
+
 		freeBlocks += blocksNeeded;
-		
+
 		inUse[startBlock] = -blocksNeeded;
-	
+
 		int firstFree = findFirstConsecutiveFree(startBlock);
 		int lastFree = findLastConsecutiveFree(startBlock);		
 		int totalFree = lastFree - firstFree + 1;

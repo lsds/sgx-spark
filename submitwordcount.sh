@@ -12,9 +12,9 @@ export SPARK_JOBNAME=wordcount
 
 rm -rf $(pwd)/output
 
-INFILE=$(pwd)/README.md
+#INFILE=$(pwd)/README.md
 #INFILE=$(pwd)/README.md.16
-#INFILE=$(pwd)/README.md.256
+INFILE=$(pwd)/README.md.256
 #INFILE=$(pwd)/README.md.4096
 #INFILE=$(pwd)/README.md.8192
 #INFILE=$(pwd)/README.md.16384

@@ -7,6 +7,13 @@ public class MallocedMappedDataBuffer extends MappedDataBuffer {
 	public MallocedMappedDataBuffer(long address, int capacity) {
 		super(address, capacity);
 		this.offset = address - MappedDataBufferManager.get().startAddress();
+		
+		// TODO: Make faster
+		int i = 0;
+		byte[] b = new byte[1];
+		while (i < capacity) {
+			put(i++, b);
+		}
 	}
 	
 	public long offset() {
