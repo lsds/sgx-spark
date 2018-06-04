@@ -22,7 +22,5 @@ case class SgxShmIteratorConsumerFillBuffer(com: SgxCommunicator) extends IFillB
   
   def fillBuffer(inDelimiter: Boolean) = {
     com.sendRecv[Int](new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
-//    writer.write(new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
-//    reader.read().asInstanceOf[Int]
   }
 }

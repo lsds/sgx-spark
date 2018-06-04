@@ -6,6 +6,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.HadoopPartition
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.Partition
+import org.apache.spark.util.collection.WritablePartitionedIterator
+import org.apache.spark.storage.DiskBlockObjectWriter
 
 abstract class SgxIteratorProvIdentifier[T](myPort: Long) extends SgxIteratorIdentifier[T] with Logging {
   
@@ -33,7 +35,7 @@ class SgxShmIteratorProviderIdentifier[K,V](myPort:Long, offset: Long, size: Int
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ", offset=" + offset + ", size=" + size + ")"
 }
 
-class SgxWritablePartitionedIteratorProviderIdentifier(myPort:Long) {
+class SgxWritablePartitionedIteratorProviderIdentifier[K,V](myPort:Long, offset: Long, size: Int) extends WritablePartitionedIterator with Serializable {
  
 	def connect(): SgxCommunicator = {
 		val con = ShmCommunicationManager.get().newShmCommunicator(false)
@@ -41,8 +43,14 @@ class SgxWritablePartitionedIteratorProviderIdentifier(myPort:Long) {
 		con.sendOne(con.getMyPort)
 		con
 	}
+	
+  def hasNext(): Boolean = throw new RuntimeException("Not implemented: hasNext()")
   
-	def getIterator(context: String) = new SgxWritablePartitionedIteratorConsumer(this)
+  def nextPartition(): Int = throw new RuntimeException("Not implemented: nextPartition()")
+
+  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new RuntimeException("Not implemented: writeNext()")	
+  
+	def getIterator() = new SgxWritablePartitionedIteratorConsumer[K,V](this, offset, size)
 
 	override def toString() = getClass.getSimpleName + "(myPort=" + myPort + ")"
 }

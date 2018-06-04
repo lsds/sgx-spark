@@ -64,27 +64,22 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
     if (SgxSettings.SGX_ENABLED) {
       SgxFactory.newSgxWritablePartitionedIteratorProvider(
        new WritablePartitionedIterator with Logging {
-         
-        logDebug("xxx creating " + this)
         
         private[this] var cur = if (it.hasNext) it.next() else null
   
-        def writeNext(writer: DiskBlockObjectWriter): Unit = {
-          writer.write(cur._1._2, cur._2)
-          cur = if (it.hasNext) it.next() else null
-        }
+        def writeNext(writer: DiskBlockObjectWriter): Unit = throw new UnsupportedOperationException("Access this iterator via shared memnory")
   
-        def hasNext(): Boolean = cur != null
+        def hasNext(): Boolean = throw new UnsupportedOperationException("Access this iterator via shared memnory")
   
-        def nextPartition(): Int = cur._1._1
+        def nextPartition(): Int = throw new UnsupportedOperationException("Access this iterator via shared memnory")
   
   //      def getNext[T]() = {
   //    	  val c = cur.asInstanceOf[T]
   //    	  cur = if (it.hasNext) it.next() else null
   //    	  Encrypt(c)
   //      }
-        }
-      )
+        }, bufOffset, bufCapacity
+     )
     }
     else 
     new WritablePartitionedIterator {

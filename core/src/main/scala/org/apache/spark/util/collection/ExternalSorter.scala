@@ -715,14 +715,18 @@ private[spark] class ExternalSorter[K, V, C](
       val collection = if (aggregator.isDefined) map else buffer
       if (SgxSettings.SGX_ENABLED) {
         val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
+        logDebug("A: " + it)
         while (it.hasNext) {
+          logDebug("B")
           val partitionId = it.nextPartition()
+          logDebug("C")
           
           
           
           val segment = writer.commitAndGet()
           lengths(partitionId) = segment.length          
         }
+        logDebug("D")
       } else {
       // SGX: below is original code.
       val it = collection.destructiveSortedWritablePartitionedIterator(comparator)

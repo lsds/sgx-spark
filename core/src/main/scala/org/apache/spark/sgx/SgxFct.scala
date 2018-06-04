@@ -15,7 +15,6 @@ import org.apache.spark.util.collection.WritablePartitionedIterator
 
 import org.apache.spark.storage.DiskBlockObjectWriter
 
-import org.apache.spark.sgx.iterator.SgxWritablePartitionedFakeIterator
 import org.apache.spark.sgx.iterator.SgxIteratorIdentifier
 import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.iterator.SgxIterator
@@ -23,6 +22,8 @@ import org.apache.spark.sgx.iterator.SgxIterator
 import org.apache.hadoop.mapred.RecordReader
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sgx.iterator.SgxWritablePartitionedIteratorProvider
+import org.apache.spark.sgx.iterator.SgxWritablePartitionedIteratorProviderIdentifier
 
 object RecordReaderMaps extends IdentifierManager[RecordReader[_,_]]() {}
 
@@ -56,23 +57,23 @@ object SgxFct extends Logging {
 //		new WritablePartitionedIteratorGetNext[K,V,T](it).send()
 //  }
 
-	def writablePartitionedIteratorHasNext[K,V](it: SgxWritablePartitionedFakeIterator[K,V]) = {
-    logDebug("WritablePartitionedIteratorHasNext invoke")
-	  Thread.currentThread().getStackTrace.foreach(x => logDebug("  " + x.toString()))
-		new WritablePartitionedIteratorHasNext(it).send()
-  }
-
-	def writablePartitionedIteratorWriteNext[K,V](it: SgxWritablePartitionedFakeIterator[K,V], writer: DiskBlockObjectWriter) = {
-	  logDebug("writablePartitionedIteratorWriteNext invoke")
-	  Thread.currentThread().getStackTrace.foreach(x => logDebug("  " + x.toString()))
-		new WritablePartitionedIteratorWriteNext(it, writer).send()
-	}
-
-	def writablePartitionedIteratorNextPartition[K,V](it: SgxWritablePartitionedFakeIterator[K,V]) = {
-	  logDebug("writablePartitionedIteratorNextPartition invoke")
-	  Thread.currentThread().getStackTrace.foreach(x => logDebug("  " + x.toString()))
-		new WritablePartitionedIteratorNextPartition(it).send()
-	}
+//	def writablePartitionedIteratorHasNext[K,V](it: SgxWritablePartitionedFakeIterator) = {
+//    logDebug("WritablePartitionedIteratorHasNext invoke")
+//	  Thread.currentThread().getStackTrace.foreach(x => logDebug("  " + x.toString()))
+//		new WritablePartitionedIteratorHasNext(it).send()
+//  }
+//
+//	def writablePartitionedIteratorWriteNext[K,V](it: SgxWritablePartitionedFakeIterator, writer: DiskBlockObjectWriter) = {
+//	  logDebug("writablePartitionedIteratorWriteNext invoke")
+//	  Thread.currentThread().getStackTrace.foreach(x => logDebug("  " + x.toString()))
+//		new WritablePartitionedIteratorWriteNext(it, writer).send()
+//	}
+//
+//	def writablePartitionedIteratorNextPartition[K,V](it: SgxWritablePartitionedFakeIterator) = {
+//	  logDebug("writablePartitionedIteratorNextPartition invoke")
+//	  Thread.currentThread().getStackTrace.foreach(x => logDebug("  " + x.toString()))
+//		new WritablePartitionedIteratorNextPartition(it).send()
+//	}
 
 	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send().decrypt[Z]
 
@@ -108,13 +109,11 @@ private case class PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedI
 	id: SizeTrackingAppendOnlyMapIdentifier,
 	keyComparator: Option[Comparator[K]],
   bufOffset: Long,
-	bufCapacity: Int) extends SgxMessage[WritablePartitionedIterator] {
+	bufCapacity: Int) extends SgxMessage[SgxWritablePartitionedIteratorProviderIdentifier[K,V]] {
 
-	def execute() = SgxWritablePartitionedFakeIterator[K,V](
-		Await.result( Future {
-			id.getMap.asInstanceOf[PartitionedAppendOnlyMap[K,V]].destructiveSortedWritablePartitionedIterator(keyComparator, bufOffset, bufCapacity)
-		}, Duration.Inf)
-	)
+	def execute() = Await.result( Future {
+    id.getMap.asInstanceOf[PartitionedAppendOnlyMap[K,V]].destructiveSortedWritablePartitionedIterator(keyComparator, bufOffset, bufCapacity).asInstanceOf[SgxWritablePartitionedIteratorProvider[K,V]].getIdentifier
+	}, Duration.Inf)
 }
 
 private case class SizeTrackingAppendOnlyMapCreate[K,V]() extends SgxMessage[SizeTrackingAppendOnlyMapIdentifier] {
@@ -131,31 +130,31 @@ private case class ExternalAppendOnlyMapIterator[K,V](
     SgxFakeIterator[(K,V)](id.getMap.iterator)
 	}, Duration.Inf)
 }
-
-private case class WritablePartitionedIteratorHasNext[K,V](
-	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Boolean] {
-
-	def execute() = Await.result( Future {
-		it.getIterator.hasNext()
-	}, Duration.Inf)
-}
-
-private case class WritablePartitionedIteratorNextPartition[K,V](
-	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Int] {
-
-	def execute() = Await.result( Future {
-		it.getIterator.nextPartition()
-	}, Duration.Inf)
-}
-
-private case class WritablePartitionedIteratorWriteNext[K,V](
-	it: SgxWritablePartitionedFakeIterator[K,V],
-	writer: DiskBlockObjectWriter) extends SgxMessage[Unit] {
-
-	def execute() = Await.result( Future {
-		it.getIterator.writeNext(writer)
-	}, Duration.Inf)
-}
+//
+//private case class WritablePartitionedIteratorHasNext[K,V](
+//	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Boolean] {
+//
+//	def execute() = Await.result( Future {
+//		it.getIterator.hasNext()
+//	}, Duration.Inf)
+//}
+//
+//private case class WritablePartitionedIteratorNextPartition[K,V](
+//	it: SgxWritablePartitionedFakeIterator) extends SgxMessage[Int] {
+//
+//	def execute() = Await.result( Future {
+//		it.getIterator.nextPartition()
+//	}, Duration.Inf)
+//}
+//
+//private case class WritablePartitionedIteratorWriteNext[K,V](
+//	it: SgxWritablePartitionedFakeIterator,
+//	writer: DiskBlockObjectWriter) extends SgxMessage[Unit] {
+//
+//	def execute() = Await.result( Future {
+//		it.getIterator.writeNext(writer)
+//	}, Duration.Inf)
+//}
 
 //private case class WritablePartitionedIteratorGetNext[K,V,T](
 //	it: SgxWritablePartitionedFakeIterator[K,V]) extends SgxMessage[Encrypted] {

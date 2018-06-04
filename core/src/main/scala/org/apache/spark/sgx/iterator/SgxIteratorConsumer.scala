@@ -32,6 +32,9 @@ import org.apache.hadoop.mapred.LineRecordReader
 import org.apache.spark.sgx.Serialization
 import org.apache.spark.util.collection.WritablePartitionedIterator
 import org.apache.spark.storage.DiskBlockObjectWriter
+import org.apache.spark.sgx.shm.RingBuffConsumerRaw
+import org.apache.spark.sgx.shm.RingBuffConsumerRaw
+import org.apache.spark.sgx.shm.RingBuffConsumerRaw
 
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
@@ -169,17 +172,36 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
 
 
 
-class SgxWritablePartitionedIteratorConsumer(id: SgxWritablePartitionedIteratorProviderIdentifier) extends WritablePartitionedIterator with Logging {
+class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIteratorProviderIdentifier[K,V], offset: Long, size: Int) extends WritablePartitionedIterator with Logging {
   
-  logDebug("Creating " + this)
+  val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
+  val reader = new RingBuffConsumerRaw(buffer)
   
   val com = id.connect()
   
-  def hasNext(): Boolean = throw new RuntimeException("Not implemented: hasNext()")
+  logDebug("Creating " + this)
   
-  def nextPartition(): Int = throw new RuntimeException("Not implemented: nextPartition()")
+//  def hasNext(): Boolean = throw new RuntimeException("Not implemented: hasNext()")
+//  
+//  def nextPartition(): Int = throw new RuntimeException("Not implemented: nextPartition()")
+//
+//  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new RuntimeException("Not implemented: writeNext()")
+  
+  private def next(): Product2[Product2[Int,K],V] = {
+    logDebug("next: null")
+    null
+  }
+  
+  private[this] var cur = if (hasNext) next() else null
 
-  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new RuntimeException("Not implemented: writeNext()")
+  def writeNext(writer: DiskBlockObjectWriter): Unit = {
+    writer.write(cur._1._2, cur._2)
+    cur = if (hasNext) next() else null
+  }
+
+  def hasNext(): Boolean = cur != null
+
+  def nextPartition(): Int = cur._1._1
 
 	override def toString() = getClass.getSimpleName + "(com=" + com + ")"
 }

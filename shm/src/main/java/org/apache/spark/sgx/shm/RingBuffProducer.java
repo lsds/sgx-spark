@@ -2,53 +2,22 @@ package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
 
-class RingBuffProducer {
-	private AlignedMappedDataBuffer buffer;
+class RingBuffProducer extends RingBuffProducerRaw {
 	private ISerialization serializer;
 	
-	private int pos = 0;
-	
 	public RingBuffProducer(MappedDataBuffer buffer, ISerialization serializer) {
-		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
+		super(buffer);
+		if (serializer == null) {
+			throw new RuntimeException("Must specify a serializer in order to write objects.");
+		}
 		this.serializer = serializer;
 	}
-	
+
 	public void write(Object o) {
 		try {
 			write(serializer.serialize(o));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-	}
-	
-	public void write(byte[] bytes) throws InterruptedException {
-			if (bytes.length > (buffer.slots() - 1) * buffer.alignment()) {
-				throw new RuntimeException("Buffer too small to hold an element of size " + bytes.length);
-			}
-			
-			int slotsNeeded = buffer.slotsNeeded(bytes.length);
-
-			buffer.waitUntil(pos, 0);
-			if (pos == buffer.slots() - 1) {
-				// We are at the very last slot.
-				// Write the size here and the payload at the beginning of the buffer.
-				buffer.putBytes(0, bytes);
-			} else if (buffer.isValid(pos + slotsNeeded)) {
-				// There is enough space before the end of the buffer.
-				// Write the size here and the payload right after.
-				buffer.putBytes(pos+1, bytes);
-			} else {
-				// There is not enough space. So we need to divide up the payload data.
-				int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
-				buffer.putBytes(pos+1, bytes, 0, wrapPoint);
-				buffer.putBytes(0, bytes, wrapPoint, bytes.length - wrapPoint);
-			}
-			buffer.putInt(pos, bytes.length);
-			pos += (slotsNeeded + 1) % buffer.slots();
-	}
-	
-	@Override
-	public String toString() {
-		return this.getClass().getSimpleName() + "(buffer=" + buffer + ")";
 	}
 }

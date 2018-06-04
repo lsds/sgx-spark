@@ -26,6 +26,8 @@ import org.apache.spark.sgx.Serialization
 import org.apache.spark.sgx.SgxCallable
 import org.apache.spark.util.collection.WritablePartitionedIterator
 import org.apache.spark.storage.DiskBlockObjectWriter
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
+import org.apache.spark.sgx.shm.RingBuffProducerRaw
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
@@ -131,11 +133,14 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 }
 
 
-class SgxWritablePartitionedIteratorProvider(delegate: WritablePartitionedIterator) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
+class SgxWritablePartitionedIteratorProvider[K,V](@transient delegate: WritablePartitionedIterator, offset: Long, size: Int) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
+  
+  private val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
+  val writer = new RingBuffProducerRaw(buffer)
   
   private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
-	private val identifier = new SgxWritablePartitionedIteratorProviderIdentifier(com.getMyPort)
+	private val identifier = new SgxWritablePartitionedIteratorProviderIdentifier[K,V](com.getMyPort, offset, size)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
   
@@ -147,17 +152,24 @@ class SgxWritablePartitionedIteratorProvider(delegate: WritablePartitionedIterat
   
   def nextPartition(): Int = throw new UnsupportedOperationException("Access this iterator via shared memnory")
 
-  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new UnsupportedOperationException("Access this iterator via shared memnory")	
+  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new UnsupportedOperationException("Access this iterator via shared memnory")
+  
+  def fill() = {
+    logDebug("filling " + this)
+  }
 	
 	def call(): Unit = {
 	  val com = do_accept
 	  
 	  logDebug(this + " got connection: " + com)
+	  
+	  fill()	  
 
 	  while (isRunning) {
 	    val r = com.recvOne()
 	    logDebug("received: " + r)
 	    val ret: Any = null
+	    
 //	    match {
 //			  case c: SgxShmIteratorConsumerClose =>
 //			    stop
@@ -171,7 +183,7 @@ class SgxWritablePartitionedIteratorProvider(delegate: WritablePartitionedIterat
 	  }
   }
 	
-	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ")"
+	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", buffer=" + buffer + ")"
 }
 
 

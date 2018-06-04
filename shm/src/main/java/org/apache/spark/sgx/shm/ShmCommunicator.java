@@ -58,32 +58,17 @@ public class ShmCommunicator extends SgxCommunicator {
 	public void write(Object o) {
 		ShmCommunicationManager.get().write(o, theirPort);
 	}
-	
-	private Object t() throws InterruptedException {
-		return inbox.take();
-	}
-	
-	private Object t1() {
-		Object result = null;
-		try {
-			result = t();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			result = null;
-		}
-		return result;
-	}
-	
-	private Object t2() {
-		Object result = null;
-		do {
-			result = t1();
-		} while (result == null);
-		return result;
-	}
 
 	public Object read() {
-		Object result = t2();
+		Object result = null;
+		do {
+			try {
+				result = inbox.take();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				result = null;
+			}
+		} while (result == null);
 		return result;
 	}
 
