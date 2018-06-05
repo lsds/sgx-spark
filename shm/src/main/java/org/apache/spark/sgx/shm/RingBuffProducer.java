@@ -15,9 +15,7 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 
 	public void write(Object o) {
 		try {
-			System.err.println("write1");
 			write(serializer.serialize(o));
-			System.err.println("write2");
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

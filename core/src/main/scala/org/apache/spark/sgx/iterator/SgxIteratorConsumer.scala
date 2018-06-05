@@ -182,28 +182,8 @@ class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIter
   advanceToNext()
   
   logDebug("Creating " + this)
-  
-//  private def next(): Product2[Product2[Int,K],V] = {
-//    logDebug("next: null")
-//    null
-//  }
-  
-//      private[this] var cur = if (it.hasNext) it.next() else null
-//
-//      def writeNext(writer: DiskBlockObjectWriter): Unit = {
-//        writer.write(cur._1._2, cur._2)
-//        cur = if (it.hasNext) it.next() else null
-//      }
-//
-//      def hasNext(): Boolean = cur != null
-//
-//      def nextPartition(): Int = cur._1._1  
-  
-//  private[this] var cur = if (hasNext) next() else null
 
   def writeNext(writer: DiskBlockObjectWriter): Unit = {
-//    writer.write(cur._1._2, cur._2)
-//    cur = if (hasNext) next() else null
     logDebug("writeNext: ("+cur.key+","+cur.value+")")
     writer.write(cur.key, cur.value)
     advanceToNext()

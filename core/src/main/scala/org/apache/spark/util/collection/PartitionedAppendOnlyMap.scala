@@ -67,7 +67,7 @@ private[spark] class PartitionedAppendOnlyMap[K, V]
         logDebug("xxx destructiveSortedWritablePartitionedIterator outside")
         if (bufOffset != -1 || bufCapacity != -1) throw new IllegalStateException("Something went wrong")
 //        val buffer = MappedDataBufferManager.get.malloc(33554432)
-        val buffer = MappedDataBufferManager.get.malloc(1024000)
+        val buffer = MappedDataBufferManager.get.malloc(10240)
         SgxFct.partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator, buffer.offset(), buffer.capacity()).getIterator()
       }
       else {

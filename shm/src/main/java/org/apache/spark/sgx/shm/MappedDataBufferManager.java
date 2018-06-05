@@ -70,22 +70,7 @@ public class MappedDataBufferManager {
 		}
 	}	
 	
-	public synchronized MallocedMappedDataBuffer malloc(int bytes) {
-//		  try {
-//			  throw new RuntimeException("MappedDataBufferManager Mallocing " + bytes);
-//		  } catch (Exception e) {
-//				StringBuffer sb = new StringBuffer();
-//				sb.append(" ");
-//				sb.append(e.getMessage());
-//				sb.append(System.getProperty("line.separator"));
-//				for (StackTraceElement el : e.getStackTrace()) {
-//					sb.append("  ");
-//					sb.append(el.toString());
-//					sb.append(System.getProperty("line.separator"));
-//				}
-//				System.out.println(sb.toString());
-//		  }
-		  
+	public synchronized MallocedMappedDataBuffer malloc(int bytes) {		  
 		if (SgxSettings.IS_ENCLAVE()) {
 			System.out.println("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");

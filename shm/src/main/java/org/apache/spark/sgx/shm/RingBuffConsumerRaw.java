@@ -36,14 +36,17 @@ public class RingBuffConsumerRaw {
 				// We are at the very last slot.
 				// Read the payload at the beginning of the buffer.
 				buffer.getBytes(FIRST_POS, bytes, 0, len);
+				System.err.println("Read " + len + " bytes from pos " + FIRST_POS);
 			} else if (buffer.isValid(pos + slotsNeeded)) {
 				// There was enough space before the end of the buffer.
 				// We can read the payload in one go.
 				buffer.getBytes(pos + 1, bytes, 0, len);
+				System.err.println("Read " + len + " bytes from pos " + (pos+1));
 			} else {
 				// There was not enough space. So we had to divide up the payload data.
 				int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
 				buffer.getBytes(pos + 1, bytes, 0, wrapPoint);
+				System.err.println("Read " + wrapPoint + " bytes from pos " + (pos+1) + " and " + (len - wrapPoint) + " bytes from pos " + FIRST_POS);
 				buffer.getBytes(FIRST_POS, bytes, wrapPoint, len - wrapPoint);
 			}
 			
