@@ -5,9 +5,10 @@ public class RingBuffProducerRaw {
 	private final int FIRST_SLOT;
 	private int pos;
 	private int readPos;
+	private final int ALIGNMENT = 64;
 	
 	public RingBuffProducerRaw(MappedDataBuffer buffer, int reserved_slots) {
-		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
+		this.buffer = new AlignedMappedDataBuffer(buffer, ALIGNMENT);
 		FIRST_SLOT = reserved_slots;
 		pos = FIRST_SLOT;
 		readPos = pos;
@@ -26,20 +27,45 @@ public class RingBuffProducerRaw {
 	        });
 	}
 	
-	private boolean enoughSpace(int needed) {
-		return(pos < readPos && needed < readPos - pos)
-				|| (pos > readPos && needed < buffer.slots() - pos + readPos - FIRST_SLOT)
-				|| pos == readPos;
-	}
-
-	public boolean hasEnoughSpace(int needed) {
-		if (!enoughSpace(needed));
+	private void getReadPos() {
 		readPos = buffer.getInt(0);
-		return enoughSpace(needed);
 	}
 	
-	private void waitForEnoughSpace(int needed) {
-		while (!hasEnoughSpace(needed)) {
+	private int slotsFree() {
+		getReadPos();
+		System.err.println("readPos: " + readPos);
+		System.err.println("pos: " + pos);
+		if (pos < readPos) {
+			return readPos - pos - 2;
+		}
+		else if (pos > readPos) {
+			return buffer.slots() - pos + readPos - FIRST_SLOT - 1;
+		}
+		return buffer.slots() - FIRST_SLOT - 1; 		
+	}
+
+	public int bytesFree() {
+		System.err.println("bytesFree: " + slotsFree());
+		return slotsFree() * ALIGNMENT;
+	}
+	
+//	private boolean enoughSpace(int needed) {
+//		return(pos < readPos && needed < readPos - pos)
+//				|| (pos > readPos && needed < buffer.slots() - pos + readPos - FIRST_SLOT)
+//				|| pos == readPos;
+//	}
+
+	public boolean hasEnoughSpace(int slotsNeeded) {
+//		if (!enoughSpace(needed));
+//		readPos = getReadPos();
+//		return enoughSpace(needed);
+		System.err.println("slotsNeeded: " + slotsNeeded);
+		System.err.println("slotsFree: " + slotsFree() + " buffer.slots="+buffer.slots());
+		return slotsNeeded <= slotsFree();
+	}
+	
+	private void waitForEnoughSpace(int slotsNeeded) {
+		while (!hasEnoughSpace(slotsNeeded)) {
 			System.out.println("Waiting for enough space");
 			try {
 				Thread.sleep(16);
@@ -57,7 +83,7 @@ public class RingBuffProducerRaw {
 		}
 		System.err.println("xxx 2");
 		int slotsNeeded = buffer.slotsNeeded(bytes.length);
-		System.err.println("xxx 3: " +slotsNeeded);
+		System.err.println("xxx 3: " + slotsNeeded);
 		buffer.waitUntil(pos, 0);
 		System.err.println("xxx 4");
 		waitForEnoughSpace(slotsNeeded);

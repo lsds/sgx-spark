@@ -13,7 +13,7 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 		this.serializer = serializer;
 	}
 
-	public synchronized void write(Object o) {
+	public void write(Object o) {
 		try {
 			System.err.println("write1");
 			write(serializer.serialize(o));

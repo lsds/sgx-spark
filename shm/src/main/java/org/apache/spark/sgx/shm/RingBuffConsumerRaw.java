@@ -4,11 +4,13 @@ public class RingBuffConsumerRaw {
 	private final AlignedMappedDataBuffer buffer;
 	private final int FIRST_POS;
 	private int pos;
+	private final int ALIGNMENT = 64;
 
 	public RingBuffConsumerRaw(MappedDataBuffer buffer, int reserved_slots) {
-		this.buffer = new AlignedMappedDataBuffer(buffer, 64);
+		this.buffer = new AlignedMappedDataBuffer(buffer, ALIGNMENT);
 		FIRST_POS = reserved_slots;
 		pos = FIRST_POS;
+		shareReadPos();
 	}
 	
 	public long readLong() throws InterruptedException {
@@ -56,6 +58,7 @@ public class RingBuffConsumerRaw {
 	}
 	
 	private void shareReadPos() {
+		System.err.println("Writing readPos: " + pos);
 		buffer.putInt(0, pos);
 	}
 	
