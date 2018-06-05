@@ -134,9 +134,11 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 
 class SgxObj extends Serializable {}
 
-class SgxPair[K,V](key: K, value: V) extends SgxObj {}
+class SgxPair[K,V](val key: K, val value: V) extends SgxObj {}
 
-class SgxPartition extends SgxObj {}
+class SgxPartition(val id: Int) extends SgxObj {}
+
+class SgxDone extends SgxObj {}
 
 
 class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Product2[Product2[Int,K],V]], offset: Long, size: Int) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
@@ -167,18 +169,17 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
   
   def fill() = {
     logDebug("filling " + this)
-
-//          while (it.hasNext) {
-//        val partitionId = it.nextPartition()
-//        while (it.hasNext && it.nextPartition() == partitionId) {
-//          it.writeNext(writer)
-//        }
-//        val segment = writer.commitAndGet()
-//        lengths(partitionId) = segment.length
-//      }
+    
+    var oldPartId = -1
     
     while (it.hasNext) {
       val partitionId = nextPartition()
+      if (oldPartId != partitionId) {
+        val x = new SgxPartition(partitionId)
+        logDebug("write(" + x + ")")
+        writer.write(x)
+        logDebug("wrote(" + x + ")")       
+      }
       while (hasNext && nextPartition() == partitionId) {
         logDebug("write("+cur._1._2+","+cur._2+")")
         writer.write(new SgxPair(cur._1._2, cur._2))
@@ -186,11 +187,11 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
         cur = if (it.hasNext) it.next() else null
         logDebug("cur = " + cur)  
       }
-      val x = new SgxPartition
-      logDebug("write("+ x +")")
-      writer.write(x)
-        logDebug("wrote("+x+")")
     }
+    val x = new SgxDone
+    logDebug("write(" + x + ")")
+    writer.write(x)
+    logDebug("wrote(" + x + ")")
   }
 	
 	def call(): Unit = {
@@ -198,7 +199,7 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
 	  
 	  logDebug(this + " got connection: " + com)
 	  
-	  fill()	  
+	  fill()
 
 	  while (isRunning) {
 	    val r = com.recvOne()

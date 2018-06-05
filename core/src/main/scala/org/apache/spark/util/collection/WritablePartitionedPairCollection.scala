@@ -118,6 +118,4 @@ private[spark] trait WritablePartitionedIterator {
   def hasNext(): Boolean
 
   def nextPartition(): Int
-
-//  def getNext[T](): Encrypted
 }

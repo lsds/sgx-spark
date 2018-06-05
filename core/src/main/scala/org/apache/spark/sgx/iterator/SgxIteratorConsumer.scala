@@ -172,34 +172,60 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
 
 class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIteratorProviderIdentifier[K,V], offset: Long, size: Int) extends WritablePartitionedIterator with Logging {
   
-  val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
-  val reader = new RingBuffConsumer(buffer, Serialization.serializer)
+  private val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
+  private val reader = new RingBuffConsumer(buffer, Serialization.serializer)
+  private var partitionId = -1
+  private var cur = null.asInstanceOf[SgxPair[K,V]]
   
   val com = id.connect()
+
+  advanceToNext()
   
   logDebug("Creating " + this)
   
-//  def hasNext(): Boolean = throw new RuntimeException("Not implemented: hasNext()")
-//  
-//  def nextPartition(): Int = throw new RuntimeException("Not implemented: nextPartition()")
+//  private def next(): Product2[Product2[Int,K],V] = {
+//    logDebug("next: null")
+//    null
+//  }
+  
+//      private[this] var cur = if (it.hasNext) it.next() else null
 //
-//  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new RuntimeException("Not implemented: writeNext()")
+//      def writeNext(writer: DiskBlockObjectWriter): Unit = {
+//        writer.write(cur._1._2, cur._2)
+//        cur = if (it.hasNext) it.next() else null
+//      }
+//
+//      def hasNext(): Boolean = cur != null
+//
+//      def nextPartition(): Int = cur._1._1  
   
-  private def next(): Product2[Product2[Int,K],V] = {
-    logDebug("next: null")
-    null
-  }
-  
-  private[this] var cur = if (hasNext) next() else null
+//  private[this] var cur = if (hasNext) next() else null
 
   def writeNext(writer: DiskBlockObjectWriter): Unit = {
-    writer.write(cur._1._2, cur._2)
-    cur = if (hasNext) next() else null
+//    writer.write(cur._1._2, cur._2)
+//    cur = if (hasNext) next() else null
+    logDebug("writeNext: ("+cur.key+","+cur.value+")")
+    writer.write(cur.key, cur.value)
+    advanceToNext()
+  }
+  
+  private def advanceToNext(): Unit = {
+    reader.read[Any]() match {
+      case p: SgxPair[K,V] =>
+        cur = p
+        logDebug("read: " + cur)
+      case p: SgxPartition =>
+        partitionId = p.id
+        logDebug("part: " + partitionId)
+        advanceToNext()
+      case d: SgxDone =>
+        cur = null
+    }
   }
 
   def hasNext(): Boolean = cur != null
 
-  def nextPartition(): Int = cur._1._1
+  def nextPartition(): Int = partitionId
 
 	override def toString() = getClass.getSimpleName + "(com=" + com + ")"
 }
