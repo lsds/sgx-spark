@@ -31,37 +31,44 @@ public class RingBuffConsumerRaw {
 			int slotsNeeded = buffer.slotsNeeded(len);
 			
 			byte[] bytes = new byte[len];
-			
+
 			if (pos == buffer.slots() - 1) {
 				// We are at the very last slot.
 				// Read the payload at the beginning of the buffer.
 				buffer.getBytes(FIRST_POS, bytes, 0, len);
-				System.err.println("Read " + len + " bytes from pos " + FIRST_POS);
+//				System.err.println("Read " + len + " bytes from pos " + FIRST_POS + " (slots=" + slotsNeeded + ")");
+				buffer.zero(pos, 1);
+				buffer.zero(FIRST_POS, slotsNeeded);
 			} else if (buffer.isValid(pos + slotsNeeded)) {
 				// There was enough space before the end of the buffer.
 				// We can read the payload in one go.
 				buffer.getBytes(pos + 1, bytes, 0, len);
-				System.err.println("Read " + len + " bytes from pos " + (pos+1));
+//				System.err.println("Read " + len + " bytes from pos " + (pos+1) + " (slots=" + slotsNeeded + ")");
+				buffer.zero(pos, slotsNeeded + 1);
 			} else {
 				// There was not enough space. So we had to divide up the payload data.
-				int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
+				int wrapSlots = buffer.slots() - pos - 1;
+				int wrapPoint = wrapSlots * buffer.alignment();
 				buffer.getBytes(pos + 1, bytes, 0, wrapPoint);
-				System.err.println("Read " + wrapPoint + " bytes from pos " + (pos+1) + " and " + (len - wrapPoint) + " bytes from pos " + FIRST_POS);
 				buffer.getBytes(FIRST_POS, bytes, wrapPoint, len - wrapPoint);
+//				System.err.println("Read " + wrapPoint + " bytes from pos " + (pos+1) + " and " + (len - wrapPoint) + " bytes from pos " + FIRST_POS + " (slots=" + slotsNeeded + ")");
+				buffer.zero(pos, wrapSlots + 1);
+				buffer.zero(FIRST_POS, slotsNeeded - wrapSlots);				
 			}
 			
-			buffer.putInt(pos, 0);
 			pos += (slotsNeeded + 1);
-			if (pos > buffer.slots()) {
+			if (pos >= buffer.slots()) {
 				pos -= buffer.slots();
 				pos += FIRST_POS;
 			}
+//			System.err.println("new pos: " + pos);
+			
 			shareReadPos();
 			return bytes;
 	}
 	
 	private void shareReadPos() {
-		System.err.println("Writing readPos: " + pos);
+//		System.err.println("Writing readPos: " + pos);
 		buffer.putInt(0, pos);
 	}
 	

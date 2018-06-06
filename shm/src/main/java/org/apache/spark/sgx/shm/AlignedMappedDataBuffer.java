@@ -14,6 +14,8 @@ class AlignedMappedDataBuffer {
 	private final int MIN_WAIT = SgxSettings.BACKOFF_WAIT_MIN();
 	private final int MAX_WAIT = SgxSettings.BACKOFF_WAIT_MAX();
 	
+	private final byte[] zeros;
+	
 	/**
 	 * An {@link AlignedMappedDataBuffer} aligns the specified buffer to
 	 * the specified alignment (in bytes). If the alignment is not a power of two,
@@ -32,6 +34,7 @@ class AlignedMappedDataBuffer {
 		this.power = nextPowerTwo(alignment);
 		this.alignment = 1 << this.power;
 		this.slots = buffer.capacity() >> power;
+		this.zeros = new byte[alignment];
 	}
 	
 	private int nextPowerTwo(int a) {
@@ -131,5 +134,11 @@ class AlignedMappedDataBuffer {
 	
 	int slots() {
 		return this.slots;
+	}
+	
+	void zero(int pos, int slots) {
+		for (int i = 0; i < slots; i++) {
+			putBytes(pos + i, zeros);
+		}
 	}
 }
