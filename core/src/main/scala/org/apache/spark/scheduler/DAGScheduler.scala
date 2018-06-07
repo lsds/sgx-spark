@@ -629,8 +629,11 @@ class DAGScheduler(
       resultHandler: (Int, U) => Unit,
       properties: Properties): Unit = {
     val start = System.nanoTime
+    logDebug("aaa 74")
     val waiter = submitJob(rdd, func, partitions, callSite, resultHandler, properties)
+    logDebug("aaa 75")
     ThreadUtils.awaitReady(waiter.completionFuture, Duration.Inf)
+    logDebug("aaa 76")
     waiter.completionFuture.value.get match {
       case scala.util.Success(_) =>
         logInfo("Job %d finished: %s, took %f s".format

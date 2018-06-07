@@ -17,10 +17,10 @@ export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
 # -Dcom.sun.management.jmxremote.port=5000 \
 # -Dcom.sun.management.jmxremote.authenticate=false \
 # -Dcom.sun.management.jmxremote.ssl=false \
-# -Xdebug -Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=n \
-#echo gdb --args \
 #-Xint \
+#-Xdebug -Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=n \
 #../sgx-lkl-sim/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
+#echo gdb --args \
 java \
 -XX:InitialCodeCacheSize=${JVM_INITIAL_CODE_CACHE_SIZE} \
 -XX:ReservedCodeCacheSize=${JVM_RESERVED_CODE_CACHE_SIZE} \

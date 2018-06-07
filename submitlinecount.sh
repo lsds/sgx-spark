@@ -17,11 +17,11 @@ export SPARK_JOBNAME=linecount
 #INFILE=$(pwd)/README.md.4096
 #INFILE=$(pwd)/README.md.8192
 #INFILE=$(pwd)/README.md.16384
-INFILE=$(pwd)/README.md.65536
+#INFILE=$(pwd)/README.md.65536
 #INFILE=$(pwd)/README.md.131072
 #INFILE=$(pwd)/README.md.262144
 #INFILE=$(pwd)/README.md.524288
-#INFILE=$(pwd)/README.md.1048576
+INFILE=$(pwd)/README.md.1048576
 #INFILE=$(pwd)/README.md.2097152
 
 ./bin/spark-submit \

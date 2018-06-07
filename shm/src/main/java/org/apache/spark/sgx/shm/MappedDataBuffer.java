@@ -39,11 +39,11 @@ public class MappedDataBuffer {
 		return (address + (offset << 0));
 	}
 	
-	private int checkIndex (int index) {
-		if ((index < 0) || (index > (capacity - 1)))
-			throw new IndexOutOfBoundsException ();
-		return index;
-	}
+//	private int checkIndex (int index) {
+//		if ((index < 0) || (index > (capacity - 1)))
+//			throw new IndexOutOfBoundsException ();
+//		return index;
+//	}
 	
 	private int checkIndex (int index, int bound) {
 		if ((index < 0) || (bound > (capacity - index)))

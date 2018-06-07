@@ -67,7 +67,21 @@ private case class ComputeMapPartitionsRDD[U, T](
 
 	def execute() = SgxFakeIterator(
 		Await.result(Future {
-			fct(partIndex, id.getIterator())
+//		  val (a,b) = id.getIterator().duplicate
+//		  
+//		  
+//		  println("map before: ___")
+//		  a.foreach(x => println("map before: " + x))
+//		  println("map before: ___")
+//		  b.foreach(x => println("map before: " + x))
+//		  
+////			fct(partIndex, b.getIterator())
+//		  val (k,l) = fct(partIndex, b).duplicate
+//		  
+//		  println("map  after: ___")
+//		  k.foreach(x => println("map  after: " + x))
+//		  l
+      fct(partIndex, id.getIterator())		  
 		}, Duration.Inf)
 	)
 
@@ -180,7 +194,9 @@ private case class ResultTaskRunTask[T,U](
 	context: TaskContext) extends SgxMessage[U] {
 
 	def execute() = Await.result(Future {
-	  func(context, id.getIterator())
+	  val x = func(context, id.getIterator())
+	  logDebug("aaa 102: " + x)
+	  x
 	}, Duration.Inf).asInstanceOf[U]
 
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ", func=" + func + ", context=" + context + ")"

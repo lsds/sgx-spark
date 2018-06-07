@@ -34,8 +34,6 @@ public class RingBuffProducerRaw {
 	
 	private int slotsFree() {
 		getReadPos();
-		System.err.println("readPos: " + readPos);
-		System.err.println("pos: " + pos);
 		if (pos < readPos) {
 			return readPos - pos - 2;
 		}
@@ -46,28 +44,15 @@ public class RingBuffProducerRaw {
 	}
 
 	public int bytesFree() {
-		System.err.println("bytesFree: " + slotsFree());
 		return slotsFree() * ALIGNMENT;
 	}
-	
-//	private boolean enoughSpace(int needed) {
-//		return(pos < readPos && needed < readPos - pos)
-//				|| (pos > readPos && needed < buffer.slots() - pos + readPos - FIRST_SLOT)
-//				|| pos == readPos;
-//	}
 
 	public boolean hasEnoughSpace(int slotsNeeded) {
-//		if (!enoughSpace(needed));
-//		readPos = getReadPos();
-//		return enoughSpace(needed);
-		System.err.println("slotsNeeded: " + slotsNeeded);
-		System.err.println("slotsFree: " + slotsFree() + " buffer.slots="+buffer.slots());
 		return slotsNeeded <= slotsFree();
 	}
 	
 	private void waitForEnoughSpace(int slotsNeeded) {
 		while (!hasEnoughSpace(slotsNeeded)) {
-			System.out.println("Waiting for enough space");
 			try {
 				Thread.sleep(16);
 			} catch (InterruptedException e) {
@@ -78,48 +63,36 @@ public class RingBuffProducerRaw {
 	}
 
 	public void write(byte[] bytes) throws InterruptedException {
-		System.err.println("xxx 1");
 		if (bytes.length > (buffer.slots() - 1 - FIRST_SLOT) * buffer.alignment()) {
-			throw new RuntimeException("Buffer too small to hold an element of size " + bytes.length);
+			throw new RuntimeException(buffer + " Buffer too small to hold an element of size " + bytes.length);
 		}
-		System.err.println("xxx 2");
 		int slotsNeeded = buffer.slotsNeeded(bytes.length);
-		System.err.println("xxx 3: " + slotsNeeded);
 		buffer.waitUntil(pos, 0);
-		System.err.println("xxx 4");
 		waitForEnoughSpace(slotsNeeded);
-		System.err.println("xxx 5");
 		if (pos == buffer.slots() - 1) {
-			System.err.println("xxx 6");
 			// We are at the very last slot.
 			// Write the size here and the payload at the beginning of the buffer.
 			buffer.putBytes(FIRST_SLOT, bytes);
-			System.err.println("Wrote " + bytes.length + " bytes to pos " + FIRST_SLOT + " (slots=" + slotsNeeded + ")");
+			System.err.println(buffer + " Wrote " + bytes.length + " bytes to pos " + FIRST_SLOT + " (slots=" + slotsNeeded + ")");
 		} else if (buffer.isValid(pos + slotsNeeded)) {
-			System.err.println("xxx 7");
 			// There is enough space before the end of the buffer.
 			// Write the size here and the payload right after.
 			buffer.putBytes(pos+1, bytes);
-			System.err.println("Wrote " + bytes.length + " bytes to pos " + (pos+1) + " (slots=" + slotsNeeded + ")");
+			System.err.println(buffer + " Wrote " + bytes.length + " bytes to pos " + (pos+1) + " (slots=" + slotsNeeded + ")");
 		} else {
-			System.err.println("xxx 8");
 			// There is not enough space. So we need to divide up the payload data.
 			int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
 			buffer.putBytes(pos+1, bytes, 0, wrapPoint);
-			System.err.println("Wrote " + wrapPoint + " bytes to pos " + (pos+1) + " and " + (bytes.length - wrapPoint) + " bytes to pos " + FIRST_SLOT + " (slots=" + slotsNeeded + ")");
+			System.err.println(buffer + " Wrote " + wrapPoint + " bytes to pos " + (pos+1) + " and " + (bytes.length - wrapPoint) + " bytes to pos " + FIRST_SLOT + " (slots=" + slotsNeeded + ")");
 			buffer.putBytes(FIRST_SLOT, bytes, wrapPoint, bytes.length - wrapPoint);
 		}
-		System.err.println("xxx 9");
 		buffer.putInt(pos, bytes.length);
-		System.err.println("xxx 10");
 		
 		pos += (slotsNeeded + 1);
 		if (pos >= buffer.slots()) {
 			pos -= buffer.slots();
 			pos += FIRST_SLOT;
 		}
-		
-		System.err.println("new pos: " + pos);
 	}
 
 	@Override

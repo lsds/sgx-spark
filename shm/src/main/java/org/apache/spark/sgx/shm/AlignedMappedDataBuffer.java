@@ -72,6 +72,10 @@ class AlignedMappedDataBuffer {
 		}
 	}
 	
+	long address() {
+		return buffer.address();
+	}
+	
 	void putInt(int slot, int value) {
 		check(slot);
 		buffer.putInt(toIndex(slot), value);
@@ -140,5 +144,10 @@ class AlignedMappedDataBuffer {
 		for (int i = 0; i < slots; i++) {
 			putBytes(pos + i, zeros);
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + "(address=" + address() + ")";
 	}
 }

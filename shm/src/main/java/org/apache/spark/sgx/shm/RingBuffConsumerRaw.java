@@ -36,14 +36,14 @@ public class RingBuffConsumerRaw {
 				// We are at the very last slot.
 				// Read the payload at the beginning of the buffer.
 				buffer.getBytes(FIRST_POS, bytes, 0, len);
-//				System.err.println("Read " + len + " bytes from pos " + FIRST_POS + " (slots=" + slotsNeeded + ")");
+				System.err.println(buffer + " Read " + len + " bytes from pos " + FIRST_POS + " (slots=" + slotsNeeded + ")");
 				buffer.zero(pos, 1);
 				buffer.zero(FIRST_POS, slotsNeeded);
 			} else if (buffer.isValid(pos + slotsNeeded)) {
 				// There was enough space before the end of the buffer.
 				// We can read the payload in one go.
 				buffer.getBytes(pos + 1, bytes, 0, len);
-//				System.err.println("Read " + len + " bytes from pos " + (pos+1) + " (slots=" + slotsNeeded + ")");
+				System.err.println(buffer + " Read " + len + " bytes from pos " + (pos+1) + " (slots=" + slotsNeeded + ")");
 				buffer.zero(pos, slotsNeeded + 1);
 			} else {
 				// There was not enough space. So we had to divide up the payload data.
@@ -51,7 +51,7 @@ public class RingBuffConsumerRaw {
 				int wrapPoint = wrapSlots * buffer.alignment();
 				buffer.getBytes(pos + 1, bytes, 0, wrapPoint);
 				buffer.getBytes(FIRST_POS, bytes, wrapPoint, len - wrapPoint);
-//				System.err.println("Read " + wrapPoint + " bytes from pos " + (pos+1) + " and " + (len - wrapPoint) + " bytes from pos " + FIRST_POS + " (slots=" + slotsNeeded + ")");
+				System.err.println(buffer + " Read " + wrapPoint + " bytes from pos " + (pos+1) + " and " + (len - wrapPoint) + " bytes from pos " + FIRST_POS + " (slots=" + slotsNeeded + ")");
 				buffer.zero(pos, wrapSlots + 1);
 				buffer.zero(FIRST_POS, slotsNeeded - wrapSlots);				
 			}
@@ -61,14 +61,12 @@ public class RingBuffConsumerRaw {
 				pos -= buffer.slots();
 				pos += FIRST_POS;
 			}
-//			System.err.println("new pos: " + pos);
 			
 			shareReadPos();
 			return bytes;
 	}
 	
 	private void shareReadPos() {
-//		System.err.println("Writing readPos: " + pos);
 		buffer.putInt(0, pos);
 	}
 	

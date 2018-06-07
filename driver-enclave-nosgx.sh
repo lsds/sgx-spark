@@ -19,6 +19,7 @@ export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
 # -Dcom.sun.management.jmxremote.ssl=false \
 #../sgx-lkl/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
 #-Xint \
+#echo gdb --args \
 java \
 -XX:InitialCodeCacheSize=${JVM_INITIAL_CODE_CACHE_SIZE} \
 -XX:ReservedCodeCacheSize=${JVM_RESERVED_CODE_CACHE_SIZE} \

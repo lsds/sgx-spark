@@ -71,7 +71,7 @@ private[spark] class ResultTask[T, U](
     appAttemptId: Option[String] = None)
   extends Task[U](stageId, stageAttemptId, partition.index, localProperties, serializedTaskMetrics,
     jobId, appId, appAttemptId)
-  with Serializable {
+  with Serializable with Logging {
 
   @transient private[this] val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
@@ -100,6 +100,7 @@ private[spark] class ResultTask[T, U](
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] =>
+          logDebug("aaa 100")
         	SgxIteratorFct.resultTaskRunTask(f, func, null)
       	case i: Iterator[T] =>
       		func(context, i)

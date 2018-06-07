@@ -581,34 +581,44 @@ abstract class RDD[T: ClassTag](
       num: Int,
       seed: Long = Utils.random.nextLong): Array[T] = withScope {
     val numStDev = 10.0
-
+logDebug("aaa 40")
     require(num >= 0, "Negative number of elements requested")
     require(num <= (Int.MaxValue - (numStDev * math.sqrt(Int.MaxValue)).toInt),
       "Cannot support a sample size > Int.MaxValue - " +
       s"$numStDev * math.sqrt(Int.MaxValue)")
-
+logDebug("aaa 41")
     if (num == 0) {
+      logDebug("aaa 42")
       new Array[T](0)
     } else {
+      logDebug("aaa 43")
       val initialCount = this.count()
+      logDebug("aaa 44")
       if (initialCount == 0) {
         new Array[T](0)
       } else {
+        logDebug("aaa 45")
         val rand = new Random(seed)
         if (!withReplacement && num >= initialCount) {
+          logDebug("aaa 46")
           Utils.randomizeInPlace(this.collect(), rand)
         } else {
+          logDebug("aaa 47")
           val fraction = SamplingUtils.computeFractionForSampleSize(num, initialCount,
             withReplacement)
+            logDebug("aaa 48")
           var samples = this.sample(withReplacement, fraction, rand.nextInt()).collect()
-
+logDebug("aaa 49")
           // If the first sample didn't turn out large enough, keep trying to take samples;
           // this shouldn't happen often because we use a big multiplier for the initial size
           var numIters = 0
+          logDebug("aaa 50")
           while (samples.length < num) {
+            logDebug("aaa 51")
             logWarning(s"Needed to re-sample due to insufficient sample size. Repeat #$numIters")
             samples = this.sample(withReplacement, fraction, rand.nextInt()).collect()
             numIters += 1
+            logDebug("aaa 52")
           }
           Utils.randomizeInPlace(samples, rand).take(num)
         }
@@ -885,13 +895,28 @@ abstract class RDD[T: ClassTag](
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.zip[T,U](this.id, other.id)
     zipPartitions(other, preservesPartitioning = false) { (thisIter, otherIter) =>
       new Iterator[(T, U)] with Serializable {
-        def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
-          case (true, true) => true
-          case (false, false) => false
+        
+        println("zip: ("+thisIter.getClass.getName+","+otherIter.getClass.getName+")")
+        
+        val (i1a,i1b) = thisIter.duplicate
+        val (i2a,i2b) = otherIter.duplicate
+        
+        i1a.foreach(x => println("zip: "+  x))
+        i2a.foreach(x => println("zip: "+ x))        
+        
+        def hasNext: Boolean = (i1b.hasNext, i2b.hasNext) match {
+          case (true, true) => println("zip true"); true
+          case (false, false) => println("zip false"); false
           case _ => throw new SparkException("Can only zip RDDs with " +
             "same number of elements in each partition")
         }
-        def next(): (T, U) = (thisIter.next(), otherIter.next())
+        def next(): (T, U) = {
+          val a=i1b.next()
+          val b=i2b.next()
+          println("zip: ("+a+","+b+")")
+          (a,b)
+//          (thisIter.next(), otherIter.next())
+        }
       }
     }
   }
@@ -1197,10 +1222,16 @@ abstract class RDD[T: ClassTag](
   /**
    * Return the number of elements in the RDD.
    */
-  def count(): Long =
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.count(this.id)
+  def count(): Long = {
+    logDebug("aaa 60")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+      logDebug("aaa 61")
+      return SgxRddFct.count(this.id)
+    }
     else
-    sc.runJob(this, Utils.getIteratorSize _).sum
+      logDebug("aaa 62")
+      sc.runJob(this, Utils.getIteratorSize _).sum
+  }
 
   /**
    * Approximate version of count() that returns a potentially incomplete result

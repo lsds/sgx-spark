@@ -39,32 +39,72 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 	override def getIdentifier = this
 
 	override def getIterator(context: String) = {
+	  logDebug("aaa 110")
 	  new Iterator[T] with Logging {
+
 	    private val i = FakeIterators.remove[Iterator[T]](id)
-	    
-	    private var _type = 0
-	    private var _next: T = null.asInstanceOf[T]
-	    
-	    override def hasNext: Boolean = {
-	      if (!i.hasNext) return false
-	      
-	      val n = i.next()
-	      
-	      if (_type == 0) {
-	        if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) _type = 1
-	      }
-	      
-	      _next = _type match {
-	        case 1 =>
-	          n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
-	        case default =>
-            n
-	      }
-	      
-	      true
+	    if (i == null) {
+	      throw new IllegalStateException("Iterator does not exist. Has it been used before?")
 	    }
 	    
-	    override def next = _next
+	    private var _type = -1
+
+	    override def hasNext: Boolean = i.hasNext
+	      
+	      
+//	      try {
+//	      if (!i.hasNext) {
+//	        logDebug("aaa no next")
+//	         Thread.currentThread().getStackTrace.foreach(x => logDebug("  " + x))
+//	        false
+//	      } else {
+//  	      val n = i.next()
+//  	      
+//  	      if (_type == -1) {
+//  	        _type =
+//  	        if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) 1
+//  	        else 0
+//  	      }
+//  	      logDebug("aaa 118: " + _type)
+//  	      
+//  	      _next = _type match {
+//  	        case 1 =>
+//  	          n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
+//  	        case default =>
+//              n
+//  	      }
+//  	      
+//  	      logDebug("aaa next prepared: " + n)
+//  	      true
+//	      }
+//	      } catch {
+//	        case e: Exception =>
+//	          logDebug("Exception: " + e.getMessage)
+//	          logDebug(e.getStackTraceString)
+//	          throw new RuntimeException(e)
+//	          false
+//	      }
+//	    }
+	    
+	    override def next = {
+	      val _next = i.next
+	      
+	      if (_type == -1) {
+          _type =
+  	        if (_next != null && _next.isInstanceOf[Product2[Any,Any]] && _next.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) 1
+  	        else 0
+	      }
+	      
+	  	   val x = _type match {
+  	        case 1 =>
+  	          _next.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
+  	        case default =>
+              _next
+  	      }      
+	      
+	      logDebug("www next returning: " + x)
+	      x
+	    }
 	  }
 	}
 

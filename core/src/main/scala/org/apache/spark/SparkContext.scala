@@ -2046,12 +2046,16 @@ class SparkContext(config: SparkConf) extends Logging {
     if (stopped.get()) {
       throw new IllegalStateException("SparkContext has been shutdown")
     }
+    logDebug("aaa 70")
     val callSite = getCallSite
+    logDebug("aaa 71")
     val cleanedFunc = clean(func)
+    logDebug("aaa 72")
     logInfo("Starting job: " + callSite.shortForm)
     if (conf.getBoolean("spark.logLineage", false)) {
       logInfo("RDD's recursive dependencies:\n" + rdd.toDebugString)
     }
+    logDebug("aaa 73")
     dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, resultHandler, localProperties.get)
     progressBar.foreach(_.finishAll())
     rdd.doCheckpoint()
