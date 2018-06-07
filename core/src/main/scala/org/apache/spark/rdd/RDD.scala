@@ -894,28 +894,16 @@ logDebug("aaa 49")
   def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)] = withScope {
     if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxRddFct.zip[T,U](this.id, other.id)
     zipPartitions(other, preservesPartitioning = false) { (thisIter, otherIter) =>
-      new Iterator[(T, U)] with Serializable {
+      new Iterator[(T, U)] with Serializable {     
         
-        println("zip: ("+thisIter.getClass.getName+","+otherIter.getClass.getName+")")
-        
-        val (i1a,i1b) = thisIter.duplicate
-        val (i2a,i2b) = otherIter.duplicate
-        
-        i1a.foreach(x => println("zip: "+  x))
-        i2a.foreach(x => println("zip: "+ x))        
-        
-        def hasNext: Boolean = (i1b.hasNext, i2b.hasNext) match {
-          case (true, true) => println("zip true"); true
-          case (false, false) => println("zip false"); false
+        def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
+          case (true, true) => true
+          case (false, false) => false
           case _ => throw new SparkException("Can only zip RDDs with " +
             "same number of elements in each partition")
         }
         def next(): (T, U) = {
-          val a=i1b.next()
-          val b=i2b.next()
-          println("zip: ("+a+","+b+")")
-          (a,b)
-//          (thisIter.next(), otherIter.next())
+          (thisIter.next(), otherIter.next())
         }
       }
     }

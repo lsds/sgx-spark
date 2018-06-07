@@ -167,31 +167,20 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
 
   def nextPartition(): Int = cur._1._1
   
-  def fill() = {
-    logDebug("filling " + this)
-    
+  def fill() = {    
     var oldPartId = -1
     
     while (it.hasNext) {
       val partitionId = nextPartition()
       if (oldPartId != partitionId) {
-        val x = new SgxPartition(partitionId)
-        logDebug("write(" + x + ")")
-        writer.write(x)
-        logDebug("wrote(" + x + ")")       
+        writer.write(new SgxPartition(partitionId))    
       }
       while (hasNext && nextPartition() == partitionId) {
-        logDebug("write("+cur._1._2+","+cur._2+")")
         writer.write(new SgxPair(cur._1._2, cur._2))
-        logDebug("wrote("+cur._1._2+","+cur._2+")")
         cur = if (it.hasNext) it.next() else null
-        logDebug("cur = " + cur)  
       }
     }
-    val x = new SgxDone
-    logDebug("write(" + x + ")")
-    writer.write(x)
-    logDebug("wrote(" + x + ")")
+    writer.write(new SgxDone)
   }
 	
 	def call(): Unit = {

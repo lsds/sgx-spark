@@ -56,7 +56,6 @@ public class RingBuffProducerRaw {
 			try {
 				Thread.sleep(16);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -73,17 +72,14 @@ public class RingBuffProducerRaw {
 			// We are at the very last slot.
 			// Write the size here and the payload at the beginning of the buffer.
 			buffer.putBytes(FIRST_SLOT, bytes);
-			System.err.println(buffer + " Wrote " + bytes.length + " bytes to pos " + FIRST_SLOT + " (slots=" + slotsNeeded + ")");
 		} else if (buffer.isValid(pos + slotsNeeded)) {
 			// There is enough space before the end of the buffer.
 			// Write the size here and the payload right after.
 			buffer.putBytes(pos+1, bytes);
-			System.err.println(buffer + " Wrote " + bytes.length + " bytes to pos " + (pos+1) + " (slots=" + slotsNeeded + ")");
 		} else {
 			// There is not enough space. So we need to divide up the payload data.
 			int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
 			buffer.putBytes(pos+1, bytes, 0, wrapPoint);
-			System.err.println(buffer + " Wrote " + wrapPoint + " bytes to pos " + (pos+1) + " and " + (bytes.length - wrapPoint) + " bytes to pos " + FIRST_SLOT + " (slots=" + slotsNeeded + ")");
 			buffer.putBytes(FIRST_SLOT, bytes, wrapPoint, bytes.length - wrapPoint);
 		}
 		buffer.putInt(pos, bytes.length);

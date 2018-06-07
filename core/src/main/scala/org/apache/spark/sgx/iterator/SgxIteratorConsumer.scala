@@ -91,7 +91,6 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 		// this by preceeding this call with a call to hasNext()
 		val n = objects.take
 		fill()
-		logDebug("www3 returning: ("+n+")")
 		n
 	}
 
@@ -122,7 +121,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   
   val com = id.connect()
   
-  override def close() = Unit // com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
+  override def close() = com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
   
   /* Code from HadoopRDD follows */
   
@@ -163,7 +162,6 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     if (inputMetrics.recordsRead % SparkHadoopUtil.UPDATE_INPUT_METRICS_INTERVAL_RECORDS == 0) {
       updateBytesRead()
     }
-    logDebug("www1 returning: ("+key+","+value+")")
     (key, value)
   }
 	
@@ -186,9 +184,7 @@ class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIter
   logDebug("Creating " + this)
 
   def writeNext(writer: DiskBlockObjectWriter): Unit = {
-    logDebug("writeNext: ("+cur.key+","+cur.value+")")
     writer.write(cur.key, cur.value)
-    logDebug("www2 writing: ("+cur.key+","+cur.value+")")
     advanceToNext()
   }
   
@@ -196,10 +192,8 @@ class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIter
     reader.read[Any]() match {
       case p: SgxPair[K,V] =>
         cur = p
-        logDebug("read: " + cur)
       case p: SgxPartition =>
         partitionId = p.id
-        logDebug("part: " + partitionId)
         advanceToNext()
       case d: SgxDone =>
         cur = null

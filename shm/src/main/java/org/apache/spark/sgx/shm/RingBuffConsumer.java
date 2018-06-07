@@ -16,9 +16,7 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 	@SuppressWarnings("unchecked")
 	public <T> T read() {		
 		try {
-			T t = (T) serializer.deserialize(readBytes());
-			System.err.println("Read: " + t);
-			return t;
+			return (T) serializer.deserialize(readBytes());
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

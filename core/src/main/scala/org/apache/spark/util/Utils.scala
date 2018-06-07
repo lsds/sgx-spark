@@ -1830,14 +1830,10 @@ private[spark] object Utils extends Logging {
    */
   def getIteratorSize[T](iterator: Iterator[T]): Long = {
     var count = 0L
-    logDebug("getIteratorSize")
     while (iterator.hasNext) {
-      logDebug("Utils hasNext")
       count += 1L
-      val n = iterator.next()
-      logDebug("Utils gotNext: " + n)
+      iterator.next()
     }
-    logDebug("Returning " + count)
     count
   }
 
