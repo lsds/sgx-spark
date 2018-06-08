@@ -36,7 +36,6 @@ object KMeansExample extends Logging {
     // Load and parse the data
     val data = sc.textFile(args(0))
     val parsedData = data.map(s => Vectors.dense(s.split(' ').map(_.toDouble))).cache()
-    logDebug("aaa 1")
 
     // Cluster the data into two classes using KMeans
     val numClusters = 2

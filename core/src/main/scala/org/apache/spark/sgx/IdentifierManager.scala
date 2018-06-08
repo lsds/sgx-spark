@@ -8,7 +8,6 @@ class IdentifierManager[T]() extends Logging {
 	private val identifiers = new TLongObjectHashMap[T]()
 
 	def put[U <: T](id: Long, obj: U): U = this.synchronized {
-		logDebug("put("+id+","+obj+")")
 		identifiers.put(id, obj)
 		obj
 	}
