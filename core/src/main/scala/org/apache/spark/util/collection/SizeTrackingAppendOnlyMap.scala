@@ -37,14 +37,12 @@ private[spark] class SizeTrackingAppendOnlyMap[K, V]
   val id = sgxinit()
   
   def sgxinit() = {  
-    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
-   	  SgxFct.sizeTrackingAppendOnlyMapCreate()
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) SgxFct.sizeTrackingAppendOnlyMapCreate()
     else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-   	  val i = scala.util.Random.nextLong
-   	  SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
-   	  new SizeTrackingAppendOnlyMapIdentifier(i)
-    }
-    else new SizeTrackingAppendOnlyMapIdentifier(0)
+      val i = scala.util.Random.nextLong
+      SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
+      new SizeTrackingAppendOnlyMapIdentifier(i)
+    } else new SizeTrackingAppendOnlyMapIdentifier(0)
   }
 
   override def update(key: K, value: V): Unit = {

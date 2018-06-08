@@ -131,12 +131,8 @@ private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 }
 
 private case class Count[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
-  logDebug("aaa 63")
 	def execute() = Await.result( Future {
-	  logDebug("aaa 64")
-		val x = Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count())
-		logDebug("aaa 65")
-		x
+		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count())
 	}, Duration.Inf)
 }
 

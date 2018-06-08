@@ -17,10 +17,8 @@
 
 package org.apache.spark.util
 
-import org.apache.spark.internal.Logging
-
 /** Provides a basic/boilerplate Iterator implementation. */
-private[spark] abstract class NextIterator[U] extends Iterator[U] with Logging {
+private[spark] abstract class NextIterator[U] extends Iterator[U] {
 
   private var gotNext = false
   private var nextValue: U = _

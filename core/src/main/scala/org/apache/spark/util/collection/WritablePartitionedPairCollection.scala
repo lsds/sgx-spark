@@ -20,17 +20,8 @@ package org.apache.spark.util.collection
 import java.util.Comparator
 
 import org.apache.spark.storage.DiskBlockObjectWriter
-import org.apache.spark.sgx.Encrypt
-import org.apache.spark.sgx.Encrypted
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
-import org.apache.spark.sgx.shm.MappedDataBufferManager
 import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.shm.RingBuffProducer
-import org.apache.spark.sgx.Serialization
-import org.apache.spark.sgx.shm.RingBuffProducer
-import org.apache.spark.sgx.iterator.SgxShmIteratorProviderIdentifier
 import org.apache.spark.sgx.SgxFactory
 
 /**
@@ -61,12 +52,9 @@ private[spark] trait WritablePartitionedPairCollection[K, V] {
   def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]], bufOffset: Long = -1, bufCapacity: Int = -1)
     : WritablePartitionedIterator = {
     val it = partitionedDestructiveSortedIterator(keyComparator)
-    if (SgxSettings.SGX_ENABLED) {
-      SgxFactory.newSgxWritablePartitionedIteratorProvider[K,V](it, bufOffset, bufCapacity)
-    }
+    if (SgxSettings.SGX_ENABLED) SgxFactory.newSgxWritablePartitionedIteratorProvider[K,V](it, bufOffset, bufCapacity)
     else 
     new WritablePartitionedIterator {
-      
       private[this] var cur = if (it.hasNext) it.next() else null
 
       def writeNext(writer: DiskBlockObjectWriter): Unit = {

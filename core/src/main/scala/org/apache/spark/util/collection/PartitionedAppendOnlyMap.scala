@@ -33,17 +33,15 @@ import org.apache.spark.sgx.shm.MappedDataBufferManager
  * of (partition ID, K)
  */
 private[spark] class PartitionedAppendOnlyMap[K, V]
-  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] with Logging {
+  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] {
 
   override def sgxinit() = {
-	  if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
-	 	  SgxFct.partitionedAppendOnlyMapCreate()
-	  else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-  	 	val i = scala.util.Random.nextLong
-  	 	SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
-  	 	new SizeTrackingAppendOnlyMapIdentifier(i)
-	  }
-	  else new SizeTrackingAppendOnlyMapIdentifier(0)
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) SgxFct.partitionedAppendOnlyMapCreate()
+    else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+      val i = scala.util.Random.nextLong
+      SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
+      new SizeTrackingAppendOnlyMapIdentifier(i)
+    } else new SizeTrackingAppendOnlyMapIdentifier(0)
   }
 
   def partitionedDestructiveSortedIterator(keyComparator: Option[Comparator[K]])
@@ -64,7 +62,6 @@ private[spark] class PartitionedAppendOnlyMap[K, V]
         // On this side, we consume the values that are produced by the enclave.
         // Call into enclave to prepare the enclave-internal iterator over the data.
         // Before that, we create the shared memory to be used.
-        logDebug("xxx destructiveSortedWritablePartitionedIterator outside")
         if (bufOffset != -1 || bufCapacity != -1) throw new IllegalStateException("Something went wrong")
 //        val buffer = MappedDataBufferManager.get.malloc(33554432)
         val buffer = MappedDataBufferManager.get.malloc(10240)
@@ -73,7 +70,6 @@ private[spark] class PartitionedAppendOnlyMap[K, V]
       else {
         // We are inside the enclave.
         // On this side, we produce/provide the values that are to be consumed outside of the enclave
-        logDebug("xxx destructiveSortedWritablePartitionedIterator enclave")
         if (bufOffset == -1 || bufCapacity == -1) throw new IllegalStateException("Something went wrong")
         super.destructiveSortedWritablePartitionedIterator(keyComparator, bufOffset, bufCapacity)
       }
