@@ -188,6 +188,7 @@ private[spark] class ExternalSorter[K, V, C](
   def insertAll(records: Iterator[Product2[K, V]]): Unit = {
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
+
     if (SgxSettings.SGX_ENABLED) {
       val it = if (records.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) records.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
         else SgxFactory.newSgxIteratorProvider(records, true).getIdentifier
@@ -195,9 +196,9 @@ private[spark] class ExternalSorter[K, V, C](
         val mergeValue = aggregator.get.mergeValue
         val createCombiner = aggregator.get.createCombiner
         SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](it, map.id, mergeValue, createCombiner, shouldPartition, partitioner)
-    	} else {
+      } else {
         throw new Exception("not implemented ExternalSorter.insertAll")
-    	}
+      }
     }
     else {
     if (shouldCombine) {
@@ -826,8 +827,6 @@ private[spark] class ExternalSorter[K, V, C](
           def hasNext(): Boolean = cur != null
 
           def nextPartition(): Int = cur._1._1
-
-          def getNext[T]() = Encrypt(cur.asInstanceOf[T])
         }
         logInfo(s"Task ${context.taskAttemptId} force spilling in-memory map to disk and " +
           s" it will release ${org.apache.spark.util.Utils.bytesToString(getUsed())} memory")

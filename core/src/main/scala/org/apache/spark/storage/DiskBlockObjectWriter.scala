@@ -25,11 +25,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{SerializationStream, SerializerInstance, SerializerManager}
 import org.apache.spark.util.Utils
 
-import org.apache.spark.sgx.IdentifierManager
 import org.apache.spark.sgx.iterator.SgxFakePairIndicator
 import org.apache.spark.sgx.Encrypted
-
-private object DiskBlockObjectWriters extends IdentifierManager[DiskBlockObjectWriter]() {}
 
 /**
  * A class for writing JVM objects directly to a file on disk. This class allows data to be appended
@@ -53,12 +50,6 @@ private[spark] class DiskBlockObjectWriter(
     val blockId: BlockId = null)
   extends OutputStream
   with Logging {
-
-  private val id = scala.util.Random.nextLong
-
-  DiskBlockObjectWriters.put(id, this)
-
-  def get = DiskBlockObjectWriters.get(id)
 
   /**
    * Guards against close calls, e.g. from a wrapping stream.
@@ -253,7 +244,7 @@ private[spark] class DiskBlockObjectWriter(
     objOut.writeValue(value)
     recordWritten()
   }
-  
+
   def write(enc: Encrypted) {
     write(enc, new SgxFakePairIndicator())
   }
