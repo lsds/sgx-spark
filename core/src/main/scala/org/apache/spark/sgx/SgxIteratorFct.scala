@@ -180,9 +180,7 @@ private case class ResultTaskRunTask[T,U](
 	context: TaskContext) extends SgxMessage[U] {
 
 	def execute() = Await.result(Future {
-	  val x = func(context, id.getIterator())
-	  logDebug("aaa 102: " + x)
-	  x
+	  func(context, id.getIterator())
 	}, Duration.Inf).asInstanceOf[U]
 
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ", func=" + func + ", context=" + context + ")"
