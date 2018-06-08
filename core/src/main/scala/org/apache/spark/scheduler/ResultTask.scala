@@ -32,8 +32,6 @@ import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.SgxFactory
 
-import org.apache.spark.internal.Logging
-
 /**
  * A task that sends back the output to the driver application.
  *
@@ -71,7 +69,7 @@ private[spark] class ResultTask[T, U](
     appAttemptId: Option[String] = None)
   extends Task[U](stageId, stageAttemptId, partition.index, localProperties, serializedTaskMetrics,
     jobId, appId, appAttemptId)
-  with Serializable with Logging {
+  with Serializable {
 
   @transient private[this] val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
@@ -100,7 +98,6 @@ private[spark] class ResultTask[T, U](
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] =>
-          logDebug("aaa 100")
         	SgxIteratorFct.resultTaskRunTask(f, func, null)
       	case i: Iterator[T] =>
       		func(context, i)
