@@ -277,7 +277,6 @@ class HadoopRDD[K, V](
       private val value: V = if (reader == null) null.asInstanceOf[V] else reader.createValue()
 
       override def getNext(): (K, V) = {
-        
         try {
           finished = !reader.next(key, value)
         } catch {
@@ -313,7 +312,7 @@ class HadoopRDD[K, V](
                      split.inputSplit.value.isInstanceOf[CombineFileSplit]) {
             // If we can't get the bytes read from the FS stats, fall back to the split size,
             // which may be inaccurate.
-            try {              
+            try {
               inputMetrics.incBytesRead(split.inputSplit.value.getLength)
             } catch {
               case e: java.io.IOException =>
@@ -326,7 +325,6 @@ class HadoopRDD[K, V](
     // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
     // The corresponding SgxIteratorConsumer lives inside the enclave.
     if (SgxSettings.SGX_ENABLED)
-//      SgxFactory.newSgxIteratorProvider[(K,V)](iter, true)
       SgxFactory.newSgxShmIteratorProvider[K,V](iter, iter.reader, theSplit, iter.inputMetrics, iter.split.inputSplit.value.getLength, iter.split.inputSplit.value.asInstanceOf[FileSplit].getStart, iter.reader.getLineReader.getRecordDelimiterBytes)
     else
     new InterruptibleIterator[(K, V)](context, iter)

@@ -38,7 +38,7 @@ private[spark] class ParallelCollectionPartition[T: ClassTag](
     var rddId: Long,
     var slice: Int,
     var values: Seq[T]
-  ) extends Partition with Serializable with Logging {
+  ) extends Partition with Serializable {
 
   def iterator: Iterator[T] = values.iterator
 
@@ -74,10 +74,10 @@ private[spark] class ParallelCollectionPartition[T: ClassTag](
 
   @throws(classOf[IOException])
   private def readObject(in: ObjectInputStream): Unit = Utils.tryOrIOException {
-    
+
     val sfactory = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getSerializer
     else SparkEnv.get.serializer
-    
+
     sfactory match {
       case js: JavaSerializer => in.defaultReadObject()
       case _ =>
