@@ -24,6 +24,10 @@ import scala.reflect.ClassTag
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.iterator.SgxIterator
+
 private[spark] class ZippedPartitionsPartition(
     idx: Int,
     @transient private val rdds: Seq[RDD[_]],
@@ -86,6 +90,14 @@ private[spark] class ZippedPartitionsRDD2[A: ClassTag, B: ClassTag, V: ClassTag]
 
   override def compute(s: Partition, context: TaskContext): Iterator[V] = {
     val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
+    if (SgxSettings.SGX_ENABLED) {
+      val it1 = rdd1.iterator(partitions(0), context)
+      val it2 = rdd2.iterator(partitions(1), context)
+      if (it1.isInstanceOf[SgxIterator[A]] && it2.isInstanceOf[SgxIterator[B]])
+        SgxIteratorFct.computeZippedPartitionsRDD2(it1.asInstanceOf[SgxIterator[A]].getIdentifier, it2.asInstanceOf[SgxIterator[B]].getIdentifier, f)
+      else f(it1, it2)
+    }
+    else
     f(rdd1.iterator(partitions(0), context), rdd2.iterator(partitions(1), context))
   }
 

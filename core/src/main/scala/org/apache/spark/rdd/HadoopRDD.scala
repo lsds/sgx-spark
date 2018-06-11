@@ -41,6 +41,10 @@ import org.apache.spark.scheduler.{HDFSCacheTaskLocation, HostTaskLocation}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.{NextIterator, SerializableConfiguration, ShutdownHookManager}
 
+import org.apache.spark.sgx.SgxFactory
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.executor.InputMetrics
+
 /**
  * A Spark split class that wraps around a Hadoop InputSplit.
  */
@@ -213,11 +217,11 @@ class HadoopRDD[K, V](
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
     val iter = new NextIterator[(K, V)] {
 
-      private val split = theSplit.asInstanceOf[HadoopPartition]
+      val split = theSplit.asInstanceOf[HadoopPartition]
       logInfo("Input split: " + split.inputSplit)
       private val jobConf = getJobConf()
 
-      private val inputMetrics = context.taskMetrics().inputMetrics
+      val inputMetrics = context.taskMetrics().inputMetrics
       private val existingBytesRead = inputMetrics.bytesRead
 
       // Sets InputFileBlockHolder for the file block's information
@@ -246,7 +250,7 @@ class HadoopRDD[K, V](
         }
       }
 
-      private var reader: RecordReader[K, V] = null
+      var reader: RecordReader[K, V] = null
       private val inputFormat = getInputFormat(jobConf)
       HadoopRDD.addLocalConfiguration(
         new SimpleDateFormat("yyyyMMddHHmmss", Locale.US).format(createTime),
@@ -318,6 +322,11 @@ class HadoopRDD[K, V](
         }
       }
     }
+    // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
+    // The corresponding SgxIteratorConsumer lives inside the enclave.
+    if (SgxSettings.SGX_ENABLED)
+      SgxFactory.newSgxShmIteratorProvider[K,V](iter, iter.reader, theSplit, iter.inputMetrics, iter.split.inputSplit.value.getLength, iter.split.inputSplit.value.asInstanceOf[FileSplit].getStart, iter.reader.getLineReader.getRecordDelimiterBytes)
+    else
     new InterruptibleIterator[(K, V)](context, iter)
   }
 

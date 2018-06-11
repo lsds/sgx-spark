@@ -59,6 +59,11 @@ import org.apache.spark.storage.BlockManagerMessages.TriggerThreadDump
 import org.apache.spark.ui.{ConsoleProgressBar, SparkUI}
 import org.apache.spark.util._
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.SgxSparkContextFct
+import org.apache.spark.sgx.SgxAccumulatorV2Fct
+
 /**
  * Main entry point for Spark functionality. A SparkContext represents the connection to a Spark
  * cluster, and can be used to create RDDs, accumulators and broadcast variables on that cluster.
@@ -73,6 +78,12 @@ class SparkContext(config: SparkConf) extends Logging {
 
   // The call site where this SparkContext was constructed.
   private val creationSite: CallSite = Utils.getCallSite()
+
+  private val outcall = SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE
+  if (outcall) {
+    SgxSparkContextFct.create(config)
+    SparkContext.instance = this
+  }
 
   // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
   private val allowMultipleContexts: Boolean =
@@ -218,7 +229,7 @@ class SparkContext(config: SparkConf) extends Logging {
    | context.                                                                              |
    * ------------------------------------------------------------------------------------- */
 
-  private[spark] def conf: SparkConf = _conf
+  private[spark] def conf: SparkConf = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkContextFct.conf() else _conf
 
   /**
    * Return a copy of this SparkContext's configuration. The configuration ''cannot'' be
@@ -289,7 +300,7 @@ class SparkContext(config: SparkConf) extends Logging {
   private[spark] val executorEnvs = HashMap[String, String]()
 
   // Set SPARK_USER for user who is running SparkContext.
-  val sparkUser = Utils.getCurrentUserName()
+  val sparkUser = if (!outcall) Utils.getCurrentUserName() else SgxFct.fct0(() => Utils.getCurrentUserName())
 
   private[spark] def schedulerBackend: SchedulerBackend = _schedulerBackend
 
@@ -359,6 +370,7 @@ class SparkContext(config: SparkConf) extends Logging {
     Utils.setLogLevel(org.apache.log4j.Level.toLevel(upperCased))
   }
 
+  if (!outcall)
   try {
     _conf = config.clone()
     _conf.validateSettings()
@@ -584,6 +596,10 @@ class SparkContext(config: SparkConf) extends Logging {
         throw e
       }
   }
+  
+  def hadoopConfigurationSet(name: String, value: String) {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkContextFct.hadoopConfigurationSet(name, value)
+  }
 
   /**
    * Called by the web UI to obtain executor thread dumps.  This method may be expensive.
@@ -708,6 +724,7 @@ class SparkContext(config: SparkConf) extends Logging {
   def parallelize[T: ClassTag](
       seq: Seq[T],
       numSlices: Int = defaultParallelism): RDD[T] = withScope {
+    if (outcall) return SgxSparkContextFct.parallelize(seq)
     assertNotStopped()
     new ParallelCollectionRDD[T](this, seq, numSlices, Map[Int, Seq[String]]())
   }
@@ -820,6 +837,7 @@ class SparkContext(config: SparkConf) extends Logging {
   def textFile(
       path: String,
       minPartitions: Int = defaultMinPartitions): RDD[String] = withScope {
+    if (outcall) return SgxSparkContextFct.textFile(path)
     assertNotStopped()
     hadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text],
       minPartitions).map(pair => pair._2.toString).setName(path)
@@ -1477,6 +1495,7 @@ class SparkContext(config: SparkConf) extends Logging {
    */
   def broadcast[T: ClassTag](value: T): Broadcast[T] = {
     assertNotStopped()
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkContextFct.broadcast(value)
     require(!classOf[RDD[_]].isAssignableFrom(classTag[T].runtimeClass),
       "Can not directly broadcast RDDs; instead, call collect() and broadcast the result.")
     val bc = env.broadcastManager.newBroadcast[T](value, isLocal)
@@ -1562,6 +1581,7 @@ class SparkContext(config: SparkConf) extends Logging {
    */
   @DeveloperApi
   def addSparkListener(listener: SparkListenerInterface) {
+    if (outcall) return SgxSparkContextFct.addSparkListener(listener)
     listenerBus.addToSharedQueue(listener)
   }
 
@@ -1887,6 +1907,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * Shut down the SparkContext.
    */
   def stop(): Unit = {
+    if (outcall) return SgxSparkContextFct.stop()
     if (LiveListenerBus.withinListenerThread.value) {
       throw new SparkException(s"Cannot stop SparkContext within listener bus thread.")
     }
@@ -2329,6 +2350,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
   /** Default level of parallelism to use when not given by user (e.g. parallelize and makeRDD). */
   def defaultParallelism: Int = {
+    if (outcall) return SgxSparkContextFct.defaultParallelism()
     assertNotStopped()
     taskScheduler.defaultParallelism
   }
@@ -2347,7 +2369,9 @@ class SparkContext(config: SparkConf) extends Logging {
   private val nextRddId = new AtomicInteger(0)
 
   /** Register a new RDD, returning its RDD ID */
-  private[spark] def newRddId(): Int = nextRddId.getAndIncrement()
+  private[spark] def newRddId(): Int =
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Creation of this RDD should happen outside of the enclave")
+    else nextRddId.getAndIncrement()
 
   /**
    * Registers listeners specified in spark.extraListeners, then starts the listener bus.
@@ -2413,6 +2437,8 @@ class SparkContext(config: SparkConf) extends Logging {
  * various Spark features.
  */
 object SparkContext extends Logging {
+  private var instance: SparkContext = _
+
   private val VALID_LOG_LEVELS =
     Set("ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN")
 
@@ -2766,6 +2792,8 @@ object SparkContext extends Logging {
     }
     serviceLoaders.headOption
   }
+  
+  def getInstance = instance
 }
 
 /**

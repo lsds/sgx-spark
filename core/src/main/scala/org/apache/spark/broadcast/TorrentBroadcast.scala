@@ -33,6 +33,9 @@ import org.apache.spark.storage._
 import org.apache.spark.util.Utils
 import org.apache.spark.util.io.{ChunkedByteBuffer, ChunkedByteBufferOutputStream}
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
+
 /**
  * A BitTorrent-like implementation of [[org.apache.spark.broadcast.Broadcast]].
  *
@@ -93,6 +96,8 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   private var checksums: Array[Int] = _
 
   override protected def getValue() = {
+    if (SgxSettings.IS_ENCLAVE) SgxBroadcastEnclave.value(this)
+    else
     _value
   }
 

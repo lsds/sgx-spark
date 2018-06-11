@@ -25,6 +25,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{SerializationStream, SerializerInstance, SerializerManager}
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sgx.iterator.SgxFakePairIndicator
+import org.apache.spark.sgx.Encrypted
+
 /**
  * A class for writing JVM objects directly to a file on disk. This class allows data to be appended
  * to an existing block. For efficiency, it retains the underlying file channel across
@@ -240,6 +243,10 @@ private[spark] class DiskBlockObjectWriter(
     objOut.writeKey(key)
     objOut.writeValue(value)
     recordWritten()
+  }
+
+  def write(enc: Encrypted) {
+    write(enc, new SgxFakePairIndicator())
   }
 
   override def write(b: Int): Unit = throw new UnsupportedOperationException()

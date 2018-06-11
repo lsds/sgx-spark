@@ -25,6 +25,10 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.util.Utils
 import org.apache.spark.util.random.RandomSampler
 
+import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.iterator.SgxIterator
+
 private[spark]
 class PartitionwiseSampledRDDPartition(val prev: Partition, val seed: Long)
   extends Partition with Serializable {
@@ -65,6 +69,13 @@ private[spark] class PartitionwiseSampledRDD[T: ClassTag, U: ClassTag](
     val split = splitIn.asInstanceOf[PartitionwiseSampledRDDPartition]
     val thisSampler = sampler.clone
     thisSampler.setSeed(split.seed)
+    if (SgxSettings.SGX_ENABLED) {
+      firstParent[T].iterator(split.prev, context) match {
+        case x: SgxIterator[T] => SgxIteratorFct.computePartitionwiseSampledRDD(x.getIdentifier, thisSampler)
+        case x: Iterator[T] => thisSampler.sample(x)
+      }
+    }
+    else
     thisSampler.sample(firstParent[T].iterator(split.prev, context))
   }
 }

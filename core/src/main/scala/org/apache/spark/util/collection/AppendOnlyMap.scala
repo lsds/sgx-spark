@@ -23,6 +23,8 @@ import com.google.common.hash.Hashing
 
 import org.apache.spark.annotation.DeveloperApi
 
+import org.apache.spark.sgx.SgxSettings
+
 /**
  * :: DeveloperApi ::
  * A simple open hash table optimized for the append-only use case, where keys
@@ -126,6 +128,7 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
    * for key, if any, or null otherwise. Returns the newly updated value.
    */
   def changeValue(key: K, updateFunc: (Boolean, V) => V): V = {
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) throw new RuntimeException("Move this functionality inside enclave")
     assert(!destroyed, destructionMessage)
     val k = key.asInstanceOf[AnyRef]
     if (k.eq(null)) {

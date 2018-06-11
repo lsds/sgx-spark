@@ -24,7 +24,7 @@ import org.apache.spark.SparkConf
 /**
  * Entry point for a Spark application. Implementations must provide a no-argument constructor.
  */
-private[spark] trait SparkApplication {
+private[spark] trait SparkApplication extends Serializable {
 
   def start(args: Array[String], conf: SparkConf): Unit
 

@@ -382,6 +382,8 @@ class OldCombineTextRecordReaderWrapper(
   override def getPos(): Long = delegate.getPos
   override def close(): Unit = delegate.close()
   override def getProgress(): Float = delegate.getProgress
+  
+  def getLineReader() = delegate.getLineReader
 }
 
 /**

@@ -23,6 +23,9 @@ import org.apache.spark.{Partitioner, RangePartitioner}
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.internal.Logging
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxRddFct
+
 /**
  * Extra functions available on RDDs of (key, value) pairs where the key is sortable through
  * an implicit conversion. They will work with any key type `K` that has an implicit `Ordering[K]`
@@ -59,9 +62,12 @@ class OrderedRDDFunctions[K : Ordering : ClassTag,
   def sortByKey(ascending: Boolean = true, numPartitions: Int = self.partitions.length)
       : RDD[(K, V)] = self.withScope
   {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.sortByKey[K,V,P](self.id, ascending, numPartitions)
+    else {
     val part = new RangePartitioner(numPartitions, self, ascending)
     new ShuffledRDD[K, V, V](self, part)
       .setKeyOrdering(if (ascending) ordering else ordering.reverse)
+    }
   }
 
   /**

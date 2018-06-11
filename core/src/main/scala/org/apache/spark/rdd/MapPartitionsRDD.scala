@@ -21,6 +21,10 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.{Partition, TaskContext}
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxIteratorFct
+import org.apache.spark.sgx.iterator.SgxIterator
+
 /**
  * An RDD that applies the provided function to every partition of the parent RDD.
  */
@@ -35,6 +39,16 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext): Iterator[U] =
+    if (SgxSettings.SGX_ENABLED) {
+      val _f: (Int, Iterator[T]) => Iterator[U] = {
+        (part, iter) => f(null, part, iter)
+      }
+      firstParent[T].iterator(split, context) match {
+        case x: SgxIterator[T] => SgxIteratorFct.computeMapPartitionsRDD(x.getIdentifier, _f, split.index)
+        case x: Iterator[T] => _f(split.index, firstParent[T].iterator(split, context))
+      }
+    }
+    else
     f(context, split.index, firstParent[T].iterator(split, context))
 
   override def clearDependencies() {

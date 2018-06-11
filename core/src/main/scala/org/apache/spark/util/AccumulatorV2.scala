@@ -27,6 +27,9 @@ import org.apache.spark.{InternalAccumulator, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.AccumulableInfo
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxAccumulatorV2Fct
+
 private[spark] case class AccumulatorMetadata(
     id: Long,
     name: Option[String],
@@ -43,6 +46,7 @@ private[spark] case class AccumulatorMetadata(
 abstract class AccumulatorV2[IN, OUT] extends Serializable {
   private[spark] var metadata: AccumulatorMetadata = _
   private[this] var atDriverSide = true
+  private var registering = false
 
   private[spark] def register(
       sc: SparkContext,
@@ -51,6 +55,13 @@ abstract class AccumulatorV2[IN, OUT] extends Serializable {
     if (this.metadata != null) {
       throw new IllegalStateException("Cannot register an Accumulator twice.")
     }
+
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+      registering = true
+      this.metadata = SgxAccumulatorV2Fct.register(this, name)
+      registering = false
+    }
+    else
     this.metadata = AccumulatorMetadata(AccumulatorContext.newId(), name, countFailedValues)
     AccumulatorContext.register(this)
     sc.cleaner.foreach(_.registerAccumulatorForCleanup(this))
@@ -62,10 +73,11 @@ abstract class AccumulatorV2[IN, OUT] extends Serializable {
    * @note All accumulators must be registered before use, or it will throw exception.
    */
   final def isRegistered: Boolean =
+    registering || SgxSettings.SGX_ENABLED ||
     metadata != null && AccumulatorContext.get(metadata.id).isDefined
 
   private def assertMetadataNotNull(): Unit = {
-    if (metadata == null) {
+    if (!registering && metadata == null) {
       throw new IllegalStateException("The metadata of this accumulator has not been assigned yet.")
     }
   }
@@ -82,6 +94,7 @@ abstract class AccumulatorV2[IN, OUT] extends Serializable {
    * Returns the name of this accumulator, can only be called after registration.
    */
   final def name: Option[String] = {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE && registering) return None
     assertMetadataNotNull()
 
     if (atDriverSide) {

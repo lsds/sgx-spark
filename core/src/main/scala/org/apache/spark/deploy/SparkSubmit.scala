@@ -53,6 +53,12 @@ import org.apache.spark.internal.config._
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.util._
 
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.Completor
+import org.apache.spark.sgx.SgxMain
+import org.apache.spark.sgx.SgxFactory
+
 /**
  * Whether to submit, kill, or request the status of an application.
  * The latter two operations are currently supported only for standalone and Mesos cluster modes.
@@ -169,6 +175,11 @@ object SparkSubmit extends CommandLineUtils with Logging {
   @tailrec
   private def submit(args: SparkSubmitArguments, uninitLog: Boolean): Unit = {
     val (childArgs, childClasspath, sparkConf, childMainClass) = prepareSubmitEnvironment(args)
+
+    if (SgxSettings.SGX_ENABLED) {
+      Completor.submit(SgxMain)
+      SgxFactory.runSgxBroadcastProvider()
+    }    
 
     def doRunMain(): Unit = {
       if (args.proxyUser != null) {
@@ -891,6 +902,7 @@ object SparkSubmit extends CommandLineUtils with Logging {
     }
 
     try {
+      if (SgxSettings.SGX_ENABLED) return SgxFct.fct2(app.start, childArgs.toArray, sparkConf)
       app.start(childArgs.toArray, sparkConf)
     } catch {
       case t: Throwable =>

@@ -31,6 +31,15 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.serializer._
 import org.apache.spark.storage.{BlockId, DiskBlockObjectWriter}
 
+import org.apache.spark.sgx.iterator.SgxFakeIterator
+import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.SgxFct
+import org.apache.spark.sgx.SgxIteratorFct
+
+import org.apache.spark.sgx.Serialization
+import org.apache.spark.sgx.Encrypt
+import org.apache.spark.sgx.SgxFactory
+
 /**
  * Sorts and potentially merges a number of key-value pairs of type (K, V) to produce key-combiner
  * pairs of type (K, C). Uses a Partitioner to first group the keys into partitions, and then
@@ -143,7 +152,7 @@ private[spark] class ExternalSorter[K, V, C](
   // user. (A partial ordering means that equal keys have comparator.compare(k, k) = 0, but some
   // non-equal keys also have this, so we need to do a later pass to find truly equal keys).
   // Note that we ignore this if no aggregator and no ordering are given.
-  private val keyComparator: Comparator[K] = ordering.getOrElse(new Comparator[K] {
+  private val keyComparator: Comparator[K] = ordering.getOrElse(new Comparator[K] with Serializable {
     override def compare(a: K, b: K): Int = {
       val h1 = if (a == null) 0 else a.hashCode()
       val h2 = if (b == null) 0 else b.hashCode()
@@ -180,6 +189,17 @@ private[spark] class ExternalSorter[K, V, C](
     // TODO: stop combining if we find that the reduction factor isn't high
     val shouldCombine = aggregator.isDefined
 
+    if (SgxSettings.SGX_ENABLED) {
+      val it = if (records.isInstanceOf[SgxFakeIterator[Product2[K, V]]]) records.asInstanceOf[SgxFakeIterator[Product2[K, V]]]
+        else SgxFactory.newSgxIteratorProvider(records, true).getIdentifier
+      if (shouldCombine) {
+        val mergeValue = aggregator.get.mergeValue
+        val createCombiner = aggregator.get.createCombiner
+        SgxIteratorFct.externalSorterInsertAllCombine[K,V,C](it, map.id, mergeValue, createCombiner, shouldPartition, partitioner)
+      } else {
+        throw new Exception("not implemented ExternalSorter.insertAll")
+      }
+    } else {
     if (shouldCombine) {
       // Combine values in-memory first using our AppendOnlyMap
       val mergeValue = aggregator.get.mergeValue
@@ -202,6 +222,7 @@ private[spark] class ExternalSorter[K, V, C](
         buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
         maybeSpillCollection(usingMap = false)
       }
+    }
     }
   }
 
@@ -692,6 +713,18 @@ private[spark] class ExternalSorter[K, V, C](
     if (spills.isEmpty) {
       // Case where we only have in-memory data
       val collection = if (aggregator.isDefined) map else buffer
+      if (SgxSettings.SGX_ENABLED) {
+        val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
+        while (it.hasNext) {
+          val partitionId = it.nextPartition()
+          while (it.hasNext && it.nextPartition() == partitionId) {
+            it.writeNext(writer)
+          }
+          val segment = writer.commitAndGet()
+          lengths(partitionId) = segment.length          
+        }
+      } else {
+      // SGX: below is original code.
       val it = collection.destructiveSortedWritablePartitionedIterator(comparator)
       while (it.hasNext) {
         val partitionId = it.nextPartition()
@@ -700,6 +733,7 @@ private[spark] class ExternalSorter[K, V, C](
         }
         val segment = writer.commitAndGet()
         lengths(partitionId) = segment.length
+      }
       }
     } else {
       // We must perform merge-sort; get an iterator by partition and write everything directly.
