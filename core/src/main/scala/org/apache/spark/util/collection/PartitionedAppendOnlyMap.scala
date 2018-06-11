@@ -25,16 +25,20 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
 
+import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.IdentifierManager
 import org.apache.spark.sgx.shm.MappedDataBufferManager
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.sgx.SgxSparkContextFct
 
 /**
  * Implementation of WritablePartitionedPairCollection that wraps a map in which the keys are tuples
  * of (partition ID, K)
  */
 private[spark] class PartitionedAppendOnlyMap[K, V]
-  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] {
-
+  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] with Logging {
+  
   override def sgxinit() = {
     if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) SgxFct.partitionedAppendOnlyMapCreate()
     else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
@@ -63,8 +67,7 @@ private[spark] class PartitionedAppendOnlyMap[K, V]
         // Call into enclave to prepare the enclave-internal iterator over the data.
         // Before that, we create the shared memory to be used.
         if (bufOffset != -1 || bufCapacity != -1) throw new IllegalStateException("Something went wrong")
-//        val buffer = MappedDataBufferManager.get.malloc(33554432)
-        val buffer = MappedDataBufferManager.get.malloc(10240)
+        val buffer = MappedDataBufferManager.get.malloc(SgxSettings.SPARK_DEFAULT_BUFFER_SIZE)
         SgxFct.partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator, buffer.offset(), buffer.capacity()).getIterator()
       }
       else {

@@ -22,6 +22,8 @@ object SgxSettings {
 	val BACKOFF_WAIT_MIN = sys.env.get("BACKOFF_WAIT_MIN").getOrElse("2").toInt
 	val BACKOFF_WAIT_MAX = sys.env.get("BACKOFF_WAIT_MAX").getOrElse("256").toInt
 	
+	val SPARK_DEFAULT_BUFFER_SIZE = sys.env.get("SPARK_DEFAULT_BUFFER_SIZE").getOrElse("33554432").toInt
+	
 	/*
 	 * Serializer to use.
 	 * See Serialization.getSerializer() for valid options.

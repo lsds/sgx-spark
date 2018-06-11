@@ -39,8 +39,6 @@ abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) w
 }
 
 class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with SgxCallable[Unit] {
-  
-  logDebug("xxx creating " + this)
 
 	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
@@ -49,6 +47,8 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
 
 	override final def hasNext: Boolean = delegate.hasNext
+  
+  logDebug("xxx creating " + this)
 
 	/**
 	 * Always throws an UnsupportedOperationException. Access this Iterator via the message interface.
@@ -69,7 +69,6 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 					if (delegate.isInstanceOf[NextIterator[T]] && delegate.hasNext) {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
 							val n = delegate.next
-						  logDebug("Providing: " + n)
 							// Need to clone the object. Otherwise the same object will be sent multiple times.
 							// It seems that this is due to optimizations in the implementation of class NextIterator.
 							// If cloning is not possible, just add this one object and send it individually.
@@ -78,9 +77,8 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 						}
 					} else {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
-						  val n = delegate.next
-						  logDebug("Providing: " + n)
-							q.insert(i, n)
+						  val n = 
+							q.insert(i, delegate.next)
 						}
 					}
 					val qe = if (doEncrypt) Encrypt(q) else q
@@ -95,7 +93,9 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 		}
 	}
 
-	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ")"
+	override def toString() = {
+	  this.getClass.getSimpleName + "(identifier=" + identifier + ", com=" + com + ", delegate=" + delegate.getClass.getName + "(" + delegate + "))"
+	}
 }
 
 class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with SgxCallable[Unit] {
@@ -105,10 +105,10 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
-  
-  logDebug("Creating " + this)
 
 	override def getIdentifier = identifier
+  
+  logDebug("Creating " + this)
 	
 	def call(): Unit = {
 	  val com = do_accept
@@ -193,15 +193,11 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
 	  while (isRunning) {
 	    val r = com.recvOne()
 	    logDebug("received: " + r)
-	    val ret: Any = null
-	    
-//	    match {
-//			  case c: SgxShmIteratorConsumerClose =>
-//			    stop
-//			    delegate.closeIfNeeded()
-//			  case f: SgxShmIteratorConsumerFillBufferMsg =>
-//			    recordReader.getLineReader.fillBuffer(f.inDelimiter)
-//	    }
+	    val ret = r match {
+			  case c: SgxShmIteratorConsumerClose =>
+			    stop
+			    MappedDataBufferManager.get.free(buffer)
+	    }
 	    if (ret != null) {
 	      com.sendOne(ret)
 	    }

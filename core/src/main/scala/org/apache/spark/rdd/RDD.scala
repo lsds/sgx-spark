@@ -94,7 +94,7 @@ abstract class RDD[T: ClassTag](
 
   private def sc: SparkContext = {
     if (_sc == null) {
-      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SparkContext.instance
+      if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SparkContext.getInstance
       throw new SparkException(
         "This RDD lacks a SparkContext. It could happen in the following cases: \n(1) RDD " +
         "transformations and actions are NOT invoked by the driver, but inside of other " +

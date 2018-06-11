@@ -70,22 +70,29 @@ public class MappedDataBufferManager {
 		}
 	}	
 	
-	public synchronized MallocedMappedDataBuffer malloc(int bytes) {		  
+	public synchronized MallocedMappedDataBuffer malloc(int bytes) {
+		
+		System.out.println("memory malloc " + bytes);
+		
 		if (SgxSettings.IS_ENCLAVE()) {
-			System.out.println("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 		}
 
 		int blocksNeeded = blocksNeeded(bytes);
 		
 		if (freeBlocks < blocksNeeded) {
-			System.out.println("The requested amount of memory is not available (" + bytes + "  Bytes)");
-			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + "  Bytes)");
+			System.out.println("memory oom 1: " + freeBlocks);
+			System.out.print("memory in use: ");
+			for (int i = 0; i < inUse.length; i++) {
+				System.out.print(inUse[i] + ", ");
+			}
+			System.out.println();
+			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + " Bytes)");
 		}
 		
 		int startBlock = findConsecutiveFreeBlocks(blocksNeeded);
 		if (startBlock == -1) {
-			System.out.println("The requested amount of memory is not available (" + bytes + " Bytes)");
+			System.out.println("memory oom 2");
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + " Bytes)");
 		}
 		
@@ -95,10 +102,13 @@ public class MappedDataBufferManager {
 		return new MallocedMappedDataBuffer(buffer.address() + (startBlock * blockSize), blocksNeeded * blockSize);
 	}
 	
-	public synchronized void free(MallocedMappedDataBuffer b) {
+	public synchronized void free(MallocedMappedDataBuffer b) {		
 		if (b == null ) {
 			return;
 		}
+		
+
+		System.out.println("memory free " + b.capacity());
 
 		if (SgxSettings.IS_ENCLAVE()) {
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");

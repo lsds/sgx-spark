@@ -121,7 +121,10 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   
   val com = id.connect()
   
-  override def close() = com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
+  override def close() = {
+    logDebug("xxx Sending instruction to close SgxShmIteratorConsumer")
+    com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
+  }
   
   /* Code from HadoopRDD follows */
   
@@ -185,22 +188,29 @@ class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIter
 
   def writeNext(writer: DiskBlockObjectWriter): Unit = {
     writer.write(cur.key, cur.value)
-    advanceToNext()
+    if (!advanceToNext()) {
+      if (SgxSettings.IS_ENCLAVE) com.sendOne(SgxShmIteratorConsumerClose)
+      else MappedDataBufferManager.get().free(buffer)
+    }
   }
   
-  private def advanceToNext(): Unit = {
+  private def advanceToNext(): Boolean = {
     reader.read[Any]() match {
       case p: SgxPair[K,V] =>
         cur = p
+        true
       case p: SgxPartition =>
         partitionId = p.id
         advanceToNext()
       case d: SgxDone =>
         cur = null
+        false
     }
   }
 
-  def hasNext(): Boolean = cur != null
+  def hasNext(): Boolean = {
+    cur != null
+  }
 
   def nextPartition(): Int = partitionId
 

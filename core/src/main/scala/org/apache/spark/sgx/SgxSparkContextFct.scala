@@ -17,12 +17,16 @@ import org.apache.spark.scheduler.SparkListenerInterface
 object SgxSparkContextFct {
 
   private var _defaultParallelism = -1
+  private var _conf: SparkConf = null.asInstanceOf[SparkConf]
   
 	def addSparkListener(listener: SparkListenerInterface) = new SgxSparkContextAddSparkListener(listener).send()
 
 	def broadcast[T: ClassTag](value: T) = new SgxSparkContextBroadcast(value).send()
 
-	def conf() = new SgxSparkContextConf().send()
+	def conf() = {
+    if (_conf == null) _conf = new SgxSparkContextConf().send()
+    _conf
+  }
 
 	def create(conf: SparkConf) = new SgxTaskSparkContextCreate(conf).send()
 

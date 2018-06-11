@@ -82,7 +82,7 @@ class SparkContext(config: SparkConf) extends Logging {
   private val outcall = SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE
   if (outcall) {
     SgxSparkContextFct.create(config)
-    SparkContext.instance = this
+    SparkContext._instance = this
   }
 
   // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
@@ -2437,7 +2437,7 @@ class SparkContext(config: SparkConf) extends Logging {
  * various Spark features.
  */
 object SparkContext extends Logging {
-  var instance: SparkContext = _
+  private var instance: SparkContext = _
 
   private val VALID_LOG_LEVELS =
     Set("ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN")
@@ -2792,6 +2792,8 @@ object SparkContext extends Logging {
     }
     serviceLoaders.headOption
   }
+  
+  def getInstance = _instance
 }
 
 /**
