@@ -1,6 +1,7 @@
 package org.apache.spark.sgx
 
-import java.util.Base64
+
+
 import org.apache.spark.internal.Logging
 
   /*
@@ -9,35 +10,57 @@ import org.apache.spark.internal.Logging
 
 trait Encrypted extends Serializable {
 	def decrypt[U]: U
+
 }
 
-trait Encryptable extends Serializable {
-	def encrypt: Encrypted
-}
-
-private class EncryptedObj[T](cipher: T, dec: T => Any) extends Encrypted {
+private class EncryptedObj(private var cipher: Array[Byte], private var dec: Array[Byte] => Any) extends Encrypted {
+  
+  def this() = this(null.asInstanceOf[Array[Byte]], null)
+  
 	def decrypt[U]: U = {
 		if (SgxSettings.IS_ENCLAVE) dec(cipher).asInstanceOf[U]
 		else throw new RuntimeException("Must not decrypt outside of enclave")
 	}
 }
 
+object EncryptionAlgorithm extends Enumeration {
+  val None, Base64 = Value
+}
+
 object Encrypt {
-	def apply(plain: Any): Encrypted = Base64StringEncrypt(plain)
+  
+	def apply(plain: Any): Encrypted = {
+//	  Base64StringEncrypt(plain)
+	  new NoEncryption(plain)
+	}
+}
+
+private class NoEncryption(o: Any) extends Encrypted {
+  def decrypt[U]: U = o.asInstanceOf[U]
 }
 
 private object Base64StringEncrypt extends Logging {
 	def apply(plain: Any): Encrypted = {
-		logDebug("Encrypting: " + plain)
 		val x = plain match {
-			case e: Encryptable =>
-				logDebug("Encryptable")
-				e.encrypt
 			case p: Any =>
-				logDebug("EncryptedObj")
-				new EncryptedObj[String](
-					Base64.getEncoder.encodeToString(Serialization.serialize(plain)),
-					(x: String) => Serialization.deserialize(Base64.getDecoder.decode(x))
+				new EncryptedObj({
+				  val a = Serialization.serialize(plain)
+					val b = org.apache.commons.codec.binary.Base64.encodeBase64(a)
+					b
+//				  val stream = new ByteArrayOutputStream()
+//				  val cos = new ObjectOutputStream(new CipherOutputStream(stream, new NullCipher))
+//				  cos.writeObject(plain)
+//				  val r = stream.toByteArray()
+//				  cos.close()
+//				  r
+				},
+					(x: Array[Byte]) => {
+					  val y = org.apache.commons.codec.binary.Base64.decodeBase64(x)
+					  val z = Serialization.deserialize(y)
+					  z
+					  
+//					  new ObjectInputStream(new CipherInputStream(new ByteArrayInputStream(x), new NullCipher)).readObject()
+					}
 				)
 		}
 		logDebug("Encryption result: " + x)

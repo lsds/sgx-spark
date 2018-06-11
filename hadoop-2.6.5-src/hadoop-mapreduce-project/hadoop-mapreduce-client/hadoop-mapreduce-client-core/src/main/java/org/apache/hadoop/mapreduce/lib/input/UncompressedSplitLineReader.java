@@ -26,6 +26,10 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.sgx.IFillBuffer;
+import org.apache.spark.sgx.SgxSettings;
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
+import org.apache.spark.sgx.shm.MappedDataBuffer;
 
 /**
  * SplitLineReader for uncompressed files.
@@ -40,6 +44,9 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   private long totalBytesRead = 0;
   private boolean finished = false;
   private boolean usingCRLF;
+  private IFillBuffer fillBuffer = null;
+  private byte[] ba = new byte[1024];
+  private final boolean sgxEnabled = SgxSettings.SGX_ENABLED();
 
   public UncompressedSplitLineReader(FSDataInputStream in, Configuration conf,
       byte[] recordDelimiterBytes, long splitLength) throws IOException {
@@ -47,11 +54,46 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     this.splitLength = splitLength;
     usingCRLF = (recordDelimiterBytes == null);
   }
+  
+  public UncompressedSplitLineReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes, long splitLength, IFillBuffer fillBuffer) throws IOException {
+    super(buffer, recordDelimiterBytes);
+    this.splitLength = splitLength;
+    this.fillBuffer = fillBuffer;
+    usingCRLF = (recordDelimiterBytes == null);
+  }
+  
+  private int read(InputStream in, MappedDataBuffer buffer, int off, int len) throws IOException {	  
+      if (buffer == null) {
+          throw new NullPointerException();
+      } else if (off < 0 || len < 0 || len > buffer.capacity() - off) {
+          throw new IndexOutOfBoundsException();
+      } else if (len == 0) {
+          return 0;
+      }
+      
+    if (len > ba.length) {
+	  ba = new byte[len];
+    }
+
+    int c = in.read(ba, 0, len);
+    if (c == -1) {
+    	return -1;
+    }
+    
+    buffer.put(off, ba, 0, c);
+      
+    return c;
+  }  
 
   @Override
-  protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
+  protected int fillBuffer(InputStream in, MappedDataBuffer buffer, boolean inDelimiter)
       throws IOException {
-    int maxBytesToRead = buffer.length;
+	    
+	if (sgxEnabled && SgxSettings.IS_ENCLAVE()) {
+		return fillBuffer.fillBuffer(inDelimiter);
+	}
+	  
+    int maxBytesToRead = buffer.capacity();
     if (totalBytesRead < splitLength) {
       long leftBytesForSplit = splitLength - totalBytesRead;
       // check if leftBytesForSplit exceed Integer.MAX_VALUE
@@ -59,7 +101,8 @@ public class UncompressedSplitLineReader extends SplitLineReader {
         maxBytesToRead = Math.min(maxBytesToRead, (int)leftBytesForSplit);
       }
     }
-    int bytesRead = in.read(buffer, 0, maxBytesToRead);
+    
+    int bytesRead = read(in, buffer, 0, maxBytesToRead);    
 
     // If the split ended in the middle of a record delimiter then we need
     // to read one additional record, as the consumer of the next split will
@@ -69,7 +112,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     // and the additional record read should not be performed.
     if (totalBytesRead == splitLength && inDelimiter && bytesRead > 0) {
       if (usingCRLF) {
-        needAdditionalRecord = (buffer[0] != '\n');
+        needAdditionalRecord = (ba[0] != '\n');
       } else {
         needAdditionalRecord = true;
       }
@@ -77,12 +120,14 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     if (bytesRead > 0) {
       totalBytesRead += bytesRead;
     }
+
     return bytesRead;
   }
 
   @Override
   public int readLine(Text str, int maxLineLength, int maxBytesToConsume)
       throws IOException {
+	  
     int bytesRead = 0;
     if (!finished) {
       // only allow at most one more record to be read after the stream
@@ -104,5 +149,5 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   protected void unsetNeedAdditionalRecordAfterSplit() {
     needAdditionalRecord = false;
-  }
+  }  
 }

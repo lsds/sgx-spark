@@ -1,8 +1,8 @@
 # CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
 SGX_LKL=/data/fkelbert/sgx-lkl
 
-ALPINE_MAJOR=3.6
-ALPINE_VERSION=3.6.2
+ALPINE_MAJOR=3.7
+ALPINE_VERSION=3.7.0
 ALPINE_ARCH=x86_64
 
 ALPINE_TAR=alpine-minirootfs.tar.gz
@@ -59,35 +59,7 @@ finalize-image:
 
 	sudo umount $(MOUNTPOINT)
 
-test: start-master start-worker start-enclave start-job
-
-test-nosgx: start-master start-worker start-enclave-nosgx start-job
-
-start-master:
-	cd ../ && SPARK_LOCAL_IP=127.0.0.1 java -cp $(CLASSPATH_JARS) -Xmx1g org.apache.spark.deploy.master.Master --host 127.0.0.1 --port 7077 --webui-port 8080 > lkl/master.txt 2>&1 &
-
-start-worker:
-	sleep 2
-	cd ../ && SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 SPARK_SGX_HOST_IP=146.169.2.58 SPARK_LOCAL_IP=127.0.0.1 java -cp $(CLASSPATH_JARS):../conf/ -Xmx1g org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://localhost:7077 > lkl/worker.txt 2>&1 &
-
-start-enclave:
-	@-$(shell openvpn --mktun --dev tap0)
-	$(shell ip link set dev tap0 up)
-	$(shell ip addr add 10.0.1.254/24 dev tap0)
-	sleep 4
-# ENV vars provide the least amount of memory as figured out on 31/8/2017 with the MyWordCount example on file SgxReadme.md
-	cd ../ LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usr/lib:/usr/local/lib SGXLKL_STRACELKL=1 SGXLKL_VERBOSE=1 SGXLKL_TRACE_SYSCALL=0 SGXLKL_TRACE_MMAP=0 SGXLKL_TAP=tap0 SGXLKL_HD=${PWD}/alpine-rootfs.img SGXLKL_KERNEL=0 SGXLKL_VERSION=1 SGXLKL_ESLEEP=1 SGXLKL_SSLEEP=4000 SGXLKL_ESPINS=50000 SGXLKL_SSPINS=500 SGXLKL_STHREADS=8 SGXLKL_ETHREADS=4 SGXLKL_STACK_SIZE=256000 SPARK_SGX_ENCLAVE_IP=10.0.1.1 SPARK_SGX_ENCLAVE_PORT=9999 $(SGX_LKL)/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java -XX:InitialCodeCacheSize=2m -XX:ReservedCodeCacheSize=2m -Xms2m -Xmx2m -XX:CompressedClassSpaceSize=2m -XX:MaxMetaspaceSize=12m -XX:+UseCompressedClassPointers -XX:+AssumeMP -Xint -cp /home/scala-library/:/spark/lib/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain
-
-start-enclave-nosgx:
-	sleep 4
-	cd ../ &&  java -cp conf:assembly/target/scala-2.11/jars/\*:examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar org.apache.spark.sgx.SgxMain > lkl/enclave.txt 2>&1 &
-
-start-job:
-	sleep 6
-	cd ../ && SPARK_LOCAL_IP=127.0.0.1 ./bin/spark-submit --class org.apache.spark.examples.MyWordCount --master spark://localhost:7077 --deploy-mode cluster --verbose --executor-memory 1g --name wordcount --conf "spark.app.id=wordcount" examples/target/scala-2.11/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar $(shell pwd)/example_input_file $(shell pwd)/output > lkl/job.txt 2>&1 &
-
 clean:
-	rm -rf alpine*
 	rm -rf *.txt
 	rm -rf ../work
 	rm -rf output

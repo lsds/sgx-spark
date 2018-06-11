@@ -6,6 +6,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.spark.sgx.Serialization;
+import org.apache.spark.sgx.SgxSettings;
+
 /**
  * This class is to be used by the enclave to communicate with the outside.
  * 
@@ -13,8 +16,9 @@ import java.util.concurrent.LinkedBlockingQueue;
  *
  */
 public final class ShmCommunicationManager<T> implements Callable<T> {
-	private RingBuff writeBuff;
-	private RingBuff readBuff;
+	
+	private RingBuffConsumer reader;
+	private RingBuffProducer writer;
 
 	private final Object lockWriteBuff = new Object();
 	private final Object lockReadBuff = new Object();
@@ -27,16 +31,47 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	private long inboxCtr = 1;
 	
 	private static ShmCommunicationManager<?> _instance = null;
-
+	
+	/**
+	 * This constructor is called by the outside JVM. 
+	 * For debugging purposes, this might indeed also be a JVM that fulfills
+	 * the duties of the enclave (i.e., a JVM that runs outside of the enclave
+	 * but does what the enclave is supposed to do). 
+	 * 
+	 * @param file
+	 * @param size
+	 */
 	private ShmCommunicationManager(String file, int size) {
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
-		this.readBuff = new RingBuff(handles[0], true);
-		this.writeBuff = new RingBuff(handles[1], true);
+		
+		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
+			// debugging case: switch producer and consumer,
+			// since this instance of the code is actually the enclave side of things
+			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
+			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
+		}
+		else {
+			// default case
+			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
+			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
+		}
+
+		MappedDataBufferManager.init(new MappedDataBuffer(handles[2], size));
 	}
 
-	private ShmCommunicationManager(long writeBuff, long readBuff) {
-		this.writeBuff = new RingBuff(writeBuff, true);
-		this.readBuff = new RingBuff(readBuff, true);
+	/**
+	 * This constructor is called by the enclave, which is provided with
+	 * corresponding pointers to shared memory by sgx-lkl.
+	 * 
+	 * @param writeBuff pointer to the memory to write to
+	 * @param readBuff pointer to the memory to read from
+	 * @param commonBuff pointer to the memory that can be used arbitrarily
+	 * @param size the size of each of those memory regions
+	 */
+	private ShmCommunicationManager(long writeBuff, long readBuff, long commonBuff, int size) {
+		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
+		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
+		MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -47,13 +82,13 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			}
 		}
 		return (ShmCommunicationManager<T>) _instance;
-	}
+	}	
 	
 	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff) {
+	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff, long commonBuff, int size) {
 		synchronized(lockInstance) {
 			if (_instance == null) {
-				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff);
+				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff, commonBuff, size);
 			}
 		}
 		return (ShmCommunicationManager<T>) _instance;
@@ -82,6 +117,15 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		return new ShmCommunicator(myport, inbox, doConnect);
 	}
 
+	/**
+	 * Waits for a new incoming connections. This call blocks until
+	 * a new connection is actually made. Once a connection is made,
+	 * this method returns a {@link ShmCommunicator} object that
+	 * represents this new connection. 
+	 * This is conceptually similar to accept() on TCP sockets.
+	 * 
+	 * @return a {@link ShmCommunicator} representing the accepted connection
+	 */
 	public ShmCommunicator accept() {
 		ShmCommunicator result = null;
 		do {
@@ -107,7 +151,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 
 	void write(ShmMessage m) {
 		synchronized (lockWriteBuff) {
-			writeBuff.write(m);
+			writer.write(m);
 		}
 	}
 	
@@ -120,7 +164,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		ShmMessage msg = null;
 		while (true) {
 			synchronized (lockReadBuff) {
-				msg = ((ShmMessage) readBuff.read());
+				msg = ((ShmMessage) reader.read());
 			}
 
 			if (msg.getPort() == 0) {

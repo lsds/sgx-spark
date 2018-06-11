@@ -15,7 +15,8 @@ public abstract class SgxCommunicator {
 	 * @return the received object
 	 */
 	public final Object recvOne() {
-		return read();
+		Object o = read();
+		return o; 
 	}
 	
 	/**
@@ -24,7 +25,7 @@ public abstract class SgxCommunicator {
 	 * @return the result object of type T
 	 */
 	@SuppressWarnings("unchecked")
-	public final <T> T sendRecv(Object o) {
+	public final <T> T sendRecv(Object o) {		
 		sendOne(o);
 		return (T) recvOne();
 	}

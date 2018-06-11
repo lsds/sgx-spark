@@ -416,7 +416,15 @@ public class TestDatamerge extends TestCase {
         public long getPos() throws IOException { return 0L; }
         public void close() throws IOException { }
         public float getProgress() throws IOException { return 0.0f; }
+
+        public org.apache.hadoop.util.LineReader getLineReader() {
+          throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+        }
       };
     }
+  }
+
+  public org.apache.hadoop.util.LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }

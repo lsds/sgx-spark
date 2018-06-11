@@ -15,22 +15,6 @@ extern "C" {
 JNIEXPORT jlongArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_init_1shm
   (JNIEnv *, jclass, jstring, jint);
 
-/*
- * Class:     org_apache_spark_sgx_shm_RingBuffLibWrapper
- * Method:    write_msg
- * Signature: (J[B)Z
- */
-JNIEXPORT jboolean JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_write_1msg
-  (JNIEnv *, jclass, jlong, jbyteArray);
-
-/*
- * Class:     org_apache_spark_sgx_shm_RingBuffLibWrapper
- * Method:    read_msg
- * Signature: (J)[B
- */
-JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_sgx_shm_RingBuffLibWrapper_read_1msg
-  (JNIEnv *, jclass, jlong);
-
 #ifdef __cplusplus
 }
 #endif

@@ -2,13 +2,13 @@ package org.apache.spark.sgx.shm;
 
 import java.io.Serializable;
 
-class ShmMessage implements Serializable {
+public class ShmMessage implements Serializable {
 	private static final long serialVersionUID = 7329847091123L;
 	
-	private final EShmMessageType type;
-	private final Object msg;
-	private final long port;
-	
+	private EShmMessageType type;
+	private Object msg;
+	private long port;
+
 	ShmMessage(EShmMessageType type, Object msg, long port) {
 		this.type = type;
 		this.msg = msg;
@@ -19,7 +19,7 @@ class ShmMessage implements Serializable {
 		return type;
 	}
 
-	Object getMsg() {
+	public Object getMsg() {
 		return msg;
 	}
 

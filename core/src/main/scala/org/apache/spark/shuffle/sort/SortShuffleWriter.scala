@@ -25,8 +25,6 @@ import org.apache.spark.storage.ShuffleBlockId
 import org.apache.spark.util.Utils
 import org.apache.spark.util.collection.ExternalSorter
 
-import org.apache.spark.sgx.SgxSettings
-
 private[spark] class SortShuffleWriter[K, V, C](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, C],

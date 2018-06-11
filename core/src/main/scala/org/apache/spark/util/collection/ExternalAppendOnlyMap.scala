@@ -167,7 +167,7 @@ class ExternalAppendOnlyMap[K, V, C](
     else {
     var curEntry: Product2[K, V] = null
     val update: (Boolean, C) => C = (hadVal, oldVal) => {
-    if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
+      if (hadVal) mergeValue(oldVal, curEntry._2) else createCombiner(curEntry._2)
     }
 
     while (entries.hasNext) {

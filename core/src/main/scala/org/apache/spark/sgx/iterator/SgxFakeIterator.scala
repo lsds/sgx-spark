@@ -24,10 +24,6 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 
 	FakeIterators.put(id, delegate)
 
-	// we need to allow hasNext, as it is being accessed
-	// by Java's instanceof operator.
-	// Will always return true. A potential subsequent call to next()
-	// will then surely throw an Exception
 	override def hasNext: Boolean = throw SgxFakeIteratorException(id)
 
 	override def next: T = throw SgxFakeIteratorException(id)
@@ -40,80 +36,34 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 
 	override def getIterator(context: String) = {
 	  new Iterator[T] with Logging {
-	    val i = FakeIterators.remove[Iterator[T]](id)
+
+	    private val iter = FakeIterators.remove[Iterator[T]](id)
+	    private var _type = -1
+	    
+	    if (iter == null) {
+	      throw new IllegalStateException("Iterator does not exist. Has it been used before?")
+	    }
+
+	    override def hasNext: Boolean = iter.hasNext
 	    
 	    override def next = {
-	      val n = i.next()
-	      if (n != null && n.isInstanceOf[Pair[Any,Any]] && n.asInstanceOf[Pair[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
-	        n.asInstanceOf[Pair[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
-	      } else n
+	      val n = iter.next
+	      
+	      if (_type == -1) {
+          _type =
+  	        if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) 1
+  	        else 0
+	      }
+	      
+    	  _type match {
+	        case 1 =>
+	          n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
+	        case default =>
+            n
+	      }
 	    }
-	    
-	    override def hasNext = i.hasNext
 	  }
 	}
 
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ")"
-}
-
-private object WritablePartitionedFakeIterators extends IdentifierManager[WritablePartitionedIterator]() {}
-
-case class SgxWritablePartitionedFakeIterator[K,V](@transient val delegate: WritablePartitionedIterator) extends WritablePartitionedIterator with Logging {
-
-	// delegate lives inside enclave
-
-	val id = scala.util.Random.nextLong
-
-	WritablePartitionedFakeIterators.put(id, delegate)
-
-	override def writeNext(writer: DiskBlockObjectWriter) = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.writeNext(writer)
-		}
-		else if (SgxSettings.IS_WORKER) {
-			val cur = SgxFct.writablePartitionedIteratorGetNext[K,V,((Int,K),V)](this)
-			writer.write(cur)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
-	}
-
-	override def hasNext: Boolean = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.hasNext()
-		}
-		else if (SgxSettings.IS_WORKER) {
-			SgxFct.writablePartitionedIteratorHasNext(this)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
-	}
-
-	override def nextPartition() = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.nextPartition()
-		}
-		else if (SgxSettings.IS_WORKER) {
-			SgxFct.writablePartitionedIteratorNextPartition(this)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
-	}
-
-	override def getNext[T]() = {
-		if (SgxSettings.IS_DRIVER) {
-			delegate.getNext[T]()
-		}
-		else if (SgxSettings.IS_WORKER) {
-			SgxFct.writablePartitionedIteratorGetNext[K,V,T](this)
-		}
-		else {
-			throw SgxFakeIteratorException(id)
-		}
-	}
-
-	def getIterator = WritablePartitionedFakeIterators.get(id)
 }

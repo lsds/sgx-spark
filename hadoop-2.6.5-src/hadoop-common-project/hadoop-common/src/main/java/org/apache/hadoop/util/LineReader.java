@@ -26,6 +26,10 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.sgx.SgxSettings;
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
+import org.apache.spark.sgx.shm.MappedDataBuffer;
+import org.apache.spark.sgx.shm.MappedDataBufferManager;
 
 /**
  * A class that provides a line reader from an input stream.
@@ -44,7 +48,11 @@ public class LineReader implements Closeable {
   private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
-  private byte[] buffer;
+  private byte[] plainBuffer;
+  private MallocedMappedDataBuffer sgxBuffer = null;
+  private final boolean sgxEnabled = SgxSettings.SGX_ENABLED();
+  byte[] ba = new byte[1024];
+  
   // the number of bytes of real data in the buffer
   private int bufferLength = 0;
   // the current position in the buffer
@@ -76,7 +84,9 @@ public class LineReader implements Closeable {
   public LineReader(InputStream in, int bufferSize) {
     this.in = in;
     this.bufferSize = bufferSize;
-    this.buffer = new byte[this.bufferSize];
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    else
+    this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = null;
   }
 
@@ -102,7 +112,9 @@ public class LineReader implements Closeable {
   public LineReader(InputStream in, byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = DEFAULT_BUFFER_SIZE;
-    this.buffer = new byte[this.bufferSize];
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    else
+    this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = recordDelimiterBytes;
   }
 
@@ -119,7 +131,9 @@ public class LineReader implements Closeable {
       byte[] recordDelimiterBytes) {
     this.in = in;
     this.bufferSize = bufferSize;
-    this.buffer = new byte[this.bufferSize];
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    else
+    this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = recordDelimiterBytes;
   }
 
@@ -137,17 +151,28 @@ public class LineReader implements Closeable {
       byte[] recordDelimiterBytes) throws IOException {
     this.in = in;
     this.bufferSize = conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE);
-    this.buffer = new byte[this.bufferSize];
+    if (sgxEnabled) this.sgxBuffer = MappedDataBufferManager.get().malloc(bufferSize);
+    else
+    this.plainBuffer = new byte[this.bufferSize];
     this.recordDelimiterBytes = recordDelimiterBytes;
   }
 
-
+  public LineReader(MallocedMappedDataBuffer sgxBuffer, byte[] recordDelimiterBytes) {
+    this.in = null;
+    this.bufferSize = sgxBuffer.capacity();
+    this.sgxBuffer = sgxBuffer;
+    this.recordDelimiterBytes = recordDelimiterBytes;
+  }
+  
   /**
    * Close the underlying stream.
    * @throws IOException
    */
   public void close() throws IOException {
-    in.close();
+    if (in != null) in.close();
+    plainBuffer = null;
+    ba = null;
+    if (sgxEnabled && !SgxSettings.IS_ENCLAVE()) MappedDataBufferManager.get().free(sgxBuffer);
   }
   
   /**
@@ -167,7 +192,7 @@ public class LineReader implements Closeable {
    * @throws IOException if the underlying stream throws
    */
   public int readLine(Text str, int maxLineLength,
-                      int maxBytesToConsume) throws IOException {
+                      int maxBytesToConsume) throws IOException {	
     if (this.recordDelimiterBytes != null) {
       return readCustomLine(str, maxLineLength, maxBytesToConsume);
     } else {
@@ -177,7 +202,22 @@ public class LineReader implements Closeable {
 
   protected int fillBuffer(InputStream in, byte[] buffer, boolean inDelimiter)
       throws IOException {
-    return in.read(buffer);
+	return in.read(buffer);
+  }
+
+  protected int fillBuffer(InputStream in, MappedDataBuffer buffer, boolean inDelimiter)
+      throws IOException {
+	throw new RuntimeException("Must be implemented by subclass.");
+  }
+  
+  private int fillBuffer(InputStream in, boolean inDelimiter) throws IOException {
+	if (sgxEnabled) return fillBuffer(in, sgxBuffer, inDelimiter);
+	else return fillBuffer(in, plainBuffer, inDelimiter);
+  }
+  
+  private void strAppend(Text str, int start, int len) {
+	if (sgxEnabled) str.append(sgxBuffer, start, len);
+	else str.append(plainBuffer, start, len);
   }
 
   /**
@@ -206,6 +246,7 @@ public class LineReader implements Closeable {
     int newlineLength = 0; //length of terminating newline
     boolean prevCharCR = false; //true of prev char was CR
     long bytesConsumed = 0;
+    byte b;
     do {
       int startPosn = bufferPosn; //starting from where we left off the last time
       if (bufferPosn >= bufferLength) {
@@ -213,13 +254,20 @@ public class LineReader implements Closeable {
         if (prevCharCR) {
           ++bytesConsumed; //account for CR from previous read
         }
-        bufferLength = fillBuffer(in, buffer, prevCharCR);
+        bufferLength = fillBuffer(in, prevCharCR);        
         if (bufferLength <= 0) {
           break; // EOF
         }
+        if (sgxEnabled) {
+          if (ba.length < bufferLength) {
+            ba = new byte[bufferLength];
+          }
+          sgxBuffer.get(0, ba);
+        }
       }
       for (; bufferPosn < bufferLength; ++bufferPosn) { //search for newline
-        if (buffer[bufferPosn] == LF) {
+    	b = sgxEnabled ? ba[bufferPosn] : plainBuffer[bufferPosn];
+        if (b == LF) {
           newlineLength = (prevCharCR) ? 2 : 1;
           ++bufferPosn; // at next invocation proceed from following byte
           break;
@@ -228,7 +276,7 @@ public class LineReader implements Closeable {
           newlineLength = 1;
           break;
         }
-        prevCharCR = (buffer[bufferPosn] == CR);
+        prevCharCR = (b == CR);
       }
       int readLength = bufferPosn - startPosn;
       if (prevCharCR && newlineLength == 0) {
@@ -240,7 +288,7 @@ public class LineReader implements Closeable {
         appendLength = maxLineLength - txtLength;
       }
       if (appendLength > 0) {
-        str.append(buffer, startPosn, appendLength);
+        strAppend(str, startPosn, appendLength);
         txtLength += appendLength;
       }
     } while (newlineLength == 0 && bytesConsumed < maxBytesToConsume);
@@ -301,7 +349,7 @@ public class LineReader implements Closeable {
       int startPosn = bufferPosn; // Start from previous end position
       if (bufferPosn >= bufferLength) {
         startPosn = bufferPosn = 0;
-        bufferLength = fillBuffer(in, buffer, ambiguousByteCount > 0);
+        bufferLength = fillBuffer(in, ambiguousByteCount > 0);
         if (bufferLength <= 0) {
           if (ambiguousByteCount > 0) {
             str.append(recordDelimiterBytes, 0, ambiguousByteCount);
@@ -311,7 +359,7 @@ public class LineReader implements Closeable {
         }
       }
       for (; bufferPosn < bufferLength; ++bufferPosn) {
-        if (buffer[bufferPosn] == recordDelimiterBytes[delPosn]) {
+        if ((sgxEnabled ? ba[bufferPosn] : plainBuffer[bufferPosn]) == recordDelimiterBytes[delPosn]) {
           delPosn++;
           if (delPosn >= recordDelimiterBytes.length) {
             bufferPosn++;
@@ -342,7 +390,7 @@ public class LineReader implements Closeable {
         unsetNeedAdditionalRecordAfterSplit();
       }
       if (appendLength > 0) {
-        str.append(buffer, startPosn, appendLength);
+        strAppend(str, startPosn, appendLength);
         txtLength += appendLength;
       }
       if (bufferPosn >= bufferLength) {
@@ -384,12 +432,27 @@ public class LineReader implements Closeable {
     return bufferPosn;
   }
 
-  protected int getBufferSize() {
+  public int getBufferSize() {
     return bufferSize;
+  }
+
+  public long getBufferOffset() {
+	  if (!sgxEnabled) {
+		  throw new RuntimeException("Method only available in SGX mode.");
+	  }
+	  return sgxBuffer.offset();
   }
 
   protected void unsetNeedAdditionalRecordAfterSplit() {
     // needed for custom multi byte line delimiters only
     // see MAPREDUCE-6549 for details
+  }
+  
+  public byte[] getRecordDelimiterBytes() {
+	  return recordDelimiterBytes;
+  }
+  
+  public int fillBuffer(boolean inDelimiter) throws IOException {
+	  return fillBuffer(in, inDelimiter);
   }
 }

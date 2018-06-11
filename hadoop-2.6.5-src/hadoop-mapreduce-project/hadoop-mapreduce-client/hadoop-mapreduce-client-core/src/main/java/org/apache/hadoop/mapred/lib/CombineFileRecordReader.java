@@ -28,6 +28,8 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * A generic RecordReader that can hand out different recordReaders
  * for each chunk in a {@link CombineFileSplit}.
@@ -156,5 +158,9 @@ public class CombineFileRecordReader<K, V> implements RecordReader<K, V> {
     }
     idx++;
     return true;
+  }
+
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }

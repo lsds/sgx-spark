@@ -30,6 +30,8 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * Dummy input format used when non-Java a {@link RecordReader} is used by
  * the Pipes' application.
@@ -96,6 +98,10 @@ implements InputFormat<FloatWritable, NullWritable> {
         throws IOException {
       progress = key.get();
       return true;
+    }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
     }
   }
 }

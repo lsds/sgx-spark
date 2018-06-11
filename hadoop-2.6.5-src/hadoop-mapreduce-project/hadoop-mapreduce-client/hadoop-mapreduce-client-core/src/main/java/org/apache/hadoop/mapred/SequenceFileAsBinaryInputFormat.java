@@ -28,6 +28,8 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.SequenceFile;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * InputFormat reading keys, values from SequenceFiles in binary (raw)
  * format.
@@ -134,6 +136,10 @@ public class SequenceFileAsBinaryInputFormat
         return Math.min(1.0f, (float)((in.getPosition() - start) /
                                       (double)(end - start)));
       }
+    }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
     }
   }
 }

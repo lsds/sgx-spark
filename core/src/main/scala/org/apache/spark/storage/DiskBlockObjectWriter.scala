@@ -25,11 +25,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{SerializationStream, SerializerInstance, SerializerManager}
 import org.apache.spark.util.Utils
 
-import org.apache.spark.sgx.IdentifierManager
 import org.apache.spark.sgx.iterator.SgxFakePairIndicator
 import org.apache.spark.sgx.Encrypted
-
-private object DiskBlockObjectWriters extends IdentifierManager[DiskBlockObjectWriter]() {}
 
 /**
  * A class for writing JVM objects directly to a file on disk. This class allows data to be appended
@@ -42,24 +39,17 @@ private object DiskBlockObjectWriters extends IdentifierManager[DiskBlockObjectW
  * reopened again.
  */
 private[spark] class DiskBlockObjectWriter(
-    @transient val file: File,
-    @transient serializerManager: SerializerManager,
-    @transient serializerInstance: SerializerInstance,
-    @transient bufferSize: Int,
-    @transient syncWrites: Boolean,
+    val file: File,
+    serializerManager: SerializerManager,
+    serializerInstance: SerializerInstance,
+    bufferSize: Int,
+    syncWrites: Boolean,
     // These write metrics concurrently shared with other active DiskBlockObjectWriters who
     // are themselves performing writes. All updates must be relative.
-    @transient writeMetrics: ShuffleWriteMetrics,
-    @transient val blockId: BlockId = null)
+    writeMetrics: ShuffleWriteMetrics,
+    val blockId: BlockId = null)
   extends OutputStream
-  with Serializable
   with Logging {
-
-  private val id = scala.util.Random.nextLong
-
-  DiskBlockObjectWriters.put(id, this)
-
-  def get = DiskBlockObjectWriters.get(id)
 
   /**
    * Guards against close calls, e.g. from a wrapping stream.
@@ -78,15 +68,15 @@ private[spark] class DiskBlockObjectWriter(
   }
 
   /** The file channel, used for repositioning / truncating the file. */
-  @transient private var channel: FileChannel = null
-  @transient private var mcs: ManualCloseOutputStream = null
-  @transient private var bs: OutputStream = null
-  @transient private var fos: FileOutputStream = null
-  @transient private var ts: TimeTrackingOutputStream = null
-  @transient private var objOut: SerializationStream = null
-  @transient private var initialized = false
-  @transient private var streamOpen = false
-  @transient private var hasBeenClosed = false
+  private var channel: FileChannel = null
+  private var mcs: ManualCloseOutputStream = null
+  private var bs: OutputStream = null
+  private var fos: FileOutputStream = null
+  private var ts: TimeTrackingOutputStream = null
+  private var objOut: SerializationStream = null
+  private var initialized = false
+  private var streamOpen = false
+  private var hasBeenClosed = false
 
   /**
    * Cursors used to represent positions in the file.
@@ -102,15 +92,15 @@ private[spark] class DiskBlockObjectWriter(
    * -----: Current writes to the underlying file.
    * xxxxx: Committed contents of the file.
    */
-  @transient private var committedPosition = file.length()
-  @transient private var reportedPosition = committedPosition
+  private var committedPosition = file.length()
+  private var reportedPosition = committedPosition
 
   /**
    * Keep track of number of records written and also use this to periodically
    * output bytes written since the latter is expensive to do for each record.
    * And we reset it after every commitAndGet called.
    */
-  @transient private var numRecordsWritten = 0
+  private var numRecordsWritten = 0
 
   private def initialize(): Unit = {
     fos = new FileOutputStream(file, true)
@@ -254,7 +244,7 @@ private[spark] class DiskBlockObjectWriter(
     objOut.writeValue(value)
     recordWritten()
   }
-  
+
   def write(enc: Encrypted) {
     write(enc, new SgxFakePairIndicator())
   }

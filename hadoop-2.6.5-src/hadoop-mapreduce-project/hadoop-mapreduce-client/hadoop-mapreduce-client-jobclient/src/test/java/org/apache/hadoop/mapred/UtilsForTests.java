@@ -548,6 +548,10 @@ public class UtilsForTests {
       public float getProgress() {
         return 0.0f;
       }
+
+      public org.apache.hadoop.util.LineReader getLineReader() {
+        throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+      }
     }
 
     public RecordReader<Text, Text> getRecordReader(InputSplit split,
@@ -812,5 +816,4 @@ public class UtilsForTests {
     String tmpTaskTracker = secondSplit[0];
     return tmpTaskTracker;
   }
-
 }

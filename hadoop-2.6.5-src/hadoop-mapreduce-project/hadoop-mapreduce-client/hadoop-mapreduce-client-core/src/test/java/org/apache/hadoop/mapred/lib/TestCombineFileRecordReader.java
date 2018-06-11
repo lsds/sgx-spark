@@ -39,6 +39,8 @@ import java.io.IOException;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import org.apache.hadoop.util.LineReader;
+
 public class TestCombineFileRecordReader {
 
   private static Path outDir = new Path(System.getProperty("test.build.data",
@@ -50,6 +52,10 @@ public class TestCombineFileRecordReader {
     public TextRecordReaderWrapper(CombineFileSplit split, Configuration conf,
       Reporter reporter, Integer idx) throws IOException {
       super(new TextInputFormat(), split, conf, reporter, idx);
+    }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
     }
   }
 

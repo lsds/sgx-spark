@@ -89,6 +89,14 @@ class DummyInputFormat implements InputFormat<Object, Object> {
       public float getProgress() throws IOException {
         return 0.0f;
       }
+
+      public org.apache.hadoop.util.LineReader getLineReader() {
+        throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+      }
     };
+  }
+
+  public org.apache.hadoop.util.LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }

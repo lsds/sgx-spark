@@ -106,6 +106,10 @@ public class TestInputSampler {
         public NullWritable getCurrentValue() { return NullWritable.get(); }
         public float getProgress() { return 1.0f; }
         public void close() { }
+
+        public org.apache.hadoop.util.LineReader getLineReader() {
+          throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+        }
       };
     }
 
@@ -171,6 +175,10 @@ public class TestInputSampler {
         @Override
         public float getProgress() throws IOException {
           return 0;
+        }
+
+        public org.apache.hadoop.util.LineReader getLineReader() {
+          throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
         }
       };
     }
@@ -290,5 +298,4 @@ public class TestInputSampler {
           ((IntWritable)samples[i]).get());
     }
   }
-
 }

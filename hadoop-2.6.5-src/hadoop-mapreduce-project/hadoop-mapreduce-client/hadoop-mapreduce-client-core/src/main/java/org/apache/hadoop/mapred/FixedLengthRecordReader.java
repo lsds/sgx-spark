@@ -26,6 +26,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * A reader to read fixed length records from a split.  Record offset is
  * returned as key and the record as bytes is returned in value.
@@ -86,4 +88,7 @@ public class FixedLengthRecordReader
     reader.close();
   }    
 
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+  }
 }

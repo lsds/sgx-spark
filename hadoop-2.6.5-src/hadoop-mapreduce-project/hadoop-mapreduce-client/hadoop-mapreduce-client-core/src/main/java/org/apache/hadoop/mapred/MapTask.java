@@ -75,6 +75,8 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.util.StringUtils;
 
+import org.apache.hadoop.util.LineReader;
+
 /** A Map task. */
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
@@ -226,6 +228,10 @@ public class MapTask extends Task {
         bytesRead = bytesRead + stat.getBytesRead();
       }
       return bytesRead;
+    }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
     }
   }
 

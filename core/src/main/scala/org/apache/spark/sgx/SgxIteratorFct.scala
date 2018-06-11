@@ -67,7 +67,7 @@ private case class ComputeMapPartitionsRDD[U, T](
 
 	def execute() = SgxFakeIterator(
 		Await.result(Future {
-			fct(partIndex, id.getIterator())
+      fct(partIndex, id.getIterator())		  
 		}, Duration.Inf)
 	)
 

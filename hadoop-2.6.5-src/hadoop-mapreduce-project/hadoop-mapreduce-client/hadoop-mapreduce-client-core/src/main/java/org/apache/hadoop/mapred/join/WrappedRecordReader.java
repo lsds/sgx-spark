@@ -30,6 +30,8 @@ import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapred.RecordReader;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * Proxy class for a RecordReader participating in the join framework.
  * This class keeps track of the &quot;head&quot; key-value pair for the
@@ -225,5 +227,9 @@ public class WrappedRecordReader<K extends WritableComparable,
   @Override
   public Configuration getConf() {
     return conf;
+  }
+
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }

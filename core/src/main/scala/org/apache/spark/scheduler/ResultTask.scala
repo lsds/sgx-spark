@@ -32,8 +32,6 @@ import org.apache.spark.sgx.iterator.SgxFakeIterator
 import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.SgxFactory
 
-import org.apache.spark.internal.Logging
-
 /**
  * A task that sends back the output to the driver application.
  *

@@ -32,10 +32,6 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
 import org.apache.spark.util.random.XORShiftRandom
 
-import org.apache.spark.sgx.{Encrypt, Encryptable, Encrypted}
-import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.mllib.clustering.sgx.SgxTaskVectorsToDense
-
 /**
  * K-means clustering with a k-means++ like initialization mode
  * (the k-means|| algorithm by Bahmani et al).
@@ -257,7 +253,7 @@ class KMeans private (
         if (initializationMode == KMeans.RANDOM) {
           initRandom(data)
         } else {
-		  initKMeansParallel(data)
+          initKMeansParallel(data)
         }
     }
     val initTimeInSeconds = (System.nanoTime() - initStartTime) / 1e9
@@ -291,17 +287,16 @@ class KMeans private (
           axpy(1.0, point.vector, sum)
           counts(bestCenter) += 1
         }
+
         counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
-      }
-      .reduceByKey { case ((sum1, count1), (sum2, count2)) =>
+      }.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
         axpy(1.0, sum2, sum1)
         (sum1, count1 + count2)
-      }
-     .mapValues { case (sum, count) =>
+      }.mapValues { case (sum, count) =>
         scal(1.0 / count, sum)
         new VectorWithNorm(sum)
-      }
-      .collectAsMap()
+      }.collectAsMap()
+
       bcCenters.destroy(blocking = false)
 
       // Update the cluster centers and costs
@@ -357,7 +352,6 @@ class KMeans private (
     // Initialize the first center to a random point.
     val seed = new XORShiftRandom(this.seed).nextInt()
     val sample = data.takeSample(false, 1, seed)
-
     // Could be empty if data is empty; fail with a better message early:
     require(sample.nonEmpty, s"No samples available from $data")
 
@@ -378,6 +372,7 @@ class KMeans private (
         math.min(KMeans.pointCost(bcNewCenters.value, point), cost)
       }.persist(StorageLevel.MEMORY_AND_DISK)
       val sumCosts = costs.sum()
+
       bcNewCenters.unpersist(blocking = false)
       preCosts.unpersist(blocking = false)
 
@@ -385,10 +380,8 @@ class KMeans private (
         val rand = new XORShiftRandom(seed ^ (step << 16) ^ index)
         pointCosts.filter { case (_, c) => rand.nextDouble() < 2.0 * c * k / sumCosts }.map(_._1)
       }.collect()
-
       newCenters = chosen.map(_.toDense)
       centers ++= newCenters
-
       step += 1
     }
 
@@ -396,6 +389,7 @@ class KMeans private (
     bcNewCentersList.foreach(_.destroy(false))
 
     val distinctCenters = centers.map(_.vector).distinct.map(new VectorWithNorm(_))
+
     if (distinctCenters.size <= k) {
       distinctCenters.toArray
     } else {
@@ -404,7 +398,9 @@ class KMeans private (
       // on the weighted centers to pick k of them
       val bcCenters = data.context.broadcast(distinctCenters)
       val countMap = data.map(KMeans.findClosest(bcCenters.value, _)._1).countByValue()
+
       bcCenters.destroy(blocking = false)
+
       val myWeights = distinctCenters.indices.map(countMap.getOrElse(_, 0L).toDouble).toArray
       LocalKMeans.kMeansPlusPlus(0, distinctCenters.toArray, myWeights, k, 30)
     }
@@ -609,7 +605,7 @@ object KMeans {
  * @see [[org.apache.spark.mllib.clustering.KMeans#fastSquaredDistance]]
  */
 private[clustering]
-class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable with Encryptable with Logging {
+class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable {
 
   def this(vector: Vector) = this(vector, Vectors.norm(vector, 2.0))
 
@@ -617,26 +613,4 @@ class VectorWithNorm(val vector: Vector, val norm: Double) extends Serializable 
 
   /** Converts the vector to a dense vector. */
   def toDense: VectorWithNorm = new VectorWithNorm(Vectors.dense(vector.toArray), norm)
-
-  def encrypt = new SgxVectorWithNorm(Encrypt(vector), Encrypt(norm))
-
-  override def toString() = this.getClass.getSimpleName + "("+norm+","+vector.toArray.deep.mkString("[", ",", "]")+")"
-}
-
-
-private[clustering]
-class SgxVectorWithNorm(val _vector: Encrypted, val _norm: Encrypted) extends VectorWithNorm(null, 0.0) with Encrypted with Logging {
-
-  override def toDense = {
-	if (SgxSettings.IS_ENCLAVE) decrypt[VectorWithNorm].toDense
-	else new SgxTaskVectorsToDense(this).send
-  }
-
-  def decrypt[U]: U = {
-	if (SgxSettings.IS_ENCLAVE) new VectorWithNorm(_vector.decrypt[Vector], _norm.decrypt[Double]).asInstanceOf[U]
-	else throw new RuntimeException("Must not decrypt outside of enclave")
-  }
-
-  /** Must override, as superclass uses provided null value. */
-  override def toString() = this.getClass.getSimpleName
 }

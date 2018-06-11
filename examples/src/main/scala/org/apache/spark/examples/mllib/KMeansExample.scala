@@ -41,18 +41,21 @@ object KMeansExample extends Logging {
     val numClusters = 2
     val numIterations = 20
     val clusters = KMeans.train(parsedData, numClusters, numIterations)
-    logDebug("kmeans done: " + clusters.clusterCenters.mkString("[", ",", "]"))
+    
+    val result = clusters.clusterCenters.mkString("[", ",", "]")
 
     // Evaluate clustering by computing Within Set Sum of Squared Errors
     val WSSSE = clusters.computeCost(parsedData)
     println(s"Within Set Sum of Squared Errors = $WSSSE")
 
     // Save and load model
-    clusters.save(sc, args(1))
+//    clusters.save(sc, args(1))
     // val sameModel = KMeansModel.load(sc, "target/org/apache/spark/KMeansExample/KMeansModel")
     // $example off$
 
     sc.stop()
+  
+    println("KMeans result: " + result)  
   }
 }
 // scalastyle:on println

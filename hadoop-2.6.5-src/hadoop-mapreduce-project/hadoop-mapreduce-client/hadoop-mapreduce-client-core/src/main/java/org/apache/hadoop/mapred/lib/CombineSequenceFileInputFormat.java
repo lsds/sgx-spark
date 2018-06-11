@@ -29,6 +29,8 @@ import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * Input format that is a <code>CombineFileInputFormat</code>-equivalent for
  * <code>SequenceFileInputFormat</code>.
@@ -61,6 +63,10 @@ public class CombineSequenceFileInputFormat<K,V>
     public SequenceFileRecordReaderWrapper(CombineFileSplit split,
       Configuration conf, Reporter reporter, Integer idx) throws IOException {
       super(new SequenceFileInputFormat<K,V>(), split, conf, reporter, idx);
+    }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
     }
   }
 }

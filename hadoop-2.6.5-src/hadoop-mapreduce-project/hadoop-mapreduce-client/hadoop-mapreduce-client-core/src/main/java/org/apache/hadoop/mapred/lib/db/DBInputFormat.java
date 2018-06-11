@@ -35,6 +35,8 @@ import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.Job;
 
+import org.apache.hadoop.util.LineReader;
+
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 @SuppressWarnings("deprecation")
@@ -88,6 +90,10 @@ public class DBInputFormat<T  extends DBWritable>
     public boolean next(LongWritable key, T value) throws IOException {
       return super.next(key, value);
     }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
+    }
   }
 
   /**
@@ -126,6 +132,10 @@ public class DBInputFormat<T  extends DBWritable>
 
     public boolean next(LongWritable key, T value) throws IOException {
       return rr.next(key, value);
+    }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
     }
   }
 

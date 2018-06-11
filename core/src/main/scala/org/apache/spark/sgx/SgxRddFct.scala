@@ -20,10 +20,7 @@ import org.apache.spark.storage.StorageLevel
 object SgxRddFct {
 
 	def collect[T](rddId: Int) =
-		new Collect[T](rddId).send()
-
-	def collectAsMap[K:ClassTag, V:ClassTag](rddId: Int) =
-		new CollectAsMap[K, V](rddId).send()
+		new Collect[T](rddId).send().decrypt[Array[T]]
 
 	def combineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 		rddId: Int,
@@ -36,7 +33,7 @@ object SgxRddFct {
 			new CombineByKeyWithClassTag[C,V,K](rddId, createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer).send()
 
 	def count[T](rddId: Int) =
-		new Count[T](rddId).send()
+		new Count[T](rddId).send().decrypt[Long]
 		
 	def cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) = 
 	  new Cogroup[K,V,W](rddId1, rddId2, partitioner).send()
@@ -51,7 +48,7 @@ object SgxRddFct {
 		new FlatMapValues[U,V,K](rddId, f).send()
 
 	def fold[T](rddId: Int, v: T, op: (T,T) => T) =
-		new Fold(rddId, v, op).send()
+		new Fold(rddId, v, op).send().decrypt[T]
 	
 	def join[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) =
 	  new Join[K,V,W](rddId1, rddId2, partitioner).send()
@@ -75,26 +72,19 @@ object SgxRddFct {
 		new MapValues[U,V,K](rddId, f).send()
 
 	def partitions[T](rddId: Int) =
-		new Partitions[T](rddId).send()
+		new Partitions[T](rddId).send().decrypt[Array[Partition]]
 
 	def persist[T](rddId: Int, level: StorageLevel) =
 		new Persist[T](rddId, level).send()
 
 	def reduce[T](rddId: Int, f: (T, T) => T) =
-		new Reduce[T](rddId, f).send()
+		new Reduce[T](rddId, f).send().decrypt[T]
 
 	def sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) =
 		new Sample[T](rddId, withReplacement, fraction, seed).send()
 
 	def saveAsTextFile[T](rddId: Int, path: String) =
 		new SaveAsTextFile[T](rddId, path).send()
-
-//	def sortBy[T,K](
-//		f: (T) => K,
-//		ascending: Boolean = true,
-//		numPartitions: Int = this.partitions.length)
-//		(implicit ord: Ordering[K], ctag: ClassTag[K]) =
-//			new SortBy[T,K](f, ascending, numPartitions)(ord, ctag).send()
 
 	def sortByKey[
 			K : Ordering : ClassTag,
@@ -103,7 +93,7 @@ object SgxRddFct {
 		new SortByKey[K,V,P](rddId, ascending, numPartitions).send()
 
 	def take[T](rddId: Int, num: Int) =
-		new Take[T](rddId, num).send()
+		new Take[T](rddId, num).send().decrypt[Array[T]]
 
 	def unpersist[T](rddId: Int) =
 		new Unpersist[T](rddId).send()
@@ -120,15 +110,12 @@ private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
 	override def toString = this.getClass.getSimpleName + "(rddId=" + _rddId + ")"
 }
 
-private case class Collect[T](rddId: Int) extends SgxTaskRDD[Array[T]](rddId) {
+private case class Collect[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
 	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect()
-	}, Duration.Inf)
-}
-
-private case class CollectAsMap[K:ClassTag, V:ClassTag](rddId: Int) extends SgxMessage[scala.collection.Map[K, V]] {
-	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]].collectAsMap()
+	  //xx todo
+	  // results from the workers are in plain
+	  // encrypt them within function collect(). Either provide optional parameter or introduce additional sgxCollect()
+		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect())
 	}, Duration.Inf)
 }
 
@@ -147,9 +134,9 @@ private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
 	}, Duration.Inf)
 }
 
-private case class Count[T](rddId: Int) extends SgxTaskRDD[Long](rddId) {
+private case class Count[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
 	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count()
+		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count())
 	}, Duration.Inf)
 }
 
@@ -182,9 +169,9 @@ private case class FlatMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => Tr
 }
 
 
-private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[T](rddId) {
+private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[Encrypted](rddId) {
 	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].fold(v)(op)
+		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].fold(v)(op))
 	}, Duration.Inf)
 
 	override def toString = this.getClass.getSimpleName + "(v=" + v + " (" + v.getClass.getSimpleName + "), op=" + op + ", rddId=" + rddId + ")"
@@ -225,9 +212,9 @@ private case class MapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) ext
 	}, Duration.Inf)
 }
 
-private case class Partitions[T](rddId: Int) extends SgxTaskRDD[Array[Partition]](rddId) {
+private case class Partitions[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
 	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].partitions
+		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].partitions)
 	}, Duration.Inf)
 }
 
@@ -238,9 +225,9 @@ private case class Persist[T](rddId: Int, level: StorageLevel) extends SgxTaskRD
 	}, Duration.Inf)
 }
 
-private case class Reduce[T](rddId: Int, f: (T, T) => T) extends SgxTaskRDD[T](rddId) {
+private case class Reduce[T](rddId: Int, f: (T, T) => T) extends SgxTaskRDD[Encrypted](rddId) {
 	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].reduce(f)
+		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].reduce(f))
 	}, Duration.Inf)
 }
 
@@ -257,13 +244,6 @@ private case class SaveAsTextFile[T](rddId: Int, path: String) extends SgxTaskRD
 	}, Duration.Inf)
 }
 
-//private case class SortBy[T,K](f: (T) => K, ascending: Boolean = true, numPartitions: Int = this.partitions.length) (implicit ord: Ordering[K], ctag: ClassTag[K]) extends SgxTaskRDD[RDD[T]](rddId) {
-//	def execute() = Await.result( Future {
-//		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sortBy(f, ascending, numPartitions)(ord, ctag)
-//		SgxMain.rddIds.put(r.id, r)
-//	}, Duration.Inf)
-//}
-
 private case class SortByKey[
 		K : Ordering : ClassTag,
 		V: ClassTag,
@@ -275,10 +255,9 @@ private case class SortByKey[
 	}, Duration.Inf)
 }
 
-
-private case class Take[T](rddId: Int, num: Int) extends SgxMessage[Array[T]] {
+private case class Take[T](rddId: Int, num: Int) extends SgxMessage[Encrypted] {
 	def execute() = Await.result( Future {
-		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num)
+		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num))
 	}, Duration.Inf)
 }
 

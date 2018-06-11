@@ -82,6 +82,9 @@
   </mailingLists>
 
   <modules>
+    <module>sgx</module>
+    <module>shm</module>
+    <module>hadoop-2.6.5-src</module>
     <module>common/sketch</module>
     <module>common/kvstore</module>
     <module>common/network-common</module>
@@ -132,7 +135,7 @@
     <hive.version.short>1.2.1</hive.version.short>
     <derby.version>10.12.1.1</derby.version>
     <parquet.version>1.8.2</parquet.version>
-    <orc.version>1.4.1</orc.version>
+    <orc.version>1.4.3</orc.version>
     <orc.classifier>nohive</orc.classifier>
     <hive.parquet.version>1.6.0</hive.parquet.version>
     <jetty.version>9.3.20.v20170531</jetty.version>
@@ -276,11 +279,16 @@
          This is needed by the scalatest plugin, and so is declared here to be available in
          all child modules, just as scalatest is run in all children
     -->
-	<dependency>
-	    <groupId>de.ruedigermoeller</groupId>
-	    <artifactId>fst</artifactId>
-	    <version>2.54</version>
-	</dependency>    
+    <dependency>
+        <groupId>de.ruedigermoeller</groupId>
+        <artifactId>fst</artifactId>
+    <version>2.57</version>
+    </dependency>   
+    <dependency>
+        <groupId>com.esotericsoftware</groupId>
+        <artifactId>kryo-shaded</artifactId>
+        <version>4.0.2</version>
+    </dependency>
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>
@@ -1745,10 +1753,6 @@
           <exclusion>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-storage-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.airlift</groupId>
-            <artifactId>slice</artifactId>
           </exclusion>
         </exclusions>
       </dependency>

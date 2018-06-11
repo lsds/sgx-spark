@@ -24,6 +24,7 @@ import java.io.InputStream;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
@@ -36,6 +37,10 @@ public class SplitLineReader extends org.apache.hadoop.util.LineReader {
       byte[] recordDelimiterBytes) throws IOException {
     super(in, conf, recordDelimiterBytes);
   }
+  
+  public SplitLineReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiterBytes) throws IOException {
+	super(buffer, recordDelimiterBytes);
+  }  
 
   public boolean needAdditionalRecordAfterSplit() {
     return false;

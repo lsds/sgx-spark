@@ -66,9 +66,9 @@ public class ShmCommunicator extends SgxCommunicator {
 				result = inbox.take();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
+				result = null;
 			}
 		} while (result == null);
-
 		return result;
 	}
 

@@ -596,6 +596,10 @@ class SparkContext(config: SparkConf) extends Logging {
         throw e
       }
   }
+  
+  def hadoopConfigurationSet(name: String, value: String) {
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) return SgxSparkContextFct.hadoopConfigurationSet(name, value)
+  }
 
   /**
    * Called by the web UI to obtain executor thread dumps.  This method may be expensive.
@@ -833,7 +837,7 @@ class SparkContext(config: SparkConf) extends Logging {
   def textFile(
       path: String,
       minPartitions: Int = defaultMinPartitions): RDD[String] = withScope {
-	if (outcall) return SgxSparkContextFct.textFile(path)
+    if (outcall) return SgxSparkContextFct.textFile(path)
     assertNotStopped()
     hadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text],
       minPartitions).map(pair => pair._2.toString).setName(path)
@@ -1577,7 +1581,7 @@ class SparkContext(config: SparkConf) extends Logging {
    */
   @DeveloperApi
   def addSparkListener(listener: SparkListenerInterface) {
-	if (outcall) return SgxSparkContextFct.addSparkListener(listener)
+    if (outcall) return SgxSparkContextFct.addSparkListener(listener)
     listenerBus.addToSharedQueue(listener)
   }
 
@@ -2366,8 +2370,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
   /** Register a new RDD, returning its RDD ID */
   private[spark] def newRddId(): Int =
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) //SgxSparkContextFct.newRddId()
-    	throw new Exception("Creation of this RDD should happen outside of the enclave")
+    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) throw new Exception("Creation of this RDD should happen outside of the enclave")
     else nextRddId.getAndIncrement()
 
   /**
@@ -2434,7 +2437,7 @@ class SparkContext(config: SparkConf) extends Logging {
  * various Spark features.
  */
 object SparkContext extends Logging {
-  var instance: SparkContext = _
+  private var instance: SparkContext = _
 
   private val VALID_LOG_LEVELS =
     Set("ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN")
@@ -2789,6 +2792,8 @@ object SparkContext extends Logging {
     }
     serviceLoaders.headOption
   }
+  
+  def getInstance = instance
 }
 
 /**

@@ -31,6 +31,8 @@ import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * Input format that is a <code>CombineFileInputFormat</code>-equivalent for
  * <code>TextInputFormat</code>.
@@ -63,6 +65,10 @@ public class CombineTextInputFormat
     public TextRecordReaderWrapper(CombineFileSplit split, Configuration conf,
       Reporter reporter, Integer idx) throws IOException {
       super(new TextInputFormat(), split, conf, reporter, idx);
+    }
+
+    public LineReader getLineReader() {
+      throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
     }
   }
 }

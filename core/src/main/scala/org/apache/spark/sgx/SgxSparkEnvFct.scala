@@ -11,9 +11,14 @@ import org.apache.spark.serializer.Serializer
 
 object SgxSparkEnvFct {
 
-	def getSerializer = GetSerializer().send()
+  private var serializer: Serializer  = null
+  
+  def getSerializer = {
+    if (serializer == null) serializer = GetSerializer().send()
+    serializer
+  }
 }
 
 private case class GetSerializer() extends SgxMessage[Serializer] {
-	def execute() = Await.result( Future { SparkEnv.get.serializer }, Duration.Inf)
+  def execute() = Await.result( Future { SparkEnv.get.serializer }, Duration.Inf)
 }

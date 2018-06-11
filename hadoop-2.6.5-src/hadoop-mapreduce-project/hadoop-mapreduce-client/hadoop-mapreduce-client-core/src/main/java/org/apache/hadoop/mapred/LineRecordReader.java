@@ -21,6 +21,8 @@ package org.apache.hadoop.mapred;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -39,8 +41,9 @@ import org.apache.hadoop.io.compress.SplittableCompressionCodec;
 import org.apache.hadoop.mapreduce.lib.input.CompressedSplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.SplitLineReader;
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader;
-import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.Log;
+import org.apache.spark.sgx.IFillBuffer;
+import org.apache.spark.sgx.SgxSettings;
+import org.apache.spark.sgx.shm.MallocedMappedDataBuffer;
 
 /**
  * Treats keys as offset in file and value as line. 
@@ -132,8 +135,23 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
     // If this is not the first split, we always throw away first record
     // because we always (except the last split) read one extra line in
     // next() method.
+    if (!SgxSettings.SGX_ENABLED()) {
     if (start != 0) {
       start += in.readLine(new Text(), 0, maxBytesToConsume(start));
+    }
+    }
+    this.pos = start;
+  }
+  
+  // SGX
+  public LineRecordReader(MallocedMappedDataBuffer buffer, byte[] recordDelimiter, long splitLength, long splitStart, IFillBuffer fillBuffer) throws IOException {
+    this.maxLineLength = buffer.capacity();
+    this.in = new UncompressedSplitLineReader(buffer, recordDelimiter, splitLength, fillBuffer);
+    this.start = splitStart;
+    this.end = start + splitLength;
+    this.filePosition = null;
+    if (start != 0) {
+        start += in.readLine(new Text(), 0, maxBytesToConsume(start));
     }
     this.pos = start;
   }
@@ -288,5 +306,10 @@ public class LineRecordReader implements RecordReader<LongWritable, Text> {
         CodecPool.returnDecompressor(decompressor);
       }
     }
+  }
+
+  @Override
+  public org.apache.hadoop.util.LineReader getLineReader() {
+    return in;
   }
 }

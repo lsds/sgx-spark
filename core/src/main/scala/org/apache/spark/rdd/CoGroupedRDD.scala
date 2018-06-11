@@ -166,10 +166,8 @@ class CoGroupedRDD[K: ClassTag](
     context.taskMetrics().incDiskBytesSpilled(map.diskBytesSpilled)
     context.taskMetrics().incPeakExecutionMemory(map.peakMemoryUsedBytes)
     if (SgxSettings.SGX_ENABLED) {
-      logDebug("CoGrouped: " + map.iterator.asInstanceOf[Iterator[(K, Array[Iterable[_]])]])
       map.iterator.asInstanceOf[Iterator[(K, Array[Iterable[_]])]]
-    }
-    else
+    } else
     new InterruptibleIterator(context,
       map.iterator.asInstanceOf[Iterator[(K, Array[Iterable[_]])]])
   }

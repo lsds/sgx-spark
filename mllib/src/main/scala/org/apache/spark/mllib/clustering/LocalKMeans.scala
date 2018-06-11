@@ -43,9 +43,11 @@ private[mllib] object LocalKMeans extends Logging {
     val rand = new Random(seed)
     val dimensions = points(0).vector.size
     val centers = new Array[VectorWithNorm](k)
+
     // Initialize centers by sampling using the k-means++ procedure.
     centers(0) = pickWeighted(rand, points, weights).toDense
     val costArray = points.map(KMeans.fastSquaredDistance(_, centers(0)))
+
     for (i <- 1 until k) {
       val sum = costArray.zip(weights).map(p => p._1 * p._2).sum
       val r = rand.nextDouble() * sum
@@ -69,6 +71,7 @@ private[mllib] object LocalKMeans extends Logging {
       }
 
     }
+
     // Run up to maxIterations iterations of Lloyd's algorithm
     val oldClosest = Array.fill(points.length)(-1)
     var iteration = 0
@@ -103,6 +106,7 @@ private[mllib] object LocalKMeans extends Logging {
       }
       iteration += 1
     }
+
     if (iteration == maxIterations) {
       logInfo(s"Local KMeans++ reached the max number of iterations: $maxIterations.")
     } else {

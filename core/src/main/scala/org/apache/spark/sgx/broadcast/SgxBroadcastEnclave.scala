@@ -24,6 +24,25 @@ object SgxBroadcastEnclave extends Logging {
 	def value[T](bc: Broadcast[T]): T = {
 		com.sendRecv[T](new MsgBroadcastValue(bc))
 	}
-
-	override def toString(): String = this.getClass.getSimpleName
 }
+
+abstract class MsgBroadcast[R] extends Serializable {
+	def apply(): R
+}
+
+private case class MsgBroadcastDestroy[T](bc: Broadcast[T], blocking: Boolean) extends MsgBroadcast[Unit] {
+	override def apply = bc.destroy(blocking)
+	override def toString = this.getClass.getSimpleName + "(bc=" + bc + ", blocking=" + blocking + ")"
+}
+
+private case class MsgBroadcastUnpersist[T](bc: Broadcast[T], blocking: Boolean) extends MsgBroadcast[Unit] {
+	override def apply = bc.unpersist(blocking)
+	override def toString = this.getClass.getSimpleName + "(bc=" + bc + ", blocking=" + blocking + ")"
+}
+
+private case class MsgBroadcastValue[T](bc: Broadcast[T]) extends MsgBroadcast[T] {
+	override def apply = bc.value
+	override def toString = this.getClass.getSimpleName + "(bc=" + bc + ")"
+}
+
+object MsgBroadcastReqClose extends Serializable {}

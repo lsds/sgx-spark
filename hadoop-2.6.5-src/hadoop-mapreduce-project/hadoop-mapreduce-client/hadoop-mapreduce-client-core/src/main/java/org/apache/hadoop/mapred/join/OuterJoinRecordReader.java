@@ -26,6 +26,8 @@ import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 
+import org.apache.hadoop.util.LineReader;
+
 /**
  * Full outer join.
  */
@@ -45,5 +47,9 @@ public class OuterJoinRecordReader<K extends WritableComparable>
   protected boolean combine(Object[] srcs, TupleWritable dst) {
     assert srcs.length == dst.size();
     return true;
+  }
+
+  public LineReader getLineReader() {
+    throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }
 }

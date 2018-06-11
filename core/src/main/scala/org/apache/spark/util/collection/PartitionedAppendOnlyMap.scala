@@ -25,24 +25,27 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
 
+import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.IdentifierManager
+import org.apache.spark.sgx.shm.MappedDataBufferManager
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.sgx.SgxSparkContextFct
 
 /**
  * Implementation of WritablePartitionedPairCollection that wraps a map in which the keys are tuples
  * of (partition ID, K)
  */
 private[spark] class PartitionedAppendOnlyMap[K, V]
-  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] {
-
+  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] with Logging {
+  
   override def sgxinit() = {
-	  if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
-	 	  SgxFct.partitionedAppendOnlyMapCreate()
-	  else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
-  	 	val i = scala.util.Random.nextLong
-  	 	SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
-  	 	new SizeTrackingAppendOnlyMapIdentifier(i)
-	  }
-	  else new SizeTrackingAppendOnlyMapIdentifier(0)
+    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) SgxFct.partitionedAppendOnlyMapCreate()
+    else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {
+      val i = scala.util.Random.nextLong
+      SizeTrackingAppendOnlyMaps.put(i, this.asInstanceOf[SizeTrackingAppendOnlyMap[Any,Any]])
+      new SizeTrackingAppendOnlyMapIdentifier(i)
+    } else new SizeTrackingAppendOnlyMapIdentifier(0)
   }
 
   def partitionedDestructiveSortedIterator(keyComparator: Option[Comparator[K]])
@@ -55,10 +58,25 @@ private[spark] class PartitionedAppendOnlyMap[K, V]
     update((partition, key), value)
   }
 
-  override def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]])
+  override def destructiveSortedWritablePartitionedIterator(keyComparator: Option[Comparator[K]], bufOffset: Long = -1, bufCapacity: Int = -1)
     : WritablePartitionedIterator = {
-    if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE)
-      SgxFct.partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator)
-    else super.destructiveSortedWritablePartitionedIterator(keyComparator)
+    if (SgxSettings.SGX_ENABLED) {
+      if (!SgxSettings.IS_ENCLAVE) {
+        // We are outside. This happens first.
+        // On this side, we consume the values that are produced by the enclave.
+        // Call into enclave to prepare the enclave-internal iterator over the data.
+        // Before that, we create the shared memory to be used.
+        if (bufOffset != -1 || bufCapacity != -1) throw new IllegalStateException("Something went wrong")
+        val buffer = MappedDataBufferManager.get.malloc(SgxSettings.SPARK_DEFAULT_BUFFER_SIZE)
+        SgxFct.partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator, buffer.offset(), buffer.capacity()).getIterator()
+      }
+      else {
+        // We are inside the enclave.
+        // On this side, we produce/provide the values that are to be consumed outside of the enclave
+        if (bufOffset == -1 || bufCapacity == -1) throw new IllegalStateException("Something went wrong")
+        super.destructiveSortedWritablePartitionedIterator(keyComparator, bufOffset, bufCapacity)
+      }
+    } else
+    super.destructiveSortedWritablePartitionedIterator(keyComparator)
   }
 }
