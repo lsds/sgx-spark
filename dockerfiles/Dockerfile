@@ -82,11 +82,14 @@ RUN	sudo apt-get update && \
         && sudo apt-get autoclean \
         && sudo rm -rf /var/lib/apt/lists/*
 
-WORKDIR	${HADOOP_DIR}
-RUN	MAVEN_OPTS="-Xmx1g" mvn package -DskipTests
+#WORKDIR	${HADOOP_DIR}
+#RUN	MAVEN_OPTS="-Xmx1g" mvn package -DskipTests
 
 WORKDIR	${SPARK_DIR}
 RUN    export MAVEN_OPTS="-Xmx1g"
+RUN    build/mvn package -pl sgx -am -DskipTests
+RUN    build/mvn package -pl shm -am -DskipTests
+RUN    build/mvn package -pl hadoop-2.6.5-src -am -DskipTests
 RUN    build/mvn package -pl common/sketch -am -DskipTests
 RUN    build/mvn package -pl common/kvstore -am -DskipTests
 RUN    build/mvn package -pl common/network-common -am -DskipTests
@@ -106,6 +109,9 @@ RUN    build/mvn package -pl assembly -am -DskipTests
 RUN    build/mvn package -pl examples -am -DskipTests
 RUN    build/mvn package -pl repl -am -DskipTests
 RUN    build/mvn package -pl launcher -am -DskipTests
+RUN    build/mvn package -pl external/kafka-0-10 -am -DskipTests
+RUN    build/mvn package -pl external/kafka-0-10-assembly -am -DskipTests
+RUN    build/mvn package -pl external/kafka-0-10-sql -am -DskipTests
 RUN    build/mvn package -DskipTests
 RUN    cp ${HADOOP_DIR}/hadoop-common-project/hadoop-common/target/hadoop-common-${HADOOP_VERSION}.jar ${SPARK_DIR}/assembly/target/scala-${SCALA_VERSION}/jars/hadoop-common-${HADOOP_VERSION}.jar
 RUN    rm -rf ${HADOOP_DIR}

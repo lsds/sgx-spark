@@ -27,7 +27,7 @@ ${SGXLKL_DIR}/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
 -Xint \
 -Djava.library.path=/spark/lib/ \
 -cp \
-/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/* \
+/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/*:/spark/sgx/target/\*:/spark/shm/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-worker
 ) &
 

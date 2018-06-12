@@ -27,7 +27,7 @@ ${SGXLKL_DIR}/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
 -Xint \
 -Djava.library.path=/spark/lib/ \
 -cp \
-/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/* \
+/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/*:/spark/sgx/target/\*:/spark/shm/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-driver
 ) &
 
@@ -36,7 +36,7 @@ sleep 2
 (
 export IS_ENCLAVE=false
 
-JARS=$(echo $(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*jar )
+JARS=$(echo $(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*jar $(pwd)/shm/target/*jar $(pwd)/sgx/target/*jar)
 JARS_COMMA=$(echo $JARS | tr ' ' ',')
 JARS_COLON=$(echo $JARS | tr ' ' ':')
 
