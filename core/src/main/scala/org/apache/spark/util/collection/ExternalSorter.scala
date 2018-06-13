@@ -718,6 +718,7 @@ private[spark] class ExternalSorter[K, V, C](
         while (it.hasNext) {
           val partitionId = it.nextPartition()
           while (it.hasNext && it.nextPartition() == partitionId) {
+            // TODO SGX. This looks like natural point to integrate encryption after the shuffle phase.
             it.writeNext(writer)
           }
           val segment = writer.commitAndGet()
