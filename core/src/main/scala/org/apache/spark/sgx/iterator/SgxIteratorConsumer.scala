@@ -120,10 +120,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   
   val com = id.connect()
   
-  override def close() = {
-    logDebug("xxx Sending instruction to close SgxShmIteratorConsumer")
-    com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
-  }
+  override def close() = com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
   
   /* Code from HadoopRDD follows */
   
