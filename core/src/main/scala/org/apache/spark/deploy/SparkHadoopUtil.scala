@@ -42,6 +42,8 @@ import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
+import org.apache.spark.sgx.SgxSettings
+
 /**
  * :: DeveloperApi ::
  * Contains util methods to interact with Hadoop from Spark.
@@ -50,6 +52,7 @@ import org.apache.spark.util.Utils
 class SparkHadoopUtil extends Logging {
   private val sparkConf = new SparkConf(false).loadFromSystemProperties(true)
   val conf: Configuration = newConfiguration(sparkConf)
+  if (!SgxSettings.SGX_ENABLED || !SgxSettings.IS_ENCLAVE)
   UserGroupInformation.setConfiguration(conf)
 
   /**

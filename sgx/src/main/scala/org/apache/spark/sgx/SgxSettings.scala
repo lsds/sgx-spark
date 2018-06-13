@@ -30,11 +30,7 @@ object SgxSettings {
 	 */
 	val SERIALIZER = sys.env.get("SERIALIZER").getOrElse("fst");
 
-	val SHMEM_FILE = {
-		sys.env.get("SGXLKL_SHMEM_FILE").getOrElse({
-			throw new RuntimeException("SGXLKL_SHMEM_FILE not provided.")
-			""})
-	}
+	val SHMEM_FILE = sys.env.get("SGXLKL_SHMEM_FILE").getOrElse("")
 
 	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("2147483647"))
 
