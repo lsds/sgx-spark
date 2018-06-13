@@ -15,12 +15,12 @@ object SgxSettings {
 	val DEBUG_IS_ENCLAVE_REAL = sys.env.get("DEBUG_IS_ENCLAVE_REAL").getOrElse("true").toBoolean
 
 	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("8").toInt
-	val PREFETCH = sys.env.get("PREFETCH").getOrElse("128").toInt
+	val PREFETCH = sys.env.get("PREFETCH").getOrElse("1024").toInt
 
 	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt
 	
-	val BACKOFF_WAIT_MIN = sys.env.get("BACKOFF_WAIT_MIN").getOrElse("2").toInt
-	val BACKOFF_WAIT_MAX = sys.env.get("BACKOFF_WAIT_MAX").getOrElse("256").toInt
+	val BACKOFF_WAIT_MIN = sys.env.get("BACKOFF_WAIT_MIN").getOrElse("1").toInt
+	val BACKOFF_WAIT_MAX = sys.env.get("BACKOFF_WAIT_MAX").getOrElse("64").toInt
 	
 	val SPARK_DEFAULT_BUFFER_SIZE = sys.env.get("SPARK_DEFAULT_BUFFER_SIZE").getOrElse("33554432").toInt
 	
@@ -36,7 +36,7 @@ object SgxSettings {
 			""})
 	}
 
-	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("1073741824"))
+	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("2147483647"))
 
 	val SHMEM_COMMON = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_COMMON").getOrElse("0")) // fail if not provided
 	val SHMEM_OUT_TO_ENC = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC").getOrElse("0")) // fail if not provided
