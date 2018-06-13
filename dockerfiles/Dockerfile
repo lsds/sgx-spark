@@ -12,6 +12,7 @@ ENV	HADOOP_VERSION=2.6.5
 ENV	HADOOP_DIR=${SPARK_DIR}/hadoop-${HADOOP_VERSION}-src
 
 ENV     SGXLKL_DIR=/sgx-lkl
+ENV	SGXLKL_BRANCH=cleanup-musl
 
 RUN     apt-get update && \
         apt-get install -y --no-install-recommends \
@@ -54,7 +55,7 @@ RUN	sudo chown user:user id_rsa && \
 RUN     sudo mkdir -p ${SGXLKL_DIR} && \
 	sudo chown user:user ${SGXLKL_DIR}
 WORKDIR	${SGXLKL_DIR}
-RUN     git clone --depth 1 lsds_git@lsds.doc.ic.ac.uk:sereca/sgx-lkl.git ${SGXLKL_DIR} && \
+RUN     git clone --depth 1 lsds_git@lsds.doc.ic.ac.uk:sereca/sgx-lkl.git ${SGXLKL_DIR} -b ${SGXLKL_BRANCH} && \
 	make sim && \
 	find . -name .git -exec rm -r {} + && \
 	rm -rf ${SGXLKL_DIR}/apps
@@ -81,9 +82,6 @@ RUN	sudo apt-get update && \
         && sudo apt-get clean \
         && sudo apt-get autoclean \
         && sudo rm -rf /var/lib/apt/lists/*
-
-#WORKDIR	${HADOOP_DIR}
-#RUN	MAVEN_OPTS="-Xmx1g" mvn package -DskipTests
 
 WORKDIR	${SPARK_DIR}
 RUN    export MAVEN_OPTS="-Xmx1g"
@@ -114,7 +112,6 @@ RUN    build/mvn package -pl external/kafka-0-10-assembly -am -DskipTests
 RUN    build/mvn package -pl external/kafka-0-10-sql -am -DskipTests
 RUN    build/mvn package -DskipTests
 RUN    cp ${HADOOP_DIR}/hadoop-common-project/hadoop-common/target/hadoop-common-${HADOOP_VERSION}.jar ${SPARK_DIR}/assembly/target/scala-${SCALA_VERSION}/jars/hadoop-common-${HADOOP_VERSION}.jar
-RUN    rm -rf ${HADOOP_DIR}
 
 WORKDIR ${SPARK_DIR}/C
 RUN	make install
