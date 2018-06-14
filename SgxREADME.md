@@ -115,7 +115,7 @@ To run Sgx-Spark natively, proceed as detailed in the following.
 Install all required dependencies. For Ubuntu 16.04, these can be installed as follows:
 
     $ sudo apt-get update
-    $ sudo apt-get install -y --no-install-recommends openvpn scala libtool autoconf curl xutils-dev git build-essentialmaven openjdk-8-jdk ssh bc python autogen wget autotools-dev sudo automake
+    $ sudo apt-get install -y --no-install-recommends openvpn scala libtool autoconf curl xutils-dev git build-essential maven openjdk-8-jdk ssh bc python autogen wget autotools-dev sudo automake
 		
 ### Compile and install Google Protocol Buffer 2.5.0
 
