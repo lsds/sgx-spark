@@ -124,7 +124,7 @@ To run Sgx-Spark natively without, proceed as detailed in the following.
 
 ### Prerequisites
 
-As Sgx-Spark uses [sgx-lkl](https://github.com/lsds/sgx-lkl), the
+As Sgx-Spark uses [sgx-lkl](https://lsds.doc.ic.ac.uk/gitlab/sereca/sgx-lkl), the
 latter must have been downloaded and compiled successfully. As of writing (June 14, 2018),
 `sgx-lkl` should be compiled using branch `cleanup-musl`. Please
 follow the documentation of sgx-lkl and ensure that your
