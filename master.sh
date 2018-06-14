@@ -3,7 +3,7 @@
 source ./variables.sh
 
 java \
--cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/* \
 org.apache.spark.deploy.master.Master \
 --host $(hostname) \
 --port ${SPARK_MASTER_PORT} \
