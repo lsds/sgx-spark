@@ -195,7 +195,7 @@ the master node's actual hostname; `<sgx-lkl>` with the path to your `sgx-lkl` i
 
         sgx-spark$ ./driver-enclave.sh
 
-- Finally, submit a Spark job. The result will be output in the process the we started just before.
+- Finally, submit a Spark job. The result will be output in the process we started just before.
 
     - WordCount
 
