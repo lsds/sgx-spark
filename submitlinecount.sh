@@ -12,6 +12,7 @@ export SPARK_JOBNAME=linecount
 
 #INFILE=$(pwd)/data/mllib/kmeans_data.txt.single
 #INFILE=$(pwd)/data/mllib/kmeans_data.txt.short
+INFILE=$(pwd)/README.md
 #INFILE=$(pwd)/README.md.16
 #INFILE=$(pwd)/README.md.256
 #INFILE=$(pwd)/README.md.4096
@@ -21,7 +22,7 @@ export SPARK_JOBNAME=linecount
 #INFILE=$(pwd)/README.md.131072
 #INFILE=$(pwd)/README.md.262144
 #INFILE=$(pwd)/README.md.524288
-INFILE=$(pwd)/README.md.1048576
+#INFILE=$(pwd)/README.md.1048576
 #INFILE=$(pwd)/README.md.2097152
 
 ./bin/spark-submit \
