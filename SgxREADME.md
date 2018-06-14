@@ -240,7 +240,7 @@ the master node's actual hostname; `<sgx-lkl>` with the path to your `sgx-lkl` i
         -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/\*:/spark/sgx/target/\*:/spark/shm/target/\* \
         org.apache.spark.sgx.SgxMain
 
-- Run the enclave for the driver program:
+- Run the enclave for the driver program. *This is the process that will output the job results!*
 
         sgx-spark$
         LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usrib:/usr/local/lib \
