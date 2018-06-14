@@ -118,16 +118,16 @@ the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
         -ti sgxspark /sgx-spark/driver-and-enclave.sh
         ```   
 
-## Conventional compilation, installation and deployment
+## Native compilation, installation and deployment
 
-Of course, Sgx-Spark can be run natively, without Docker. The
-compilation, installation and deployment process is detailed in the following.
+To run Sgx-Spark natively without, proceed as detailed in the following.
 
 ### Prerequisites
 
 As Sgx-Spark uses [sgx-lkl](https://github.com/lsds/sgx-lkl), the
-latter must have been downloaded and compiled successfully. For this, please
-follow the documentation of sgx-lkl. In particular, ensure that your
+latter must have been downloaded and compiled successfully. As of writing (June 14, 2018),
+`sgx-lkl` should be compiled using branch `cleanup-musl`. Please
+follow the documentation of sgx-lkl and ensure that your
 installation of sgx-lkl executes simple Java applications successfully.
 
 ### Build Sgx-Spark
