@@ -181,158 +181,34 @@ the master node's actual hostname; `<sgx-lkl>` with the path to your `sgx-lkl` i
 
 - Run the Master node
 
-        sgx-spark$
-        SPARK_LOCAL_IP=127.0.0.1 \
-        java -cp conf/:assembly/target/scala-2.11/jars/\*:shm/target/\*:sgx/target/\* \
-        -Xmx1g \
-        org.apache.spark.deploy.master.Master \
-        --host $(hostname -f) \
-        --port 7077 \
-        --webui-port 8082
+        sgx-spark$ ./master.sh
 
 - Run the Worker node
 
-        sgx-spark$
-        SGX_ENABLED=true \
-        IS_ENCLAVE=false \
-        IS_DRIVER=false \
-        IS_WORKER=true \
-        SGXLKL_SHMEM_FILE=sgx-lkl-shmem \
-        SGXLKL_SHMEM_SIZE=2147483647 \
-        HADOOP_HOME=/tmp \
-        java \
-        -cp conf/:assembly/target/scala-2.11/jars/\*:sgx/target/\*:shm/target/\* \
-        org.apache.spark.deploy.worker.Worker \
-        spark://<hostname>:7077
+        sgx-spark$ ./worker.sh
 
 - Run the enclave for the Worker node
 
-        sgx-spark$
-        LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usrib:/usr/local/lib \
-        SGX_ENABLED=true \
-        IS_WORKER=true \
-        IS_ENCLAVE=true \
-        IS_DRIVER=false \
-        SGXLKL_STRACELKL=1 \
-        SGXLKL_VERBOSE=1 \
-        SGXLKL_TRACE_SYSCALL=0 \
-        SGXLKL_TRACE_MMAP=0 \
-        SGXLKL_TAP=tap0 \
-        SGXLKL_HOSTNAME=localhost \
-        SGXLKL_STHREADS=6 \
-        SGXLKL_ETHREADS=3 \
-        SGXLKL_SHMEM_FILE=/sgx-lkl-shmem \
-        SGXLKL_SHMEM_SIZE=2147483647 \
-        SGXLKL_HEAP=805306368 \
-        <sgx-lkl>/build/sgx-lkl-run \
-        lkl/alpine-rootfs.img \
-        /opt/j2re-image/bin/java \
-        -Xms512m \
-        -Xmx512m \
-        -XX:+UseMembar \
-        -XX:+AssumeMP \
-        -XX:MaxMetaspaceSize=128m \
-        -XX:InitialCodeCacheSize=32m \
-        -XX:ReservedCodeCacheSize=32m \
-        -XX:CompressedClassSpaceSize=32m \
-        -XX:+UseCompressedClassPointers \
-        -Djava.library.path=/spark/lib/ \
-        -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/\*:/spark/sgx/target/\*:/spark/shm/target/\* \
-        org.apache.spark.sgx.SgxMain
+        sgx-spark$ ./worker-enclave.sh
 
 - Run the enclave for the driver program. *This is the process that will output the job results!*
 
-        sgx-spark$
-        LD_LIBRARY_PATH=/opt/j2re-image/lib/amd64:/opt/j2re-image/lib/amd64/jli:/opt/j2re-image/lib/amd64/server:/lib:/usrib:/usr/local/lib \
-        SGX_ENABLED=true \
-        IS_WORKER=false \
-        IS_ENCLAVE=true \
-        IS_DRIVER=true \
-        SGXLKL_STRACELKL=1 \
-        SGXLKL_VERBOSE=1 \
-        SGXLKL_TRACE_SYSCALL=0 \
-        SGXLKL_TRACE_MMAP=0 \
-        SGXLKL_TAP=tap1 \
-        SGXLKL_HOSTNAME=localhost \
-        SGXLKL_STHREADS=6 \
-        SGXLKL_ETHREADS=3 \
-        SGXLKL_SHMEM_FILE=/sgx-lkl-shmem-driver \
-        SGXLKL_SHMEM_SIZE=2147483647 \
-        SGXLKL_HEAP=805306368 \
-        <sgx-lkl>/build/sgx-lkl-run \
-        lkl/alpine-rootfs.img \
-        /opt/j2re-image/bin/java \
-        -Xms512m \
-        -Xmx512m \
-        -XX:+UseMembar \
-        -XX:+AssumeMP \
-        -XX:MaxMetaspaceSize=128m \
-        -XX:InitialCodeCacheSize=32m \
-        -XX:ReservedCodeCacheSize=32m \
-        -XX:CompressedClassSpaceSize=32m \
-        -XX:+UseCompressedClassPointers \
-        -Djava.library.path=/spark/lib/ \
-        -cp /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-2.11/jars/\*:/spark/examples/target/scala-2.11/jars/\*:/spark/sgx/target/\*:/spark/shm/target/\* \
-        org.apache.spark.sgx.SgxMain
+        sgx-spark$ ./driver-enclave.sh
 
-- Finally, submit a Spark job.
+- Finally, submit a Spark job. The result will be output in the process the we started just before.
 
-    For example, WordCount or KMeans:
-    
     - WordCount
 
-            sgx-spark$
-            rm -rf $(pwd)/output; \
-            SPARK_LOCAL_IP=127.0.0.1 \
-            SGX_ENABLED=true \
-            IS_DRIVER=true \
-            IS_WORKER=false \
-            IS_ENCLAVE=false \
-            SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver \
-            SGXLKL_SHMEM_SIZE=2147483647 \
-            ./bin/spark-submit \
-            --class org.apache.spark.examples.MyWordCount \
-            --master spark://<hostname>:7077 \
-            --deploy-mode client \
-            --verbose \
-            --driver-memory 2g \
-            --executor-memory 1g \
-            --name wordcount \
-            --conf "spark.app.id=wordcount" \
-            --conf "spark.executor.extraLibraryPath=$(pwd)/lib" \
-            --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
-            --conf "spark.executor.extraClassPath=$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
-            --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
-            --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-            examples/target/scala-2.11/jars/spark-examples_2.11-2.3.2-SNAPSHOT.jar \
-            $(pwd)/README.md \
-            output
+            sgx-spark$ ./submitwordcount.sh
     
     
     - KMeans
 
-        ```
-        sgx-spark$
-        SPARK_LOCAL_IP=127.0.0.1 \
-        SGX_ENABLED=true \
-        IS_DRIVER=true \
-        SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver \
-        ./bin/spark-submit \
-        --class org.apache.spark.examples.mllib.KMeansExample \
-        --master spark://<hostname>:7077 \
-        --deploy-mode client \
-        --verbose \
-        --executor-memory 1g \
-        --name kmeans \
-        --conf "spark.app.id=kmeans" \
-        --conf "spark.executor.extraLibraryPath=$(pwd)/lib" \
-        --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
-        --conf "spark.executor.extraClassPath=$(pwd)/assembly/target/scala-2.11/jars/*:$(pwd)/examples/target/scala-2.11/jars/*" \
-        --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-2.11/jars/*:$(pwd)/examples/target/scala-2.11/jars/*" \
-        --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-        examples/target/scala-2.11/jars/spark-examples_2.11-2.3.1-SNAPSHOT.jar \
-        $(pwd)/data/mllib/kmeans_data.txt
-        ```
+            sgx-spark$ ./submitkmeans.sh
+            
+    - LineCount
+    
+            sgx-spark$ ./submitlinecount.sh
 
 ### Native execution of the same Spark installation
 
@@ -340,10 +216,10 @@ In order to run the above installation without SGX, start your environment as fo
 
 - Start the Master node as above
 
-- Start the Worker node as above, but change variable `SGX_ENABLED=true` to `SGX_ENABLED=false`
+- Start the Worker node as above, but change environment variable `SGX_ENABLED=true` to `SGX_ENABLED=false`
 
 - Do not start the enclaves
 
-- Submit the Spark job as above, but change variable `SGX_ENABLED=true` to `SGX_ENABLED=false`
+- Submit the Spark job as above, but change evironment variable `SGX_ENABLED=true` to `SGX_ENABLED=false`
 
 
