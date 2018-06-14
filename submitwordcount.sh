@@ -12,7 +12,7 @@ export SPARK_JOBNAME=wordcount
 
 rm -rf $(pwd)/output
 
-#INFILE=$(pwd)/README.md
+INFILE=$(pwd)/README.md
 #INFILE=$(pwd)/README.md.16
 #INFILE=$(pwd)/README.md.256
 #INFILE=$(pwd)/README.md.4096
@@ -22,7 +22,7 @@ rm -rf $(pwd)/output
 #INFILE=$(pwd)/README.md.131072
 #INFILE=$(pwd)/README.md.262144
 #INFILE=$(pwd)/README.md.524288
-INFILE=$(pwd)/README.md.1048576
+#INFILE=$(pwd)/README.md.1048576
 #INFILE=$(pwd)/README.md.2097152
 
 ./bin/spark-submit \
