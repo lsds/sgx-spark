@@ -14,7 +14,7 @@ export IS_WORKER=false
 (
 export IS_ENCLAVE=true
 
-${SGXLKL_DIR}/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
+${SGXLKL_DIR}/build/sgx-lkl-run lkl/alpine-rootfs.img /opt/j2re-image/bin/java \
 -XX:InitialCodeCacheSize=32m \
 -XX:ReservedCodeCacheSize=32m \
 -Xms512m \
@@ -24,10 +24,9 @@ ${SGXLKL_DIR}/sgx-musl-lkl/obj/sgx-lkl-starter /opt/j2re-image/bin/java \
 -XX:+UseCompressedClassPointers \
 -XX:+UseMembar \
 -XX:+AssumeMP \
--Xint \
 -Djava.library.path=/spark/lib/ \
 -cp \
-/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/* \
+/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/*:/spark/shm/target/\*:/spark/sgx/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-driver
 ) &
 
@@ -36,7 +35,7 @@ sleep 2
 (
 export IS_ENCLAVE=false
 
-JARS=$(echo $(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*jar)
+JARS=$(echo $(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*jar $(pwd)/sgx/target/*jar $(pwd)/shm/target/*jar)
 JARS_COMMA=$(echo $JARS | tr ' ' ',')
 JARS_COLON=$(echo $JARS | tr ' ' ':')
 
