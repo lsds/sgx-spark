@@ -90,22 +90,20 @@ the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
             -e SPARK_JOB_NAME=KMeans \
             -e SPARK_JOB_ARG0=data/mllib/kmeans_data.txt \
             -ti sgxspark /sgx-spark/driver-and-enclave.sh
-        
-    - Smart grid fault detection
+
+    - LineCount
     
             sgx-spark/dockerfiles$ docker run \
             --user user \
+            --memory="4g" \
+            --shm-size="8g" \
             --env-file $(pwd)/docker-env \
             --net sgxsparknet \
             --privileged \
             -v $(pwd)/../lkl:/spark-image:ro \
-            -e SPARK_JOB_CLASS=org.apache.spark.examples.lactec.Example2 \
-            -e SPARK_JOB_NAME=lactec2 \
-            -e SPARK_JOB_ARG0=FaultsLactecAPP/TestCustomer.csv \
-            -e SPARK_JOB_ARG1=FaultsLactecAPP/TestDSM.csv \
-            -e SPARK_JOB_ARG2=FaultsLactecAPP/TestFaults.csv \
-            -e SPARK_JOB_ARG3=2016-01-01 \
-            -e SPARK_JOB_ARG4=2016-12-31 \
+            -e SPARK_JOB_CLASS=org.apache.spark.examples.LineCount \
+            -e SPARK_JOB_NAME=LineCount \
+            -e SPARK_JOB_ARG0=SgxREADME.md \
             -ti sgxspark /sgx-spark/driver-and-enclave.sh
 
 ## Native compilation, installation and deployment
