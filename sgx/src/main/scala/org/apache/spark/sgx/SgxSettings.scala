@@ -28,11 +28,11 @@ object SgxSettings {
 	 * Serializer to use.
 	 * See Serialization.getSerializer() for valid options.
 	 */
-	val SERIALIZER = sys.env.get("SERIALIZER").getOrElse("fst");
+	val SERIALIZER = sys.env.get("SERIALIZER").getOrElse("commons");
 
 	val SHMEM_FILE = sys.env.get("SGXLKL_SHMEM_FILE").getOrElse("")
 
-	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("2147483647"))
+	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("1073741824"))
 
 	val SHMEM_COMMON = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_COMMON").getOrElse("0")) // fail if not provided
 	val SHMEM_OUT_TO_ENC = java.lang.Long.decode(sys.env.get("SGXLKL_SHMEM_OUT_TO_ENC").getOrElse("0")) // fail if not provided
