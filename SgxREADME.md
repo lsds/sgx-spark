@@ -48,6 +48,8 @@ the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
 
         sgx-spark/dockerfiles$ docker run \
         --user user \
+        --memory="4g" \
+        --shm-size="8g" \
         --env-file $(pwd)/docker-env \
         --net sgxsparknet \
         --privileged \
@@ -62,6 +64,8 @@ the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
     
             sgx-spark/dockerfiles$ docker run \
             --user user \
+            --memory="4g" \
+            --shm-size="8g" \
             --env-file $(pwd)/docker-env \
             --net sgxsparknet \
             --privileged \
@@ -76,6 +80,8 @@ the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
 
             sgx-spark/dockerfiles$ docker run \
             --user user \
+            --memory="4g" \
+            --shm-size="8g" \
             --env-file $(pwd)/docker-env \
             --net sgxsparknet \
             --privileged \
@@ -87,20 +93,20 @@ the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
         
     - Smart grid fault detection
     
-        sgx-spark/dockerfiles$ docker run \
-        --user user \
-        --env-file $(pwd)/docker-env \
-        --net sgxsparknet \
-        --privileged \
-        -v $(pwd)/../lkl:/spark-image:ro \
-        -e SPARK_JOB_CLASS=org.apache.spark.examples.lactec.Example2 \
-        -e SPARK_JOB_NAME=lactec2 \
-        -e SPARK_JOB_ARG0=FaultsLactecAPP/TestCustomer.csv \
-        -e SPARK_JOB_ARG1=FaultsLactecAPP/TestDSM.csv \
-        -e SPARK_JOB_ARG2=FaultsLactecAPP/TestFaults.csv \
-        -e SPARK_JOB_ARG3=2016-01-01 \
-        -e SPARK_JOB_ARG4=2016-12-31 \
-        -ti sgxspark /sgx-spark/driver-and-enclave.sh
+            sgx-spark/dockerfiles$ docker run \
+            --user user \
+            --env-file $(pwd)/docker-env \
+            --net sgxsparknet \
+            --privileged \
+            -v $(pwd)/../lkl:/spark-image:ro \
+            -e SPARK_JOB_CLASS=org.apache.spark.examples.lactec.Example2 \
+            -e SPARK_JOB_NAME=lactec2 \
+            -e SPARK_JOB_ARG0=FaultsLactecAPP/TestCustomer.csv \
+            -e SPARK_JOB_ARG1=FaultsLactecAPP/TestDSM.csv \
+            -e SPARK_JOB_ARG2=FaultsLactecAPP/TestFaults.csv \
+            -e SPARK_JOB_ARG3=2016-01-01 \
+            -e SPARK_JOB_ARG4=2016-12-31 \
+            -ti sgxspark /sgx-spark/driver-and-enclave.sh
 
 ## Native compilation, installation and deployment
 
