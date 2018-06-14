@@ -167,8 +167,8 @@ installation of sgx-lkl executes simple Java applications successfully.
 
 - Prepare two tap devices that are required by sgx-lkl:
 
-        $ openvpn --mktun --dev tap0
-        $ openvpn --mktun --dev tap1
+        $ openvpn --mktun --dev tap5
+        $ openvpn --mktun --dev tap6
 
 ### Run Sgx-Spark using sgx-lkl
 
@@ -176,6 +176,8 @@ Finally, we are ready to run (i) the Sgx-Spark master node,
 (ii) the Sgx-Spark worker node, (iii) the worker's enclave, (iv) the Sgx-Spark client, 
 and (v) the client's enclave. In the following commands, replace: `<hostname>` with
 the master node's actual hostname; `<sgx-lkl>` with the path to your `sgx-lkl` installation.
+
+*Note*: After running each example, make sure to (i) restart all processes, (ii) delete all shared memory files in `/dev/shm`.
 
 - Run the Master node
 
