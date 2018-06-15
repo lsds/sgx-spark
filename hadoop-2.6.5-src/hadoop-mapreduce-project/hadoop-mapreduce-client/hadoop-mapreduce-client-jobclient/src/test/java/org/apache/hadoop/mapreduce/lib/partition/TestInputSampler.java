@@ -298,4 +298,5 @@ public class TestInputSampler {
           ((IntWritable)samples[i]).get());
     }
   }
+
 }
