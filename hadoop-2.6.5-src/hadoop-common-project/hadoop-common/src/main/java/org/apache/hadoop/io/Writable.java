@@ -18,8 +18,8 @@
 
 package org.apache.hadoop.io;
 
-import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataInput;
 import java.io.IOException;
 import java.io.Serializable;
 

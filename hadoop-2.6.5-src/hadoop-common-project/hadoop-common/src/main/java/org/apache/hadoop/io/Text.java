@@ -18,10 +18,9 @@
 
 package org.apache.hadoop.io;
 
+import java.io.IOException;
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -35,6 +34,7 @@ import java.text.StringCharacterIterator;
 import java.util.Arrays;
 
 import org.apache.avro.reflect.Stringable;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.spark.sgx.shm.MappedDataBuffer;
