@@ -115,7 +115,7 @@ public class MappedDataBufferManager {
 	}
 	
 	private int findFirstConsecutiveFree(int startBlock) {
-		// The runtime can be improved here. This can be more clever
+		// TODO: The runtime can be improved here. This can certainly be more clever than looking for free blocks block-by-block.
 		while (startBlock >= 0 && inUse[startBlock] < 0) {
 			startBlock--;
 		}

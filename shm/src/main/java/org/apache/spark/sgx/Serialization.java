@@ -74,24 +74,6 @@ class CommonsSerialization implements ISerialization {
 	}
 }
 
-//class KryoSerialization implements ISerialization {
-//	
-//	private Kryo kryo = new Kryo();
-//	
-//	public byte[] serialize(Object o) throws IOException {
-//		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-//		Output output = new Output(stream);
-//		kryo.writeObject(output, o);
-//		output.close();
-//		return stream.toByteArray();
-//	}
-//
-//	public Object deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
-//		Input input = new Input(new ByteArrayInputStream(bytes));
-//		kryo.readObject(input, 
-//	}
-//}
-
 class FSTSerialization implements ISerialization {
 	private FSTConfiguration conf = FSTConfiguration.createUnsafeBinaryConfiguration();
 	
