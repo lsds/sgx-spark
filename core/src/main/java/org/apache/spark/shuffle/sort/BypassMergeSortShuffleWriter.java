@@ -48,13 +48,6 @@ import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.storage.*;
 import org.apache.spark.util.Utils;
 
-import org.apache.spark.sgx.iterator.SgxFakeIterator;
-import org.apache.spark.sgx.iterator.SgxFakeIteratorException;
-import org.apache.spark.sgx.iterator.SgxFakePairIndicator;
-import org.apache.spark.sgx.Encrypted;
-import org.apache.spark.sgx.SgxSettings;
-import org.apache.spark.sgx.SgxFct;
-
 /**
  * This class implements sort-based shuffle's hash-style shuffle fallback path. This write path
  * writes incoming records to separate files, one file per reduce partition, then concatenates these
