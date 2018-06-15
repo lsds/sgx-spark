@@ -247,3 +247,11 @@ There are a few important things to keep in mind when developing Sgx-Spark:
 - Lastly, do not forget to remove all related shared memory files in `/dev/shm/` before running your next experiment!
 
 ### Running without sgx-lkl
+
+Development with sgx-lkl can be tedious. For development purposes, a special flag allows to run the
+enclave-side of Sgx-Spark in a regular JVM rather than on top of sgx-lkl. To make use of this feature,
+run the enclave JVMs using scripts `worker-enclave-nosgx.sh` and `driver-enclave-nosgx.sh`.
+
+Under the hood, these scripts set environment variable `DEBUG_IS_ENCLAVE_REAL=false` (defaults to `true`) and
+provide the JVM with a value for environment variable `SGXLKL_SHMEM_FILE`. Note that the value of `SGXLKL_SHMEM_FILE`
+must be the same as the one provided for the corresponding Worker (`worker.sh`) and Driver (`driver.sh`).
