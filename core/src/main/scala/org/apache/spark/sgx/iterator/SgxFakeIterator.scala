@@ -50,16 +50,16 @@ case class SgxFakeIterator[T](@transient val delegate: Iterator[T]) extends Iter
 	      val n = iter.next
 	      
 	      if (_type == -1) {
-          _type =
+                _type =
   	        if (n != null && n.isInstanceOf[Product2[Any,Any]] && n.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) 1
   	        else 0
 	      }
 	      
-    	  _type match {
+              _type match {
 	        case 1 =>
 	          n.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[T]
-	        case default =>
-            n
+                case default =>
+                  n
 	      }
 	    }
 	  }

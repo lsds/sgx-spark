@@ -42,11 +42,11 @@ class SgxWritablePartitionedIteratorProviderIdentifier[K,V](myPort:Long, offset:
 		con
 	}
 	
-  def hasNext(): Boolean = throw new RuntimeException("Not implemented: hasNext()")
+	def hasNext(): Boolean = throw new RuntimeException("Not implemented: hasNext()")
   
-  def nextPartition(): Int = throw new RuntimeException("Not implemented: nextPartition()")
+	def nextPartition(): Int = throw new RuntimeException("Not implemented: nextPartition()")
 
-  def writeNext(writer: DiskBlockObjectWriter): Unit = throw new RuntimeException("Not implemented: writeNext()")	
+	def writeNext(writer: DiskBlockObjectWriter): Unit = throw new RuntimeException("Not implemented: writeNext()")	
   
 	def getIterator() = new SgxWritablePartitionedIteratorConsumer[K,V](this, offset, size)
 

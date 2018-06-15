@@ -33,7 +33,6 @@ case class SizeTrackingAppendOnlyMapIdentifier(id: Long) extends Serializable {
 private[spark] class SizeTrackingAppendOnlyMap[K, V]
   extends AppendOnlyMap[K, V] with SizeTracker
 {
-
   val id = sgxinit()
   
   def sgxinit() = {  

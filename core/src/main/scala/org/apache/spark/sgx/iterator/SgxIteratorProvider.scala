@@ -73,7 +73,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 							// It seems that this is due to optimizations in the implementation of class NextIterator.
 							// If cloning is not possible, just add this one object and send it individually.
 							// This should never be the case, as the object _must_ be sent to a consumer.
-						  q.insert(i, SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T])
+							q.insert(i, SerializationUtils.clone(n.asInstanceOf[Serializable]).asInstanceOf[T])
 						}
 					} else {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
@@ -100,7 +100,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 
 class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with SgxCallable[Unit] {
   
-  private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
 	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
@@ -108,26 +108,26 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 
 	override def getIdentifier = identifier
   
-  logDebug("Creating " + this)
+	logDebug("Creating " + this)
 	
 	def call(): Unit = {
-	  val com = do_accept
+		val com = do_accept
 	  
-	  logDebug(this + " got connection: " + com)
+		logDebug(this + " got connection: " + com)
 
-	  while (isRunning) {
-	    val ret = com.recvOne() match {
-			  case c: SgxShmIteratorConsumerClose =>
-			    stop
-			    delegate.closeIfNeeded()
-			  case f: SgxShmIteratorConsumerFillBufferMsg =>
-			    recordReader.getLineReader.fillBuffer(f.inDelimiter)
-	    }
-	    if (ret != Unit) {
-	      com.sendOne(ret)
-	    }
-	  }
-  }
+		while (isRunning) {
+			val ret = com.recvOne() match {
+				case c: SgxShmIteratorConsumerClose =>
+					stop
+					delegate.closeIfNeeded()
+				case f: SgxShmIteratorConsumerFillBufferMsg =>
+					recordReader.getLineReader.fillBuffer(f.inDelimiter)
+			}
+			if (ret != Unit) {
+				com.sendOne(ret)
+			}
+		}
+	}
 	
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ")"
 }
@@ -143,66 +143,64 @@ class SgxDone extends SgxObj {}
 
 class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Product2[Product2[Int,K],V]], offset: Long, size: Int) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
   
-  private val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
-  val writer = new RingBuffProducer(buffer, Serialization.serializer)
+	private val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
+	val writer = new RingBuffProducer(buffer, Serialization.serializer)
   
-  private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
 	private val identifier = new SgxWritablePartitionedIteratorProviderIdentifier[K,V](com.getMyPort, offset, size)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
   
-  logDebug("Creating " + this)
+	logDebug("Creating " + this)
 
 	def getIdentifier = identifier
 	
-  private[this] var cur = if (it.hasNext) it.next() else null
+	private[this] var cur = if (it.hasNext) it.next() else null
 
-  def writeNext(writer: DiskBlockObjectWriter): Unit = {
-    writer.write(cur._1._2, cur._2)
-    cur = if (it.hasNext) it.next() else null
-  }
+	def writeNext(writer: DiskBlockObjectWriter): Unit = {
+		writer.write(cur._1._2, cur._2)
+		cur = if (it.hasNext) it.next() else null
+	}
 
-  def hasNext(): Boolean = cur != null
+	def hasNext(): Boolean = cur != null
 
-  def nextPartition(): Int = cur._1._1
+	def nextPartition(): Int = cur._1._1
   
-  def fill() = {    
-    var oldPartId = -1
+	def fill() = {    
+		var oldPartId = -1
     
-    while (it.hasNext) {
-      val partitionId = nextPartition()
-      if (oldPartId != partitionId) {
-        writer.write(new SgxPartition(partitionId))    
-      }
-      while (hasNext && nextPartition() == partitionId) {
-        writer.write(new SgxPair(cur._1._2, cur._2))
-        cur = if (it.hasNext) it.next() else null
-      }
-    }
-    writer.write(new SgxDone)
-  }
+		while (it.hasNext) {
+			val partitionId = nextPartition()
+			if (oldPartId != partitionId) {
+				writer.write(new SgxPartition(partitionId))    
+			}
+			while (hasNext && nextPartition() == partitionId) {
+				writer.write(new SgxPair(cur._1._2, cur._2))
+				cur = if (it.hasNext) it.next() else null
+			}
+		}
+		writer.write(new SgxDone)
+	}
 	
 	def call(): Unit = {
-	  val com = do_accept
+		val com = do_accept
 	  
-	  logDebug(this + " got connection: " + com)
+		logDebug(this + " got connection: " + com)
 	  
-	  fill()
+		fill()
 
-	  while (isRunning) {
-	    val r = com.recvOne()
-	    logDebug("received: " + r)
-	    val ret = r match {
-			  case c: SgxShmIteratorConsumerClose =>
-			    stop
-			    MappedDataBufferManager.get.free(buffer)
-	    }
-	    if (ret != null) {
-	      com.sendOne(ret)
-	    }
-	  }
-  }
+		while (isRunning) {
+			val ret = com.recvOne() match {
+				case c: SgxShmIteratorConsumerClose =>
+					stop
+					MappedDataBufferManager.get.free(buffer)
+			}
+			if (ret != null) {
+				com.sendOne(ret)
+			}
+		}
+	}
 	
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ", buffer=" + buffer + ")"
 }

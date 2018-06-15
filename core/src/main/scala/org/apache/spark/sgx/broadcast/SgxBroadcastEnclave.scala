@@ -1,12 +1,9 @@
 package org.apache.spark.sgx.broadcast
 
 import org.apache.spark.broadcast.Broadcast
-
-import org.apache.spark.internal.Logging
-
 import org.apache.spark.sgx.SgxCommunicator
 
-object SgxBroadcastEnclave extends Logging {
+object SgxBroadcastEnclave {
 	private var com: SgxCommunicator = null
 
 	def init(_com: SgxCommunicator): Unit = {
