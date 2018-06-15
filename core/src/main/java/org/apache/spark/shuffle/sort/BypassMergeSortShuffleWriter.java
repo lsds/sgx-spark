@@ -127,18 +127,8 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
   }
 
   @Override
-  public void write(Iterator<Product2<K, V>> records2) throws IOException {
+  public void write(Iterator<Product2<K, V>> records) throws IOException {
     assert (partitionWriters == null);
-
-    Iterator<Product2<K, V>> records = records2;
-    if (SgxSettings.SGX_ENABLED()) {
-    	try {
-    		records2.hasNext();
-    	} catch (SgxFakeIteratorException e) {    		
-        	records = ((SgxFakeIterator<Product2<K, V>>) records2).access();    		
-    	}    	
-    }
-
     if (!records.hasNext()) {
       partitionLengths = new long[numPartitions];
       shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, null);
@@ -163,16 +153,9 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - openStartTime);
 
     while (records.hasNext()) {
-      final Object r = records.next();
-      if (SgxSettings.SGX_ENABLED() && r instanceof Encrypted) {
-      //PL: very inefficient
-      	partitionWriters[SgxFct.getPartitionFirstOfPair(partitioner, (Encrypted) r)].write(r, new SgxFakePairIndicator());
-      }
-      else if (r instanceof Product2) {
-    	final Product2<K, V> record = (Product2<K, V>) r;
-    	final K key = record._1();
-    	partitionWriters[partitioner.getPartition(key)].write(key, record._2());
-      }
+      final Product2<K, V> record = records.next();
+      final K key = record._1();
+      partitionWriters[partitioner.getPartition(key)].write(key, record._2());
     }
 
     for (int i = 0; i < numPartitions; i++) {
