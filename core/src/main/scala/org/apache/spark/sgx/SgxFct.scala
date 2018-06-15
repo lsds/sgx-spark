@@ -29,17 +29,11 @@ object RecordReaderMaps extends IdentifierManager[RecordReader[_,_]]() {}
 
 object SgxFct extends Logging {
 		
-  def externalAppendOnlyMapIterator[K,V](id: SizeTrackingAppendOnlyMapIdentifier) =
-    new ExternalAppendOnlyMapIterator[K,V](id).send
+  def externalAppendOnlyMapIterator[K,V](id: SizeTrackingAppendOnlyMapIdentifier) = new ExternalAppendOnlyMapIterator[K,V](id).send
   
-	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) =
-		new ExternalSorterInsertAllCreateKey[K](partitioner, pair).send()
+	def externalSorterInsertAllCreateKey[K](partitioner: Partitioner, pair: Product2[K,Any]) = new ExternalSorterInsertAllCreateKey[K](partitioner, pair).send()
 
-  def getPartitionFirstOfPair(partitioner: Partitioner, enc: Encrypted) =
-    new GetPartitionFirstOfPair(partitioner, enc).send()
-
-	def partitionedAppendOnlyMapCreate[K,V]() =
-		new PartitionedAppendOnlyMapCreate().send()
+	def partitionedAppendOnlyMapCreate[K,V]() = new PartitionedAppendOnlyMapCreate().send()
 
 	def partitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](
 			id: SizeTrackingAppendOnlyMapIdentifier,
@@ -48,8 +42,7 @@ object SgxFct extends Logging {
 			bufCapacity: Int) =
 		new PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](id, keyComparator, bufOffset, bufCapacity).send()
 
-	def sizeTrackingAppendOnlyMapCreate[K,V]() =
-		new SizeTrackingAppendOnlyMapCreate().send()
+	def sizeTrackingAppendOnlyMapCreate[K,V]() = new SizeTrackingAppendOnlyMapCreate().send()
 
 	def fct0[Z](fct: () => Z) = new SgxFct0[Z](fct).send().decrypt[Z]
 
@@ -67,14 +60,6 @@ private case class ExternalSorterInsertAllCreateKey[K](
 	override def toString = this.getClass.getSimpleName + "(partitioner=" + partitioner + ", pair=" + pair + ")"
 }
 
-private case class GetPartitionFirstOfPair(partitioner: Partitioner, enc: Encrypted) extends SgxMessage[Int] {
-
-  def execute() = Await.result( Future {
-  	//PL TODO: need to encrypt result
-		partitioner.getPartition(enc.decrypt[Product2[Any,Any]]._1)
-	}, Duration.Inf)
-}
-
 private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[SizeTrackingAppendOnlyMapIdentifier] {
 
 	def execute() = Await.result( Future {
@@ -85,11 +70,11 @@ private case class PartitionedAppendOnlyMapCreate[K,V]() extends SgxMessage[Size
 private case class PartitionedAppendOnlyMapDestructiveSortedWritablePartitionedIterator[K,V](
 	id: SizeTrackingAppendOnlyMapIdentifier,
 	keyComparator: Option[Comparator[K]],
-  bufOffset: Long,
+	bufOffset: Long,
 	bufCapacity: Int) extends SgxMessage[SgxWritablePartitionedIteratorProviderIdentifier[K,V]] {
 
 	def execute() = Await.result( Future {
-    id.getMap.asInstanceOf[PartitionedAppendOnlyMap[K,V]].destructiveSortedWritablePartitionedIterator(keyComparator, bufOffset, bufCapacity).asInstanceOf[SgxWritablePartitionedIteratorProvider[K,V]].getIdentifier
+		id.getMap.asInstanceOf[PartitionedAppendOnlyMap[K,V]].destructiveSortedWritablePartitionedIterator(keyComparator, bufOffset, bufCapacity).asInstanceOf[SgxWritablePartitionedIteratorProvider[K,V]].getIdentifier
 	}, Duration.Inf)
 }
 
@@ -101,15 +86,18 @@ private case class SizeTrackingAppendOnlyMapCreate[K,V]() extends SgxMessage[Siz
 }
 
 private case class ExternalAppendOnlyMapIterator[K,V](
-    id: SizeTrackingAppendOnlyMapIdentifier) extends SgxMessage[Iterator[(K,V)]] {
+	id: SizeTrackingAppendOnlyMapIdentifier) extends SgxMessage[Iterator[(K,V)]] {
   	
-  def execute() = Await.result( Future {
-    SgxFakeIterator[(K,V)](id.getMap.iterator)
+	def execute() = Await.result( Future {
+		SgxFakeIterator[(K,V)](id.getMap.iterator)
 	}, Duration.Inf)
 }
 
 private case class SgxFct0[Z](fct: () => Z) extends SgxMessage[Encrypted] {
-	def execute() = Await.result(Future { Encrypt(fct()) }, Duration.Inf)
+	def execute() = Await.result(Future { 
+		Encrypt(fct())
+	}, Duration.Inf)
+
 	override def toString = this.getClass.getSimpleName + "(fct=" + fct + " (" + fct.getClass.getSimpleName + "))"
 }
 

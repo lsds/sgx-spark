@@ -37,11 +37,11 @@ object SgxIteratorFct {
 			depNum: Int = Integer.MIN_VALUE) =
 		new ExternalAppendOnlyMapInsertAll[K,V,C](entries2, mapId, mergeValue, createCombiner, depNum).send()
 
-  def externalAppendOnlyMapInsertAllCoGrouped[K](
-      entries: SgxIteratorIdentifier[Encrypted],
-      mapId: SizeTrackingAppendOnlyMapIdentifier,
-      numDep: Int) = 
-    new externalAppendOnlyMapInsertAllCoGrouped[K](entries, mapId, numDep).send()
+	def externalAppendOnlyMapInsertAllCoGrouped[K](
+			entries: SgxIteratorIdentifier[Encrypted],
+			mapId: SizeTrackingAppendOnlyMapIdentifier,
+			numDep: Int) = 
+		new externalAppendOnlyMapInsertAllCoGrouped[K](entries, mapId, numDep).send()
 		
 	def externalSorterInsertAllCombine[K,V,C](
 			records: SgxIteratorIdentifier[Product2[K, V]],
@@ -67,7 +67,7 @@ private case class ComputeMapPartitionsRDD[U, T](
 
 	def execute() = SgxFakeIterator(
 		Await.result(Future {
-      fct(partIndex, id.getIterator())		  
+			fct(partIndex, id.getIterator())		  
 		}, Duration.Inf)
 	)
 
@@ -110,12 +110,13 @@ private case class ExternalAppendOnlyMapInsertAll[K,V,C](
 
 	def execute() = Await.result(Future {
 		val entries = 
-		  if (depNum == Integer.MIN_VALUE) {
-		    entries2.getIterator()
-		  }
-		  else {
-		    entries2.getIterator("cogroup").map(_._1.asInstanceOf[Encrypted].decrypt[Product2[K,Any]]).map(pair => (pair._1, (pair._2, depNum).asInstanceOf[V]))
-		  }
+			if (depNum == Integer.MIN_VALUE) {
+				entries2.getIterator()
+			}
+			else {
+				entries2.getIterator("cogroup").map(_._1.asInstanceOf[Encrypted].decrypt[Product2[K,Any]]).map(pair => (pair._1, (pair._2, depNum).asInstanceOf[V]))
+			}
+
 		val currentMap = mapId.getMap[K,C]
 		var _peakMemoryUsedBytes = 0L
 
@@ -130,24 +131,19 @@ private case class ExternalAppendOnlyMapInsertAll[K,V,C](
 			if (estimatedSize > _peakMemoryUsedBytes) {
 				_peakMemoryUsedBytes = estimatedSize
 			}
-//			if (maybeSpill(currentMap, estimatedSize)) { // make ocall
-//				currentMap = new SizeTrackingAppendOnlyMap[K, C]
-//			}
-//			currentMap.changeValue(curEntry._1.asInstanceOf[Encrypted].decrypt[K], update)
 			currentMap.changeValue(curEntry._1, update)
-//			addElementsRead() // make ocall
 		}
 	}, Duration.Inf)
 }
 
 private case class externalAppendOnlyMapInsertAllCoGrouped[K](
-      entries: SgxIteratorIdentifier[Encrypted],
-      mapId: SizeTrackingAppendOnlyMapIdentifier,
-      numDep: Int) extends SgxMessage[Unit] {
+	entries: SgxIteratorIdentifier[Encrypted],
+	mapId: SizeTrackingAppendOnlyMapIdentifier,
+	numDep: Int) extends SgxMessage[Unit] {
  
-  def execute() = Await.result(Future {
-    mapId.getMap[K,Any]
-  }, Duration.Inf)
+	def execute() = Await.result(Future {
+		mapId.getMap[K,Any]
+	}, Duration.Inf)
 }
 
 private case class ExternalSorterInsertAllCombine[K,V,C](
@@ -166,10 +162,8 @@ private case class ExternalSorterInsertAllCombine[K,V,C](
 			if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
 		}
 		while (records.hasNext) {
-//			addElementsRead() // make ocall
         	kv = records.next()
         	map.changeValue((if (shouldPartition) partitioner.get.getPartition(kv._1) else 0, kv._1), update)
-//			maybeSpillCollection(usingMap = true) // make ocall
 		}
 	}, Duration.Inf)//.asInstanceOf[U]
 }
@@ -180,7 +174,7 @@ private case class ResultTaskRunTask[T,U](
 	context: TaskContext) extends SgxMessage[U] {
 
 	def execute() = Await.result(Future {
-	  func(context, id.getIterator())
+		func(context, id.getIterator())
 	}, Duration.Inf).asInstanceOf[U]
 
 	override def toString = this.getClass.getSimpleName + "(id=" + id + ", func=" + func + ", context=" + context + ")"
