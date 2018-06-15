@@ -222,4 +222,28 @@ In order to run the above installation without SGX, start your environment as fo
 
 - Submit the Spark job as above, but change evironment variable `SGX_ENABLED=true` to `SGX_ENABLED=false`
 
+## Important developer notes
 
+### Code changes and recompilation
+
+There are a few important things to keep in mind when developing Sgx-Spark:
+
+- Whenever you change parts of the code, obviously, you must recompile the Spark code
+
+        sgx-spark$ mvn package -DskipTests
+    
+    There have been (not clearly definable) situations in which the above command did not compile all of the changed files. In this case, issue:
+    
+        sgx-spark$ mvn clean package -DskipTests
+
+- After making changes to the Sgx-Spark code and after compiling the Java/Scala code (see above), you *always* need to rebuild the lkl image that will be used by sgx-lkl:
+
+        sgx-spark/lkl$ make clean all
+
+- If you changed parts of the Hadoop code (in directory `hadoop-2.6.5-src`), you will also need to copy the resulting `*jar` file:
+
+        sgx-spark$ cp hadoop-2.6.5-src/hadoop-common-project/hadoop-common/target/hadoop-common-2.6.5.jar assembly/target/scala-2.11/jars/
+
+- Lastly, do not forget to remove all related shared memory files in `/dev/shm/` before running your next experiment!
+
+### Running without sgx-lkl
