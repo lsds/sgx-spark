@@ -24,12 +24,8 @@ object LineCount extends Logging {
     // Create a Scala Spark Context.
     val sc = new SparkContext(conf)
 
-    val r = time {
-      
-//      sc.hadoopConfigurationSet("textinputformat.record.delimiter","the")
-      
+    val r = time {      
       sc.textFile(inputFile).map(x => x + "x").map(x => x + x).map(x => "foo" + x + "bar").count()
-//      println(sc.textFile(inputFile).map(x => x + "x").collect().mkString("\n"))
     }
 
     // Load our input data.
