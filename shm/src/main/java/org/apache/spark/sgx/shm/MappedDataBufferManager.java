@@ -49,8 +49,6 @@ public class MappedDataBufferManager {
 		markFree(0, noBlocks);
 		
 		freeBlocks = noBlocks;
-		
-		System.out.println("MappedDataBufferManager: " + this);
 	}
 	
 	private int blocksNeeded(int bytes) {
@@ -72,8 +70,6 @@ public class MappedDataBufferManager {
 	
 	public synchronized MallocedMappedDataBuffer malloc(int bytes) {
 		
-		System.out.println("memory malloc " + bytes);
-		
 		if (SgxSettings.IS_ENCLAVE()) {
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
 		}
@@ -81,18 +77,11 @@ public class MappedDataBufferManager {
 		int blocksNeeded = blocksNeeded(bytes);
 		
 		if (freeBlocks < blocksNeeded) {
-			System.out.println("memory oom 1: " + freeBlocks);
-			System.out.print("memory in use: ");
-			for (int i = 0; i < inUse.length; i++) {
-				System.out.print(inUse[i] + ", ");
-			}
-			System.out.println();
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + " Bytes)");
 		}
 		
 		int startBlock = findConsecutiveFreeBlocks(blocksNeeded);
 		if (startBlock == -1) {
-			System.out.println("memory oom 2");
 			throw new OutOfMemoryError("The requested amount of memory is not available (" + bytes + " Bytes)");
 		}
 		
@@ -106,9 +95,6 @@ public class MappedDataBufferManager {
 		if (b == null ) {
 			return;
 		}
-		
-
-		System.out.println("memory free " + b.capacity());
 
 		if (SgxSettings.IS_ENCLAVE()) {
 			throw new RuntimeException("Only available outside of the enclave to avoid the need to synchronize the memory management.");
@@ -129,7 +115,7 @@ public class MappedDataBufferManager {
 	}
 	
 	private int findFirstConsecutiveFree(int startBlock) {
-		// The runtime can be improved here. This can be more clever
+		// TODO: The runtime can be improved here. This can certainly be more clever than looking for free blocks block-by-block.
 		while (startBlock >= 0 && inUse[startBlock] < 0) {
 			startBlock--;
 		}

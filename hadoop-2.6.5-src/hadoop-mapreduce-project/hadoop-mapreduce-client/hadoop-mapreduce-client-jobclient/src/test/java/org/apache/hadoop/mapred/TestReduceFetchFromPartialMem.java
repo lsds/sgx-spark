@@ -311,4 +311,5 @@ public class TestReduceFetchFromPartialMem extends TestCase {
     }
     return job.getCounters();
   }
+
 }

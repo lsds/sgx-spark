@@ -15,12 +15,12 @@ object SgxSettings {
 	val DEBUG_IS_ENCLAVE_REAL = sys.env.get("DEBUG_IS_ENCLAVE_REAL").getOrElse("true").toBoolean
 
 	val CONNECTIONS = sys.env.get("CONNECTIONS").getOrElse("8").toInt
-	val PREFETCH = sys.env.get("PREFETCH").getOrElse("128").toInt
+	val PREFETCH = sys.env.get("PREFETCH").getOrElse("1024").toInt
 
 	val ENCRYPTION_KEY = sys.env.get("ENCRYPTION_KEY").getOrElse("0").toInt
 	
-	val BACKOFF_WAIT_MIN = sys.env.get("BACKOFF_WAIT_MIN").getOrElse("2").toInt
-	val BACKOFF_WAIT_MAX = sys.env.get("BACKOFF_WAIT_MAX").getOrElse("256").toInt
+	val BACKOFF_WAIT_MIN = sys.env.get("BACKOFF_WAIT_MIN").getOrElse("1").toInt
+	val BACKOFF_WAIT_MAX = sys.env.get("BACKOFF_WAIT_MAX").getOrElse("64").toInt
 	
 	val SPARK_DEFAULT_BUFFER_SIZE = sys.env.get("SPARK_DEFAULT_BUFFER_SIZE").getOrElse("33554432").toInt
 	
@@ -28,13 +28,9 @@ object SgxSettings {
 	 * Serializer to use.
 	 * See Serialization.getSerializer() for valid options.
 	 */
-	val SERIALIZER = sys.env.get("SERIALIZER").getOrElse("fst");
+	val SERIALIZER = sys.env.get("SERIALIZER").getOrElse("commons");
 
-	val SHMEM_FILE = {
-		sys.env.get("SGXLKL_SHMEM_FILE").getOrElse({
-			throw new RuntimeException("SGXLKL_SHMEM_FILE not provided.")
-			""})
-	}
+	val SHMEM_FILE = sys.env.get("SGXLKL_SHMEM_FILE").getOrElse("")
 
 	val SHMEM_SIZE = java.lang.Integer.decode(sys.env.get("SGXLKL_SHMEM_SIZE").getOrElse("1073741824"))
 

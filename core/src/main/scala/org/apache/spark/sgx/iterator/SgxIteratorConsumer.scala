@@ -45,11 +45,11 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 				consumer.close
 			}
 			else consumer.objects.addAll({
-        if (consumer.context == "" && list.size > 0 && list.head.isInstanceOf[Product2[Any,Any]] && list.head.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {				  
-				  list.map(c => {
-				    val y = c.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[Product2[Product2[Any,Any],Any]]
-				    (y._1._2,y._2).asInstanceOf[T]
-				  })
+				if (consumer.context == "" && list.size > 0 && list.head.isInstanceOf[Product2[Any,Any]] && list.head.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {				  
+					list.map(c => {
+						val y = c.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[Product2[Product2[Any,Any],Any]]
+						(y._1._2,y._2).asInstanceOf[T]
+					})
 				} else list
 			}.asJava)
 
@@ -94,13 +94,13 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	}
 
 	def fill(): Unit = {
-	  if (objects.size <= SgxSettings.PREFETCH / 2) {
-      Lock.synchronized {
-        if (!closed && fillingFuture == null) {
-          fillingFuture = Completor.submit(new Filler(this))
-        }
-      }
-    }
+		if (objects.size <= SgxSettings.PREFETCH / 2) {
+			Lock.synchronized {
+				if (!closed && fillingFuture == null) {
+					fillingFuture = Completor.submit(new Filler(this))
+				}
+			}
+		}
 	}
 
 	def close() = {
@@ -120,10 +120,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   
   val com = id.connect()
   
-  override def close() = {
-    logDebug("xxx Sending instruction to close SgxShmIteratorConsumer")
-    com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
-  }
+  override def close() = com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
   
   /* Code from HadoopRDD follows */
   
@@ -167,7 +164,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     (key, value)
   }
 	
-	override def toString() = getClass.getSimpleName + "(offset=" + offset + ", size=" + size + ", buffer=" + buffer + ")"
+  override def toString() = getClass.getSimpleName + "(offset=" + offset + ", size=" + size + ", buffer=" + buffer + ")"
 }
 
 
@@ -213,5 +210,5 @@ class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIter
 
   def nextPartition(): Int = partitionId
 
-	override def toString() = getClass.getSimpleName + "(com=" + com + ")"
+  override def toString() = getClass.getSimpleName + "(com=" + com + ")"
 }

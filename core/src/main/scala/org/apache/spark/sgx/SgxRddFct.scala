@@ -36,7 +36,7 @@ object SgxRddFct {
 		new Count[T](rddId).send().decrypt[Long]
 		
 	def cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) = 
-	  new Cogroup[K,V,W](rddId1, rddId2, partitioner).send()
+		new Cogroup[K,V,W](rddId1, rddId2, partitioner).send()
 
 	def filter[T](rddId: Int, f: T => Boolean) =
 		new Filter(rddId, f).send()
@@ -51,7 +51,7 @@ object SgxRddFct {
 		new Fold(rddId, v, op).send().decrypt[T]
 	
 	def join[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) =
-	  new Join[K,V,W](rddId1, rddId2, partitioner).send()
+		new Join[K,V,W](rddId1, rddId2, partitioner).send()
 
 	def map[T,U:ClassTag](rddId: Int, f: T => U) =
 		new Map(rddId, f).send()
@@ -86,8 +86,7 @@ object SgxRddFct {
 	def saveAsTextFile[T](rddId: Int, path: String) =
 		new SaveAsTextFile[T](rddId, path).send()
 
-	def sortByKey[
-			K : Ordering : ClassTag,
+	def sortByKey[K : Ordering : ClassTag,
 			V: ClassTag,
 			P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) =
 		new SortByKey[K,V,P](rddId, ascending, numPartitions).send()
@@ -102,7 +101,7 @@ object SgxRddFct {
 		new Zip[T,U](rddId1, rddId2).send()
 
 	def zipPartitions[T,B: ClassTag, V: ClassTag]
-	(rddId1: Int, rddId2: Int, preservesPartitioning: Boolean, f: (Iterator[T], Iterator[B]) => Iterator[V]) =
+			(rddId1: Int, rddId2: Int, preservesPartitioning: Boolean, f: (Iterator[T], Iterator[B]) => Iterator[V]) =
 		new ZippedPartitionsRDD2[T,B,V](rddId1, rddId2, preservesPartitioning, f).send()
 }
 
@@ -112,9 +111,6 @@ private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
 
 private case class Collect[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
 	def execute() = Await.result( Future {
-	  //xx todo
-	  // results from the workers are in plain
-	  // encrypt them within function collect(). Either provide optional parameter or introduce additional sgxCollect()
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect())
 	}, Duration.Inf)
 }

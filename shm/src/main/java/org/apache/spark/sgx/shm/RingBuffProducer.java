@@ -6,7 +6,7 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 	private ISerialization serializer;
 	
 	public RingBuffProducer(MappedDataBuffer buffer, ISerialization serializer) {
-		super(buffer, 2);
+		super(buffer, 1);
 		if (serializer == null) {
 			throw new RuntimeException("Must specify a serializer in order to write objects.");
 		}

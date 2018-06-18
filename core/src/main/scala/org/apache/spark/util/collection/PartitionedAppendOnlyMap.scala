@@ -21,7 +21,6 @@ import java.util.Comparator
 
 import org.apache.spark.util.collection.WritablePartitionedPairCollection._
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sgx.SgxFct
 import org.apache.spark.sgx.SgxSettings
 
@@ -37,8 +36,8 @@ import org.apache.spark.sgx.SgxSparkContextFct
  * of (partition ID, K)
  */
 private[spark] class PartitionedAppendOnlyMap[K, V]
-  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] with Logging {
-  
+  extends SizeTrackingAppendOnlyMap[(Int, K), V] with WritablePartitionedPairCollection[K, V] {
+
   override def sgxinit() = {
     if (SgxSettings.SGX_ENABLED && !SgxSettings.IS_ENCLAVE) SgxFct.partitionedAppendOnlyMapCreate()
     else if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) {

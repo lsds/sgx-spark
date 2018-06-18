@@ -84,7 +84,7 @@ public class SequenceFileAsTextRecordReader
   public synchronized void close() throws IOException {
     sequenceFileRecordReader.close();
   }
-
+  
   public LineReader getLineReader() {
     throw new RuntimeException("Method getLineReader() not implemented for class " + this.getClass().getSimpleName());
   }

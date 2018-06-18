@@ -88,11 +88,9 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   protected int fillBuffer(InputStream in, MappedDataBuffer buffer, boolean inDelimiter)
       throws IOException {
-	    
-	if (sgxEnabled && SgxSettings.IS_ENCLAVE()) {
-		return fillBuffer.fillBuffer(inDelimiter);
-	}
-	  
+    if (sgxEnabled && SgxSettings.IS_ENCLAVE()) {
+      return fillBuffer.fillBuffer(inDelimiter);
+    }
     int maxBytesToRead = buffer.capacity();
     if (totalBytesRead < splitLength) {
       long leftBytesForSplit = splitLength - totalBytesRead;
@@ -101,8 +99,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
         maxBytesToRead = Math.min(maxBytesToRead, (int)leftBytesForSplit);
       }
     }
-    
-    int bytesRead = read(in, buffer, 0, maxBytesToRead);    
+    int bytesRead = read(in, buffer, 0, maxBytesToRead);
 
     // If the split ended in the middle of a record delimiter then we need
     // to read one additional record, as the consumer of the next split will
@@ -120,14 +117,12 @@ public class UncompressedSplitLineReader extends SplitLineReader {
     if (bytesRead > 0) {
       totalBytesRead += bytesRead;
     }
-
     return bytesRead;
   }
 
   @Override
   public int readLine(Text str, int maxLineLength, int maxBytesToConsume)
       throws IOException {
-	  
     int bytesRead = 0;
     if (!finished) {
       // only allow at most one more record to be read after the stream
@@ -149,5 +144,5 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   protected void unsetNeedAdditionalRecordAfterSplit() {
     needAdditionalRecord = false;
-  }  
+  }
 }

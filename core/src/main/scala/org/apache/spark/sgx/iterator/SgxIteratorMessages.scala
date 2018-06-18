@@ -19,7 +19,6 @@ case class SgxShmIteratorConsumerFillBufferMsg(inDelimiter: Boolean) extends Ser
 }
 
 case class SgxShmIteratorConsumerFillBuffer(com: SgxCommunicator) extends IFillBuffer with Serializable {
-  
   def fillBuffer(inDelimiter: Boolean) = {
     com.sendRecv[Int](new SgxShmIteratorConsumerFillBufferMsg(inDelimiter))
   }
