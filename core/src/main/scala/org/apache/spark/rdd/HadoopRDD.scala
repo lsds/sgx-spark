@@ -265,6 +265,10 @@ class HadoopRDD[K, V](
             finished = true
             null
         }
+
+      logInfo("inputFormat is " + inputFormat.getClass + ", " + inputFormat.toString)
+      logInfo("reader is " + reader.getClass + ", " + reader.toString)
+
       // Register an on-task-completion callback to close the input stream.
       context.addTaskCompletionListener { context =>
         // Update the bytes read before closing is to make sure lingering bytesRead statistics in
