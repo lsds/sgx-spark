@@ -102,6 +102,7 @@ import org.apache.hadoop.crypto.CryptoCodec;
 import org.apache.hadoop.crypto.CryptoInputStream;
 import org.apache.hadoop.crypto.CryptoOutputStream;
 import org.apache.hadoop.crypto.CryptoProtocolVersion;
+import org.apache.hadoop.crypto.CryptoStreamUtils;
 import org.apache.hadoop.crypto.key.KeyProvider;
 import org.apache.hadoop.crypto.key.KeyProvider.KeyVersion;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
@@ -269,6 +270,10 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   private static final DFSHedgedReadMetrics HEDGED_READ_METRIC =
       new DFSHedgedReadMetrics();
   private static ThreadPoolExecutor HEDGED_READ_THREAD_POOL;
+
+
+  public static boolean USE_CLIENT_SIDE_DECRYPTION = true;
+
   @VisibleForTesting
   KeyProvider provider;
   /**
@@ -1405,6 +1410,25 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    */
   public HdfsDataInputStream createWrappedInputStream(DFSInputStream dfsis)
       throws IOException {
+	 if (DFSClient.USE_CLIENT_SIDE_DECRYPTION) {
+		 try {
+			 throw new Exception("createWrappedInputStream");
+		 } catch (Exception e) {
+			 e.printStackTrace();
+		 }
+		 final CipherSuite suite = CipherSuite.AES_CTR_NOPADDING;
+		 final CryptoProtocolVersion version = CryptoProtocolVersion.ENCRYPTION_ZONES;
+		 final byte[] key = new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+			 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17 };
+		 final byte[] iv =  new byte[] { 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x00, 0x00,
+			 0x00, 0x00, 0x00, 0x00, 0x01 };
+		 final FileEncryptionInfo feInfo = new FileEncryptionInfo(suite, version, key, iv, "my_great_key", "version_0");
+		 final CryptoCodec codec = getCryptoCodec(conf, feInfo);
+		 int bufferSize = CryptoStreamUtils.getBufferSize(codec.getConf());
+		 final CryptoInputStream cryptoIn =
+			 new CryptoInputStream(dfsis, codec, bufferSize, key, iv);
+		 return new HdfsDataInputStream(cryptoIn);
+	 } else {
     final FileEncryptionInfo feInfo = dfsis.getFileEncryptionInfo();
     if (feInfo != null) {
       // File is encrypted, wrap the stream in a crypto stream.
@@ -1420,6 +1444,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       // No FileEncryptionInfo so no encryption.
       return new HdfsDataInputStream(dfsis);
     }
+	 }
   }
 
   /**
