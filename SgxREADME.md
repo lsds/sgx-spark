@@ -23,7 +23,8 @@ Compliation and deployment should thus be smooth.
 
         sgx-spark/lkl$ make prepare-image
 
-- Create a Docker network device that will be used for communication by the Docker containers:
+- Create a Docker network device that will be used for communication by the Docker containers. 
+Note that by creating a user-defined network, Docker will create an embedded DNS server so that workers can find the Spark master by name.
 
         sgx-spark$ docker network create sgxsparknet
 
