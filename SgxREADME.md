@@ -116,7 +116,7 @@ To run Sgx-Spark natively, proceed as detailed in the following.
 Install all required dependencies. For Ubuntu 16.04, these can be installed as follows:
 
     $ sudo apt-get update
-    $ sudo apt-get install -y --no-install-recommends openvpn scala libtool autoconf curl xutils-dev git build-essential maven openjdk-8-jdk ssh bc python autogen wget autotools-dev sudo automake
+    $ sudo apt-get install -y --no-install-recommends scala libtool autoconf curl xutils-dev git build-essential maven openjdk-8-jdk ssh bc python autogen wget autotools-dev sudo automake
 		
 ### Compile and install Google Protocol Buffer 2.5.0
 
@@ -166,11 +166,6 @@ installation of sgx-lkl executes simple Java applications successfully.
 
         sgx-spark/lkl$ make clean all
 
-- Prepare two tap devices that are required by sgx-lkl:
-
-        $ openvpn --mktun --dev tap5
-        $ openvpn --mktun --dev tap6
-
 ### Run Sgx-Spark using sgx-lkl
 
 Finally, we are ready to run (i) the Sgx-Spark master node,
@@ -179,6 +174,10 @@ and (v) the client's enclave. In the following commands, replace: `<hostname>` w
 the master node's actual hostname; `<sgx-lkl>` with the path to your `sgx-lkl` installation.
 
 *Note*: After running each example, make sure to (i) restart all processes, (ii) delete all shared memory files in `/dev/shm`.
+
+- If you run all the nodes locally, you need to add the following line to `variables.sh`:
+
+		export SPARK_LOCAL_IP=127.0.0.1
 
 - Run the Master node
 
@@ -201,7 +200,6 @@ the master node's actual hostname; `<sgx-lkl>` with the path to your `sgx-lkl` i
     - WordCount
 
             sgx-spark$ ./submitwordcount.sh
-    
     
     - KMeans
 
