@@ -2,8 +2,6 @@
 
 source variables.sh
 
-export SGXLKL_TAP=tap6
-
 export IS_ENCLAVE=true
 export IS_DRIVER=true
 export IS_WORKER=false
