@@ -6,8 +6,6 @@ sudo make finalize-image
 cd ${SPARK_DIR}
 sudo chown user:user ${SPARK_DIR}/lkl/alpine-rootfs.img
 
-sudo openvpn --mktun --dev tap0
-
 export IS_DRIVER=true
 export IS_WORKER=false
 

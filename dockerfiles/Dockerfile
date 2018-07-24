@@ -5,38 +5,37 @@ ENV	SCALA_VERSION=2.11
 
 ENV	PROTOBUF_VERSION=2.5.0
 
-ENV     SPARK_DIR=/sgx-spark
+ENV   SPARK_DIR=/sgx-spark
 ENV	SPARK_BRANCH=master
 
 ENV	HADOOP_VERSION=2.6.5
 ENV	HADOOP_DIR=${SPARK_DIR}/hadoop-${HADOOP_VERSION}-src
 
-ENV     SGXLKL_DIR=/sgx-lkl
-ENV	SGXLKL_BRANCH=cleanup-musl
+ENV   SGXLKL_DIR=/sgx-lkl
+ENV	SGXLKL_BRANCH=master
 
 RUN     apt-get update && \
-        apt-get install -y --no-install-recommends \
-                openvpn \
-                scala \
-                libtool \
-                autoconf \
-                curl \
-                xutils-dev \
-                git \
-		build-essential \
-		maven \
-		openjdk-8-jdk \
-		ssh \
-		bc \
-		python \
-		autogen \
-		wget \
-		autotools-dev \
-		sudo \
-		automake \
-        && apt-get clean \
-        && apt-get autoclean \
-        && rm -rf /var/lib/apt/lists/*
+			  apt-get install -y --no-install-recommends \
+			  scala \
+			  libtool \
+			  autoconf \
+			  curl \
+			  xutils-dev \
+			  git \
+			  build-essential \
+			  maven \
+			  openjdk-8-jdk \
+			  ssh \
+			  bc \
+			  python \
+			  autogen \
+			  wget \
+			  autotools-dev \
+			  sudo \
+			  automake \
+			  && apt-get clean \
+			  && apt-get autoclean \
+			  && rm -rf /var/lib/apt/lists/*
 
 RUN	useradd -m user && echo "user:user" | chpasswd && adduser user sudo && \
 	echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
