@@ -13,6 +13,9 @@ if [ "${SPARK_MASTER_HOST}" == "" ]; then
 	exit 1
 fi 
 
+# to debug
+#-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 \
+
 java \
 -cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/\*:shm/target/\* \
 org.apache.spark.deploy.worker.Worker \
