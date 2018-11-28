@@ -20,8 +20,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	private RingBuffConsumer reader;
 	private RingBuffProducer writer;
 
-	private final Object lockWriteBuff = new Object();
-	private final Object lockReadBuff = new Object();
 	private final Object lockInboxes = new Object();
 	private final static Object lockInstance = new Object();
 
@@ -150,9 +148,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	}
 
 	void write(ShmMessage m) {
-		synchronized (lockWriteBuff) {
-			writer.write(m);
-		}
+		writer.write(m);
 	}
 	
 	void close(ShmCommunicator com) {
@@ -163,9 +159,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public T call() throws Exception {
 		ShmMessage msg = null;
 		while (true) {
-			synchronized (lockReadBuff) {
-				msg = ((ShmMessage) reader.read());
-			}
+			msg = ((ShmMessage) reader.read());
 
 			if (msg.getPort() == 0) {
 				switch (msg.getType()) {

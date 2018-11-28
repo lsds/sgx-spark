@@ -4,6 +4,7 @@ import org.apache.spark.sgx.ISerialization;
 
 public class RingBuffProducer extends RingBuffProducerRaw {
 	private ISerialization serializer;
+	private Object writelock = new Object();
 	
 	public RingBuffProducer(MappedDataBuffer buffer, ISerialization serializer) {
 		super(buffer, 1);
@@ -15,7 +16,17 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 
 	public void write(Object o) {
 		try {
-			write(serializer.serialize(o));
+			byte[] b = serializer.serialize(o);
+			synchronized(writelock) {
+				/*
+				try {
+					throw new Exception("write object " + o + " of size " + b.length);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				*/
+				write(b);
+			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

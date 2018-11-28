@@ -4,6 +4,7 @@ import org.apache.spark.sgx.ISerialization;
 
 public class RingBuffConsumer extends RingBuffConsumerRaw {
 	private ISerialization serializer;
+	private Object readlock = new Object();
 
 	public RingBuffConsumer(MappedDataBuffer buffer, ISerialization serializer) {
 		super(buffer, 1);
@@ -16,7 +17,11 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 	@SuppressWarnings("unchecked")
 	public <T> T read() {		
 		try {
-			return (T) serializer.deserialize(readBytes());
+			byte[] b;
+			synchronized(readlock) {
+				b = readBytes();
+			}
+			return (T) serializer.deserialize(b);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
