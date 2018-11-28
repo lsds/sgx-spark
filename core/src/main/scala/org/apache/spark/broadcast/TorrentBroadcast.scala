@@ -73,6 +73,9 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   /** Size of each block. Default value is 4MB.  This value is only read by the broadcaster. */
   @transient private var blockSize: Int = _
 
+  private var enclave_value_init = false
+  private var enclave_value: T = _
+
   private def setConf(conf: SparkConf) {
     compressionCodec = if (conf.getBoolean("spark.broadcast.compress", true)) {
       Some(CompressionCodec.createCodec(conf))
@@ -96,7 +99,13 @@ private[spark] class TorrentBroadcast[T: ClassTag](obj: T, id: Long)
   private var checksums: Array[Int] = _
 
   override protected def getValue() = {
-    if (SgxSettings.IS_ENCLAVE) SgxBroadcastEnclave.value(this)
+    if (SgxSettings.IS_ENCLAVE) {
+      if (enclave_value_init == false) {
+        enclave_value = SgxBroadcastEnclave.value(this)
+        enclave_value_init = true
+      }
+      enclave_value
+    }
     else
     _value
   }
