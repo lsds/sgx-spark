@@ -31,6 +31,8 @@ object KMeansExample {
     val conf = new SparkConf().setAppName("KMeansExample")
     val sc = new SparkContext(conf)
 
+    val t0 = System.nanoTime()
+
     // $example on$
     // Load and parse the data
     val data = sc.textFile(args(0))
@@ -51,7 +53,11 @@ object KMeansExample {
     // $example off$
 
     sc.stop()
+
+    val t1 = System.nanoTime()
+
     println("KMeans result: " + clusters.clusterCenters.mkString("[", ",", "]"))  
+    println("Elapsed time: " + java.text.NumberFormat.getIntegerInstance.format((t1 - t0)/1000000) + "ms")
   }
 }
 // scalastyle:on println
