@@ -33,13 +33,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.crypto.CipherSuite;
+import org.apache.hadoop.crypto.CryptoCodec;
+import org.apache.hadoop.crypto.CryptoStreamUtils;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
@@ -305,6 +303,13 @@ public abstract class FileInputFormat<K, V> implements InputFormat<K, V> {
     return new FileSplit(file, start, length, hosts, inMemoryHosts);
   }
 
+  private int getEncryptedBlockLength() {
+    CipherSuite suite = CipherSuite.AES_CTR_NOPADDING;
+    Configuration conf = new Configuration();
+    CryptoCodec codec = CryptoCodec.getInstance(conf, suite);
+    return CryptoStreamUtils.checkBufferSize(codec, CryptoStreamUtils.getBufferSize(codec.getConf()));
+  }
+
   /** Splits files returned by {@link #listStatus(JobConf)} when
    * they're too big.*/ 
   public InputSplit[] getSplits(JobConf job, int numSplits)
@@ -343,6 +348,22 @@ public abstract class FileInputFormat<K, V> implements InputFormat<K, V> {
         if (isSplitable(fs, path)) {
           long blockSize = file.getBlockSize();
           long splitSize = computeSplitSize(goalSize, minSize, blockSize);
+
+          // if length < 8kB -> one split only
+          // if length > 8kB -> need to align the splitsize to the multiple of 8kB before
+          System.out.println("length=" + length + ", encryptedblocklength=" + getEncryptedBlockLength() + ", splitsize=" + splitSize);
+          if (length < getEncryptedBlockLength()) {
+            splitSize = length;
+          } else {
+            // what is the next multiple?
+            // what is the previous multiple?
+            // if the previous is too low (0) then use the next
+            // if the next is too high (>length) then use the previous
+            long prevSplitSize = splitSize - splitSize % getEncryptedBlockLength();
+            long nextSplitSize = splitSize + getEncryptedBlockLength() - splitSize % getEncryptedBlockLength();
+            splitSize = (prevSplitSize <= 0 ? nextSplitSize : prevSplitSize);
+          }
+          System.out.println("File is splitable: block size " + blockSize + ", splitsize " + splitSize);
 
           long bytesRemaining = length;
           while (((double) bytesRemaining)/splitSize > SPLIT_SLOP) {

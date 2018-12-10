@@ -47,6 +47,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   private IFillBuffer fillBuffer = null;
   private byte[] ba = new byte[1024];
   private final boolean sgxEnabled = SgxSettings.SGX_ENABLED();
+  private final boolean sgxEnclave = SgxSettings.IS_ENCLAVE();
 
   public UncompressedSplitLineReader(FSDataInputStream in, Configuration conf,
       byte[] recordDelimiterBytes, long splitLength) throws IOException {
@@ -88,7 +89,7 @@ public class UncompressedSplitLineReader extends SplitLineReader {
   @Override
   protected int fillBuffer(InputStream in, MappedDataBuffer buffer, boolean inDelimiter)
       throws IOException {
-    if (sgxEnabled && SgxSettings.IS_ENCLAVE()) {
+    if (sgxEnabled && sgxEnclave) {
       return fillBuffer.fillBuffer(inDelimiter);
     }
     int maxBytesToRead = buffer.capacity();

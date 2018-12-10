@@ -29,6 +29,8 @@ import org.apache.hadoop.io.compress.*;
 
 import com.google.common.base.Charsets;
 
+import org.apache.spark.sgx.SgxSettings;
+
 /** 
  * An {@link InputFormat} for plain text files.  Files are broken into lines.
  * Either linefeed or carriage-return are used to signal end of line.  Keys are
@@ -64,7 +66,12 @@ public class TextInputFormat extends FileInputFormat<LongWritable, Text>
     if (null != delimiter) {
       recordDelimiterBytes = delimiter.getBytes(Charsets.UTF_8);
     }
+    if (SgxSettings.USE_HDFS_ENCRYPTION()) {
+    return new EncryptedRecordReader(job, (FileSplit) genericSplit,
+            recordDelimiterBytes);
+	 } else {
     return new LineRecordReader(job, (FileSplit) genericSplit,
         recordDelimiterBytes);
+    }
   }
 }

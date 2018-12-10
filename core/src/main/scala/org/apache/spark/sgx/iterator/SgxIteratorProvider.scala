@@ -20,6 +20,7 @@ import org.apache.spark.executor.InputMetrics
 import org.apache.spark.Partition
 import org.apache.hadoop.mapred.RecordReader
 import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader
+import org.apache.hadoop.mapred.EncryptedRecordReader
 import org.apache.spark.sgx.shm.MappedDataBufferManager
 import org.apache.spark.sgx.shm.MappedDataBuffer
 import org.apache.spark.sgx.Serialization
@@ -102,7 +103,10 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
   
 	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
 
-	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, recordReader.getLineReader.getBufferOffset(), recordReader.getLineReader.getBufferSize(), theSplit, inputMetrics, splitLength, splitStart, delimiter)
+	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, 
+        if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].getBufferOffset() else recordReader.getLineReader.getBufferOffset(),
+        if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].getBufferSize() else recordReader.getLineReader.getBufferSize(),
+        theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
 
@@ -121,7 +125,8 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 					stop
 					delegate.closeIfNeeded()
 				case f: SgxShmIteratorConsumerFillBufferMsg =>
-					recordReader.getLineReader.fillBuffer(f.inDelimiter)
+					if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].fillBuffer()
+					else recordReader.getLineReader.fillBuffer(f.inDelimiter)
 			}
 			if (ret != Unit) {
 				com.sendOne(ret)

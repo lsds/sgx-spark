@@ -272,7 +272,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   private static ThreadPoolExecutor HEDGED_READ_THREAD_POOL;
 
 
-  public static boolean USE_CLIENT_SIDE_DECRYPTION = true;
+  public static boolean USE_CLIENT_SIDE_DECRYPTION = false;
+  public static boolean USE_CLIENT_SIDE_ENCRYPTION = true;
 
   @VisibleForTesting
   KeyProvider provider;
@@ -1462,6 +1463,19 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    */
   public HdfsDataOutputStream createWrappedOutputStream(DFSOutputStream dfsos,
       FileSystem.Statistics statistics, long startPos) throws IOException {
+    if (DFSClient.USE_CLIENT_SIDE_ENCRYPTION) {
+      final CipherSuite suite = CipherSuite.AES_CTR_NOPADDING;
+      final CryptoProtocolVersion version = CryptoProtocolVersion.ENCRYPTION_ZONES;
+      final byte[] key = new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+              0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17 };
+      final byte[] iv =  new byte[] { 0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x01 };
+      final FileEncryptionInfo feInfo = new FileEncryptionInfo(suite, version, key, iv, "my_great_key", "version_0");
+      final CryptoCodec codec = getCryptoCodec(conf, feInfo);
+      final CryptoOutputStream cryptoOut =
+              new CryptoOutputStream(dfsos, codec, key, iv, startPos);
+      return new HdfsDataOutputStream(cryptoOut, statistics, startPos);
+    } else {
     final FileEncryptionInfo feInfo = dfsos.getFileEncryptionInfo();
     if (feInfo != null) {
       // File is encrypted, wrap the stream in a crypto stream.
@@ -1477,6 +1491,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       // No FileEncryptionInfo present so no encryption.
       return new HdfsDataOutputStream(dfsos, statistics, startPos);
     }
+}
   }
 
   public DFSInputStream open(String src) 

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-export SGX_ENABLED=true
+export SGX_ENABLED=false
+export USE_HDFS_ENCRYPTION=false
 
 export SCALA_VERSION=2.11
 

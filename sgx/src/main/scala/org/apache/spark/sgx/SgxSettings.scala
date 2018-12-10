@@ -2,6 +2,7 @@ package org.apache.spark.sgx
 
 object SgxSettings {
 	val SGX_ENABLED = sys.env.get("SGX_ENABLED").getOrElse("false").toBoolean
+	val USE_HDFS_ENCRYPTION = sys.env.get("USE_HDFS_ENCRYPTION").getOrElse("false").toBoolean
 
 	val IS_ENCLAVE = sys.env.get("IS_ENCLAVE").getOrElse("false").toBoolean
 	val IS_DRIVER = sys.env.get("IS_DRIVER").getOrElse("false").toBoolean

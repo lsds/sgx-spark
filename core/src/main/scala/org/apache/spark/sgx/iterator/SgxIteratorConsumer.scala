@@ -33,6 +33,7 @@ import org.apache.spark.sgx.Serialization
 import org.apache.spark.util.collection.WritablePartitionedIterator
 import org.apache.spark.storage.DiskBlockObjectWriter
 import org.apache.spark.sgx.shm.RingBuffConsumer
+import org.apache.hadoop.mapred.EncryptedRecordReader
 
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
@@ -139,7 +140,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
     }
   }
   
-  var reader: RecordReader[K, V] = new LineRecordReader(buffer, delimiter, splitLength, splitStart, new SgxShmIteratorConsumerFillBuffer(com)).asInstanceOf[RecordReader[K,V]]
+  var reader: RecordReader[K, V] = if (SgxSettings.USE_HDFS_ENCRYPTION) new EncryptedRecordReader(buffer, delimiter, splitLength, splitStart, new SgxShmIteratorConsumerFillBuffer(com)).asInstanceOf[RecordReader[K,V]] else new LineRecordReader(buffer, delimiter, splitLength, splitStart, new SgxShmIteratorConsumerFillBuffer(com)).asInstanceOf[RecordReader[K,V]]
   
   private val key: K = if (reader == null) null.asInstanceOf[K] else reader.createKey()
   private val value: V = if (reader == null) null.asInstanceOf[V] else reader.createValue()

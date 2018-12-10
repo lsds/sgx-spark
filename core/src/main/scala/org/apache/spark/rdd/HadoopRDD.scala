@@ -328,8 +328,9 @@ class HadoopRDD[K, V](
     }
     // SGX: This SgxIteratorProvider lives outside of the enclave and provides access to the (K,V) pairs.
     // The corresponding SgxIteratorConsumer lives inside the enclave.
-    if (SgxSettings.SGX_ENABLED)
-      SgxFactory.newSgxShmIteratorProvider[K,V](iter, iter.reader, theSplit, iter.inputMetrics, iter.split.inputSplit.value.getLength, iter.split.inputSplit.value.asInstanceOf[FileSplit].getStart, iter.reader.getLineReader.getRecordDelimiterBytes)
+    if (SgxSettings.SGX_ENABLED) {
+      SgxFactory.newSgxShmIteratorProvider[K,V](iter, iter.reader, theSplit, iter.inputMetrics, iter.split.inputSplit.value.getLength, iter.split.inputSplit.value.asInstanceOf[FileSplit].getStart, if (SgxSettings.USE_HDFS_ENCRYPTION) null else iter.reader.getLineReader.getRecordDelimiterBytes)
+    }
     else
     new InterruptibleIterator[(K, V)](context, iter)
   }
