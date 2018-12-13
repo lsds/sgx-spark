@@ -18,10 +18,21 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 	public <T> T read() {		
 		try {
 			byte[] b;
+			Object o;
 			synchronized(readlock) {
 				b = readBytes();
+
+				o = serializer.deserialize(b);
+				try {
+					throw new Exception("read object " + o + " of size " + b.length);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+
 			}
-			return (T) serializer.deserialize(b);
+
+			return (T) o;
+			//return (T) serializer.deserialize(b);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

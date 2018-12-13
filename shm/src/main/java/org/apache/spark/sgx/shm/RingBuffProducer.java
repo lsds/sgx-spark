@@ -18,13 +18,11 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 		try {
 			byte[] b = serializer.serialize(o);
 			synchronized(writelock) {
-				/*
 				try {
 					throw new Exception("write object " + o + " of size " + b.length);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-				*/
 				write(b);
 			}
 		} catch (Exception e) {
