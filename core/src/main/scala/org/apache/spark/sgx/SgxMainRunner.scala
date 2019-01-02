@@ -1,10 +1,7 @@
 package org.apache.spark.sgx
 
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
-import org.apache.spark.sgx.broadcast.SgxBroadcastEnclave
 import org.apache.spark.sgx.broadcast.SgxBroadcastProviderIdentifier
-import org.apache.spark.sgx.iterator.MsgAccessFakeIterator
 
 class SgxMainRunner(com: SgxCommunicator) extends SgxCallable[Unit] with Logging {
 	def call(): Unit = {
@@ -21,7 +18,7 @@ class SgxMainRunner(com: SgxCommunicator) extends SgxCallable[Unit] with Logging
 			}
 			
 			logDebug("Result: " + result + " (" + result.getClass().getSimpleName + ")")
-			if (result != null) com.sendOne(result)			
+			if (result != null) com.sendOne(result)
 		}
 
 		com.close()
