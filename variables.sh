@@ -9,6 +9,7 @@ export SPARK_VERSION=2.3.2
 export SPARK_MASTER_HOST=$(hostname -f)
 export SPARK_MASTER_PORT=7077
 export SPARK_MASTER_WEBUI_PORT=8082
+export SPARK_DEFAULT_BUFFER_SIZE=$((32*1024*1024))
 
 export SGXLKL_EXECUTABLE=../sgx-lkl/build/sgx-lkl-run
 export SGXLKL_IMAGE=lkl/alpine-rootfs.img
