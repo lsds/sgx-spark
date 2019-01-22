@@ -20,18 +20,16 @@ package org.apache.spark.rdd
 import java.nio.ByteBuffer
 import java.util.{HashMap => JHashMap}
 
-import scala.collection.{mutable, Map}
+import scala.collection.{Map, mutable}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
-
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.SequenceFile.CompressionType
 import org.apache.hadoop.io.compress.CompressionCodec
 import org.apache.hadoop.mapred.{FileOutputCommitter, FileOutputFormat, JobConf, OutputFormat}
 import org.apache.hadoop.mapreduce.{Job => NewAPIHadoopJob, OutputFormat => NewOutputFormat}
-
 import org.apache.spark._
 import org.apache.spark.Partitioner.defaultPartitioner
 import org.apache.spark.annotation.Experimental
@@ -42,10 +40,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.util.{SerializableConfiguration, SerializableJobConf, Utils}
 import org.apache.spark.util.collection.CompactBuffer
 import org.apache.spark.util.random.StratifiedSamplingUtils
-
-import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxRddFct
-import org.apache.spark.sgx.SgxSettings
+import org.apache.spark.sgx.{SgxRddFct, SgxSettings, SgxSparkEnvFct}
 
 /**
  * Extra functions available on RDDs of (key, value) pairs through an implicit conversion.
@@ -165,11 +160,17 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
   def aggregateByKey[U: ClassTag](zeroValue: U, partitioner: Partitioner)(seqOp: (U, V) => U,
       combOp: (U, U) => U): RDD[(K, U)] = self.withScope {
     // Serialize the zero value to a byte array so that we can get a new clone of it on each key
-    val zeroBuffer = SparkEnv.get.serializer.newInstance().serialize(zeroValue)
+    val zeroBuffer = {
+      val serializer = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getSerializer else SparkEnv.get.serializer
+      serializer.newInstance().serialize(zeroValue)
+    }
     val zeroArray = new Array[Byte](zeroBuffer.limit)
     zeroBuffer.get(zeroArray)
 
-    lazy val cachedSerializer = SparkEnv.get.serializer.newInstance()
+    lazy val cachedSerializer = {
+      val serializer = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getSerializer else SparkEnv.get.serializer
+      serializer.newInstance()
+    }
     val createZero = () => cachedSerializer.deserialize[U](ByteBuffer.wrap(zeroArray))
 
     // We will clean the combiner closure later in `combineByKey`

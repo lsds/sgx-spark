@@ -23,6 +23,7 @@ object SgxFactory {
 	}
 	else ShmCommunicationManager.create[Unit](SgxSettings.SHMEM_FILE, SgxSettings.SHMEM_SIZE)
 	Completor.submit(mgr);
+	if (!SgxSettings.IS_ENCLAVE) Completor.submit(SgxMain)
 
 	private var startedBroadcastProvider = false
 
