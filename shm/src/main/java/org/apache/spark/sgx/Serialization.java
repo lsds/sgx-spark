@@ -21,12 +21,15 @@ public class Serialization {
 			case "java":
 			case "default":
 				serializer = new JavaSerialization();
+				break;
 			case "apache":
 			case "commons":
 				serializer = new CommonsSerialization();
+				break;
 			case "fst":
 			default:
 				serializer = new FSTSerialization();
+				break;
 		}
 		
 		return serializer;
