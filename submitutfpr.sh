@@ -2,20 +2,29 @@
 
 source variables.sh
 
+export SGX_ENABLED=false # no need for enclave driver
 export IS_ENCLAVE=false
 export IS_DRIVER=true
 export IS_WORKER=false
 
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
-
 export SPARK_JOBNAME=utfpr
 
-rm -rf $(pwd)/output
+if [ $# -ne 1 ]; then
+	echo "Usage: ./$(basename $0) <mode>"
+	exit 1
+fi
 
-INFILE=$(pwd)/phasor.txt
+MODE=$1
+INFILE=
+
+if [ $MODE -eq 0 ]; then
+	INFILE=$(pwd)/phasor/phasor.txt
+	rm -rf $(pwd)/output
+fi
 
 ./bin/spark-submit \
---class org.apache.spark.examples.utfpr.SmartMeteringSpark \
+--class org.apache.spark.examples.utfpr.SmartMeteringSparkFileMode \
 --master spark://${SPARK_MASTER_HOST}:${SPARK_MASTER_PORT} \
 --deploy-mode client \
 --driver-memory 2g \
@@ -28,4 +37,5 @@ INFILE=$(pwd)/phasor.txt
 --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar $INFILE output 2>&1 | tee outside-driver
+--conf "spark.default.parallelism=1" \
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar $MODE $(pwd)/output/ $INFILE 2>&1 | tee outside-driver
