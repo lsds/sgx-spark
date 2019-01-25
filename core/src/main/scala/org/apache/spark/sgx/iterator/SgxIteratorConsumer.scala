@@ -121,7 +121,7 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   
   val com = id.connect()
   
-  override def close() = com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
+  override def close() = com.sendOne(new SgxShmIteratorConsumerClose()) //com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
   
   /* Code from HadoopRDD follows */
   
@@ -192,7 +192,7 @@ class SgxWritablePartitionedIteratorConsumer[K,V](id: SgxWritablePartitionedIter
   }
   
   private def advanceToNext(): Boolean = {
-    reader.read[Any]() match {
+    reader.readAny[Any]() match {
       case p: SgxPair[K,V] =>
         cur = p
         true

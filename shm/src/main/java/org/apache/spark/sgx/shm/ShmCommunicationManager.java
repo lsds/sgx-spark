@@ -148,7 +148,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	}
 
 	void write(ShmMessage m) {
-		writer.write(m);
+		writer.writeShmMessage(m);
 	}
 	
 	void close(ShmCommunicator com) {
@@ -159,7 +159,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public T call() throws Exception {
 		ShmMessage msg = null;
 		while (true) {
-			msg = ((ShmMessage) reader.read());
+			msg = reader.readShmMessage();
 
 			if (msg.getPort() == 0) {
 				switch (msg.getType()) {

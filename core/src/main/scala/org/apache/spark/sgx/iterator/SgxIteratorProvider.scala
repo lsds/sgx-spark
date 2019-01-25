@@ -1,12 +1,9 @@
 package org.apache.spark.sgx.iterator
 
 import scala.collection.mutable.ArrayBuffer
-
 import scala.util.control.Breaks._
-
 import org.apache.commons.lang3.SerializationUtils
 import org.apache.commons.lang3.SerializationException
-
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.NextIterator
@@ -29,6 +26,8 @@ import org.apache.spark.util.collection.WritablePartitionedIterator
 import org.apache.spark.storage.DiskBlockObjectWriter
 import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
 import org.apache.spark.sgx.shm.RingBuffProducer
+
+import scala.runtime.BoxedUnit
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
@@ -124,11 +123,13 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 				case c: SgxShmIteratorConsumerClose =>
 					stop
 					delegate.closeIfNeeded()
+					Unit // don't need to reply to this type of messages
 				case f: SgxShmIteratorConsumerFillBufferMsg =>
 					if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].fillBuffer()
 					else recordReader.getLineReader.fillBuffer(f.inDelimiter)
 			}
 			if (ret != Unit) {
+				logDebug("call(): sendOne " + ret + ", " + ret.getClass() + ", " + ret.getClass().getSimpleName)
 				com.sendOne(ret)
 			}
 		}
@@ -178,14 +179,17 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
 		while (it.hasNext) {
 			val partitionId = nextPartition()
 			if (oldPartId != partitionId) {
-				writer.write(new SgxPartition(partitionId))    
+				//TODO PL: creating an object for just an int is overkill
+				writer.writeAny(new SgxPartition(partitionId))
 			}
+			//TODO PL: batching
 			while (hasNext && nextPartition() == partitionId) {
-				writer.write(new SgxPair(cur._1._2, cur._2))
+				writer.writeAny(new SgxPair(cur._1._2, cur._2))
 				cur = if (it.hasNext) it.next() else null
 			}
 		}
-		writer.write(new SgxDone)
+		//TODO PL: creating an object for nothing is overkill
+		writer.writeAny(new SgxDone)
 	}
 	
 	def call(): Unit = {

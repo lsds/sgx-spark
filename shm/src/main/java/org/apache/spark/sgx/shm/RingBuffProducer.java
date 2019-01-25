@@ -14,16 +14,56 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 		this.serializer = serializer;
 	}
 
-	public void write(Object o) {
+	// SgxIteratorProvider calls this generic write
+	public void writeAny(Object o) {
 		try {
 			byte[] b = serializer.serialize(o);
 			synchronized(writelock) {
+
+/*
 				try {
-					throw new Exception("write object " + o + " of size " + b.length);
+					throw new Exception("write object " + o + ", " + o.getClass().getSimpleName() + " of size " + b.length);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
+				*/
+
 				write(b);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	// This is our custom write for ShmMessage only
+	public void writeShmMessage(ShmMessage m) {
+		byte[] b = null;
+		try {
+			if (ShmMessage.SMALL_MESSAGE_INLINE_OPTIMIZATION) {
+				byte[] h = m.constructAndGetHeader();
+				if (m.msgtype == 0) {
+					b = serializer.serialize(m.getMsg());
+				}
+
+				synchronized(writelock) {
+					write(h);
+					if (b != null) {
+						write(b);
+					}
+				}
+			} else {
+				b = serializer.serialize(m);
+				synchronized(writelock) {
+				/*
+					try {
+						throw new Exception("write object " + m + ", " + m.getClass().getSimpleName() + " of size " + b.length);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+					*/
+
+					write(b);
+				}
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);

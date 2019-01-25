@@ -15,7 +15,8 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> T read() {		
+	// used by SgxIteratorConsumer.scala
+	public <T> T readAny() {
 		try {
 			byte[] b;
 			Object o;
@@ -31,8 +32,60 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 
 			}
 
+/*
+			try {
+				throw new Exception("read object " + o + ", " + " of size " + b.length);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			*/
+
 			return (T) o;
 			//return (T) serializer.deserialize(b);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public ShmMessage readShmMessage() {
+		try {
+			byte[] b = null;
+			Object o = null;
+
+			if (ShmMessage.SMALL_MESSAGE_INLINE_OPTIMIZATION) {
+				byte[] h;
+				synchronized(readlock) {
+					h = readBytes();
+					if (!ShmMessage.objectInHeader(h)) {
+						b = readBytes();
+					}
+				}
+
+				if (b != null) {
+					o = serializer.deserialize(b);
+				}
+				ShmMessage m = new ShmMessage(h, o);
+				return m;
+			} else {
+				synchronized(readlock) {
+					b = readBytes();
+				}
+
+				o = serializer.deserialize(b);
+
+/*
+				try {
+					throw new Exception("read object " + o + ", " + " of size " + b.length);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				*/
+
+				return (ShmMessage) o;
+			}
+
+>>>>>>> master
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

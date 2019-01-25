@@ -25,7 +25,6 @@ ${SGXLKL_EXECUTABLE} ${SGXLKL_IMAGE} /opt/j2re-image/bin/java \
 -XX:+UseCompressedClassPointers \
 -XX:+PreserveFramePointer \
 -XX:+UseMembar \
--XX:+AssumeMP \
 -Djava.library.path=/spark/lib/ \
 -cp \
 /home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/*:/spark/sgx/target/\*:/spark/shm/target/\* \

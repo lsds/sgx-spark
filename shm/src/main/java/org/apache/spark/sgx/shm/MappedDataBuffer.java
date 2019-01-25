@@ -20,6 +20,14 @@ public class MappedDataBuffer {
 	public MappedDataBuffer (long address, int capacity) {
 		this.address = address;
 		this.capacity = capacity;
+
+/*
+		try {
+			throw new Exception("Create a new MappedDataBuffer of size " + capacity + "@" + address);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		*/
 	}
 	
 	final ByteOrder order () {
@@ -118,7 +126,11 @@ public class MappedDataBuffer {
 	void putLong (int index, long value) {
 		putLong(ix(checkIndex(index, (1 << 3))), value);
 	}
-	
+
+	public void memset(long a, long b, byte v) {
+		unsafe.setMemory(a, b, v);
+	}
+
 	public String toString() {
 		return this.getClass().getSimpleName() + "(address=" + address + ", capacity=" + capacity + ")";
 	}
