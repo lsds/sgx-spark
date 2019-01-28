@@ -1,10 +1,11 @@
 package org.apache.spark.sgx.shm;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.spark.sgx.Serialization;
 import org.apache.spark.sgx.SgxSettings;
@@ -20,13 +21,12 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	private RingBuffConsumer reader;
 	private RingBuffProducer writer;
 
-	private final Object lockInboxes = new Object();
 	private final static Object lockInstance = new Object();
 
-	private Map<Long, BlockingQueue<Object>> inboxes = new HashMap<>();
+	private Map<Long, BlockingQueue<Object>> inboxes = new ConcurrentHashMap<>();
 	private BlockingQueue<ShmCommunicator> accepted = new LinkedBlockingQueue<>();
 	
-	private long inboxCtr = 1;
+	private AtomicLong inboxCtr = new AtomicLong(1);
 	
 	private static ShmCommunicationManager<?> _instance = null;
 	
@@ -107,10 +107,8 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public ShmCommunicator newShmCommunicator(boolean doConnect) {
 		BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 		long myport;
-		synchronized (lockInboxes) {
-			myport = inboxCtr++;
-			inboxes.put(myport, inbox);
-		}
+		myport = inboxCtr.getAndIncrement();
+		inboxes.put(myport, inbox);
 
 		return new ShmCommunicator(myport, inbox, doConnect);
 	}
@@ -166,12 +164,10 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				case NEW_CONNECTION:
 					BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 					long myport;
-					synchronized (lockInboxes) {
-						myport = inboxCtr++;
-						inboxes.put(myport, inbox);
-					}
-					accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox));
+					myport = inboxCtr.getAndIncrement();
+					inboxes.put(myport, inbox);
 					write(new ShmMessage(EShmMessageType.ACCEPTED_CONNECTION, myport, (long) msg.getMsg()));
+					accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox));
 					break;
 
 				default:
@@ -179,9 +175,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				}
 			} else {
 				BlockingQueue<Object> inbox;
-				synchronized (lockInboxes) {
-					inbox = inboxes.get(msg.getPort());
-				}
+				inbox = inboxes.get(msg.getPort());
 				inbox.add(msg.getMsg());
 			}
 		}
