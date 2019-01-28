@@ -2,6 +2,8 @@ package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
 
+import java.util.Arrays;
+
 public class RingBuffConsumer extends RingBuffConsumerRaw {
 	private ISerialization serializer;
 	private Object readlock = new Object();
@@ -23,13 +25,11 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 			synchronized(readlock) {
 				b = readBytes();
 
-				o = serializer.deserialize(b);
-				try {
-					throw new Exception("read object " + o + " of size " + b.length);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+				System.err.println("RingBuffConsumer: reading a new message from an array of size " + b.length);
+				//System.err.println("The read message of size " + b.length + " is "+ Arrays.toString(b));
 
+				o = serializer.deserialize(b);
+				System.err.println("RingBuffConsumer: read object " + o + " of size " + b.length);
 			}
 
 /*

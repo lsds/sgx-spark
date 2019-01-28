@@ -1,5 +1,5 @@
 # CHANGE THIS TO POINT TO YOUR SGX-LKL DIRECTORY
-SGX_LKL=/data/fkelbert/sgx-lkl
+SGX_LKL=/home/paublin/workspace/sgx-lkl
 
 ALPINE_MAJOR=3.7
 ALPINE_VERSION=3.7.0

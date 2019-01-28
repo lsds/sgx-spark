@@ -34,16 +34,19 @@ object MyWordCount extends Logging {
       })
   
       // Transform into word and count.
-      words.map(word => {
+      val count = words.map(word => {
         (word, 1)
       })
       .reduceByKey {
         case (x, y) => {
           x + y
         }
-      }.collect
+      }
+      count.saveAsTextFile(outputFile)
+
+      count.collect
     }
-    
+
     logInfo("Result:")
     logInfo("" + result.mkString(", "))
     
@@ -51,6 +54,6 @@ object MyWordCount extends Logging {
 //    .foreach(x => logDebug(x.toString()))
 
     // Save the word count back out to a text file, causing evaluation.
-//    counts.saveAsTextFile(outputFile)
+   // counts.saveAsTextFile(outputFile)
   }
 }

@@ -158,9 +158,16 @@ object SmartMeteringSparkFileMode {
 
   def main(args: Array[String]) {
 
-    //spark context
-    //val conf = new SparkConf().setAppName("AppTeste").setMaster("local[3]")
-    val conf = new SparkConf()
+    //Configuration
+
+    val SPARK_MASTER = "local[3]"
+    //val SPARK_MASTER = "spark://192.168.10.126:7077"
+    //val SPARK_MASTER = "spark://10.5.0.97:7077"
+    val LOGS_DIRECTORY = "/home/paublin/workspace/sgx-spark/phasor/"
+
+
+    //create spark context
+    val conf = new SparkConf(); //.setAppName("SmartMeteringFileMode").setMaster(SPARK_MASTER)
     val sc = new SparkContext(conf)
 
 
@@ -170,7 +177,7 @@ object SmartMeteringSparkFileMode {
     // no need for this logger file handler, we already log everything
     /*
     val currentDate = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())
-    val fh = new FileHandler("/home/paublin/workspace/sgx-spark/phasor/master.log")
+    val fh = new FileHandler(LOGS_DIRECTORY + currentDate + "_master.log")
     fh.setFormatter(new SimpleFormatter())
     LOGGER.addHandler(fh)
     */
@@ -201,6 +208,8 @@ object SmartMeteringSparkFileMode {
     //val PATH_TO_SAVE = "hdfs://radlab-hadoop:9000/testespark/2018-11"
     val PATH_TO_SAVE = args(1)
 
+    val s_time = System.nanoTime()
+
     //faz agregacao ou totalizacao e salva em arquivos
     if (mode == "0") {
       //LOGGER.info("send_all_data() returned " + send_all_data("/home/giovanni/phasor/*.txt"))
@@ -210,9 +219,12 @@ object SmartMeteringSparkFileMode {
       LOGGER.info("send_totalizers() returned " + send_totalizers())
     }
 
+    LOGGER.info("Execution time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
+
+
 
     /////////
-    //Funções auxiliares
+    //Funcoes auxiliares
     /////////
 
     //cria o rdd com a agregacao das empresas a partir do arquivo e salva arquivo _data
@@ -225,9 +237,9 @@ object SmartMeteringSparkFileMode {
       println("send_all_data 1 " + path)
 
       // map the name of companies (column 0)
-      val sm_company_contents = sm_rdd.map(a_line => (a_line.split(",")(0), a_line))
+      val sm_company_contents = sm_rdd.map(a_line => new String(new Base64().decode(a_line))).map(a_line => (a_line.split(",")(0), a_line))
 
-      println("send_all_data 2")
+println("send_all_data 2")
 
       // Agregate all contents by company
       val initial_set        = scala.collection.mutable.ListBuffer.empty[String]
@@ -247,7 +259,7 @@ object SmartMeteringSparkFileMode {
 
       try {
         println("send_all_data 9")
-        sm_final.saveAsObjectFile(PATH_TO_SAVE + "data/")
+        sm_final.saveAsTextFile(PATH_TO_SAVE + "data/")
         println("send_all_data 10")
       }
       catch{
@@ -264,9 +276,18 @@ object SmartMeteringSparkFileMode {
     //salva totalizadores de todas empresas a partir do arquivo _data
     def send_totalizers(): Int = {
 
+      //function to convert string to desired object value
+      def textToObj(str : String) : (String, scala.collection.mutable.ListBuffer[String]) = {
+        val s = ",ListBuffer("
+        val idx = str.indexOf(s)
+        val str1 = str.substring(1,idx)
+        val str2 = str.substring(idx+s.size,str.size-2)
+        return (str1,str2.split(", ").to[scala.collection.mutable.ListBuffer])
+      }
+
       var sm_final_get : RDD[(String, scala.collection.mutable.ListBuffer[String])] = null
       try {
-        sm_final_get = sc.objectFile[(String, scala.collection.mutable.ListBuffer[String])](PATH_TO_SAVE + "data/")
+        sm_final_get = sc.textFile(PATH_TO_SAVE + "data/").map(x=>textToObj(x))
         sm_final_get.persist()
         LOGGER.info("sm_final_get: " + sm_final_get.collect.mkString("\n"))
       }
@@ -290,19 +311,14 @@ object SmartMeteringSparkFileMode {
         return (splitted(28) + "-" + splitted(29) + ";", splitted(27))
       }
 
-      def hash_and_sign(content: String) : String = {
-        return String.format("%032x", new BigInteger(1, MessageDigest.getInstance("SHA-256").digest(content.getBytes("UTF-8"))))
-      }
-
-      val orders_and_hashes = sm_final_get.mapValues(x => x.map(y => get_order_and_hash(y))).mapValues(x => x.reduce((a, b) => (a._1 + b._1, a._2 + b._2))).mapValues(x => (x._1, hash_and_sign(x._2)))
+      val orders_and_hashes = sm_final_get.mapValues(x => x.map(y => get_order_and_hash(y))).mapValues(x => x.reduce((a, b) => (a._1 + b._1, a._2 + b._2))).mapValues(x => (x._1, Inmetro_cipher.sign(x._2)))
 
 
       //verify hashes
 
       // retorna a parte da linha em que o hash foi calculado e assinado anteriormente
       def get_hash_content(line : String) : String = {
-        return line.split(",").slice(1,27).mkString(",") + ",'"
-        //return line.split(",").slice(1,27).mkString("")
+        return line.split(",").slice(1,27).mkString("")
       }
 
       //maps company name, hash ok
@@ -321,7 +337,7 @@ object SmartMeteringSparkFileMode {
       LOGGER.info("sm_final_verify: " + sm_final_verify.collect.mkString("\n"))
 
       try {
-        merged.saveAsObjectFile(PATH_TO_SAVE + "tot/")
+        merged.saveAsTextFile(PATH_TO_SAVE + "tot/")
       }
       catch{
         case e: Exception => {

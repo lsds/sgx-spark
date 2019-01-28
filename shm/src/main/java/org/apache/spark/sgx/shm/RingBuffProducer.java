@@ -1,6 +1,7 @@
 package org.apache.spark.sgx.shm;
 
 import org.apache.spark.sgx.ISerialization;
+import java.util.Arrays;
 
 public class RingBuffProducer extends RingBuffProducerRaw {
 	private ISerialization serializer;
@@ -27,6 +28,8 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 					e.printStackTrace();
 				}
 				*/
+
+				//System.err.println("The written message " + o + " of size " + b.length + " is "+ Arrays.toString(b));
 
 				write(b);
 			}

@@ -40,6 +40,8 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param size
 	 */
 	private ShmCommunicationManager(String file, int size) {
+	System.err.println("Create a new ShmCommunicationManager1");
+
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
 		
 		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
@@ -67,6 +69,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param size the size of each of those memory regions
 	 */
 	private ShmCommunicationManager(long writeBuff, long readBuff, long commonBuff, int size) {
+		System.err.println("Create a new ShmCommunicationManager2");
 		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
 		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
 		MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
@@ -125,6 +128,13 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @return a {@link ShmCommunicator} representing the accepted connection
 	 */
 	public ShmCommunicator accept() {
+
+		try {
+			throw new Exception ("ShmCommunicator.accept()");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		ShmCommunicator result = null;
 		do {
 			try {
@@ -134,6 +144,13 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				e.printStackTrace();
 			}
 		} while (result == null);
+
+		try {
+			throw new Exception ("ShmCommunicator.accept() -> " + result);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		return result;
 	}
 
@@ -159,7 +176,9 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public T call() throws Exception {
 		ShmMessage msg = null;
 		while (true) {
-			msg = reader.readShmMessage();
+		System.err.println("Call: reading a new message1");
+			msg = ((ShmMessage) reader.read());
+			System.err.println("Call: has read a new message: " + msg);
 
 			if (msg.getPort() == 0) {
 				switch (msg.getType()) {
@@ -182,7 +201,9 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				synchronized (lockInboxes) {
 					inbox = inboxes.get(msg.getPort());
 				}
+				System.err.println("Adding message " + msg.toString() + " on port " + msg.getPort());
 				inbox.add(msg.getMsg());
+				System.err.println("Done for adding message " + msg.toString() + " on port " + msg.getPort());
 			}
 		}
 	}

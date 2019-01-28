@@ -1102,10 +1102,13 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
    * MapReduce job.
    */
   def saveAsHadoopDataset(conf: JobConf): Unit = self.withScope {
+  System.err.println("saveAsHadoopDataset1")
     val config = new HadoopMapRedWriteConfigUtil[K, V](new SerializableJobConf(conf))
+    System.err.println("saveAsHadoopDataset2")
     SparkHadoopWriter.write(
       rdd = self,
       config = config)
+    System.err.println("saveAsHadoopDataset3")
   }
 
   /**

@@ -2,6 +2,8 @@
 
 source variables.sh
 
+export SGX_ENABLED=false
+
 export IS_ENCLAVE=false
 export IS_DRIVER=true
 export IS_WORKER=false
