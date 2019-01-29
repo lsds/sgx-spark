@@ -84,8 +84,6 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 
 				return (ShmMessage) o;
 			}
-
->>>>>>> master
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

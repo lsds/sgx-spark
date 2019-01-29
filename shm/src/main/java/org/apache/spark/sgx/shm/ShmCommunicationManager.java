@@ -177,7 +177,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		ShmMessage msg = null;
 		while (true) {
 		System.err.println("Call: reading a new message1");
-			msg = ((ShmMessage) reader.read());
+			msg = ((ShmMessage) reader.readShmMessage());
 			System.err.println("Call: has read a new message: " + msg);
 
 			if (msg.getPort() == 0) {
