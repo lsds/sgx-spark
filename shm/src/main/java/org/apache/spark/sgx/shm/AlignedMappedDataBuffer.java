@@ -5,7 +5,10 @@ import org.apache.spark.sgx.SgxSettings;
 class AlignedMappedDataBuffer {
 	
 	private final MappedDataBuffer buffer;
-	
+
+	// TODO: I think this should be refactored. Alignment isn't the best word here.
+	//       What is being called "alignment" is actually the slot size. This makes
+	//       the code unnecessarily confusing.	
 	private final int alignment;
 	private final int slots;
 	private final int power;
