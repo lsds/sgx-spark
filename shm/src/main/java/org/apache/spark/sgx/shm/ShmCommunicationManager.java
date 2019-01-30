@@ -17,7 +17,10 @@ import org.apache.spark.sgx.SgxSettings;
  *
  */
 public final class ShmCommunicationManager<T> implements Callable<T> {
-	
+	// TODO: This class is a bottleneck and should be removed. Threads should
+	//       be able to read concurrently from the shared memory implementation
+	//       and not have to spin while waiting for this single thread to copy
+	//       the request across to an inbox. Unneccessary blocking and memcpy!	
 	private RingBuffConsumer reader;
 	private RingBuffProducer writer;
 
