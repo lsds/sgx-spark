@@ -47,8 +47,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			// since this instance of the code is actually the enclave side of things
 			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
 			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
-		}
-		else {
+		} else {
 			// default case
 			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
 			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);

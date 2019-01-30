@@ -139,7 +139,9 @@ class AlignedMappedDataBuffer {
 	int slots() {
 		return this.slots;
 	}
-	
+
+	// TODO: This can be optimized -- don't make a call to memcpy zero for each slot.
+	//       Just use the memset method provided by MappedDataBuffer.	
 	void zero(int pos, int slots) {
 		for (int i = 0; i < slots; i++) {
 			putBytes(pos + i, zeros);
