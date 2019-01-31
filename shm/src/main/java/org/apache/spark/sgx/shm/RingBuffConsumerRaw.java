@@ -4,10 +4,9 @@ public class RingBuffConsumerRaw {
 	private final AlignedMappedDataBuffer buffer;
 	private final int FIRST_POS;
 	private int pos;
-	private final int ALIGNMENT = 64;
 
 	public RingBuffConsumerRaw(MappedDataBuffer buffer, int reserved_slots) {
-		this.buffer = new AlignedMappedDataBuffer(buffer, ALIGNMENT);
+		this.buffer = new AlignedMappedDataBuffer(buffer);
 		FIRST_POS = reserved_slots;
 		pos = FIRST_POS;
 		shareReadPos();
@@ -29,7 +28,6 @@ public class RingBuffConsumerRaw {
 	public byte[] readBytes() throws InterruptedException {
 			int len = buffer.waitWhile(pos, 0);
 			int slotsNeeded = buffer.slotsNeeded(len);
-			
 			byte[] bytes = new byte[len];
 
 			if (pos == buffer.slots() - 1) {
@@ -46,7 +44,7 @@ public class RingBuffConsumerRaw {
 			} else {
 				// There was not enough space. So we had to divide up the payload data.
 				int wrapSlots = buffer.slots() - pos - 1;
-				int wrapPoint = wrapSlots * buffer.alignment();
+				int wrapPoint = wrapSlots * buffer.slotSize();
 				buffer.getBytes(pos + 1, bytes, 0, wrapPoint);
 				buffer.getBytes(FIRST_POS, bytes, wrapPoint, len - wrapPoint);
 				buffer.zero(pos, wrapSlots + 1);

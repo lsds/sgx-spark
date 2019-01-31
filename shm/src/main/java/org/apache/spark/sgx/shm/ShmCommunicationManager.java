@@ -110,6 +110,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 		long myport;
 		myport = inboxCtr.getAndIncrement();
+		System.out.println("Counter: " + inboxCtr.toString());
 		inboxes.put(myport, inbox);
 
 		return new ShmCommunicator(myport, inbox, doConnect);
@@ -167,6 +168,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 					BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 					long myport;
 					myport = inboxCtr.getAndIncrement();
+					System.out.println("Counter: " + inboxCtr.toString());
 					inboxes.put(myport, inbox);
 					write(new ShmMessage(EShmMessageType.ACCEPTED_CONNECTION, myport, (long) msg.getMsg()));
 					accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox));

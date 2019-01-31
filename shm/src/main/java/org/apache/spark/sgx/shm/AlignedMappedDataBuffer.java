@@ -9,7 +9,7 @@ class AlignedMappedDataBuffer {
 	// TODO: I think this should be refactored. Alignment isn't the best word here.
 	//       What is being called "alignment" is actually the slot size. This makes
 	//       the code unnecessarily confusing.	
-	private final int alignment;
+	private final int slotSize;
 	private final int slots;
 	private final int power;
 	
@@ -17,27 +17,26 @@ class AlignedMappedDataBuffer {
 	private final int MIN_WAIT = SgxSettings.BACKOFF_WAIT_MIN();
 	private final int MAX_WAIT = SgxSettings.BACKOFF_WAIT_MAX();
 	
-	private final byte[] zeros;
+	private final int DEFAULT_SLOTSIZE = 64;
 	
 	/**
 	 * An {@link AlignedMappedDataBuffer} aligns the specified buffer to
-	 * the specified alignment (in bytes). If the alignment is not a power of two,
-	 * the the next large alignment that is a power of two will be used. 
-	 * The minimum alignment is 8.
+	 * the specified slotSize (in bytes). If the slotSize is not a power of two,
+	 * the the next large slotSize that is a power of two will be used.
+	 * The minimum slotSize is 8.
 	 * 
 	 * @param buffer
-	 * @param alignment
+	 * @param slotSize
 	 */
-	public AlignedMappedDataBuffer(MappedDataBuffer buffer, int alignment) {
-		if (buffer == null || alignment < 0) {
+	public AlignedMappedDataBuffer(MappedDataBuffer buffer) {
+		if (buffer == null) {
 			throw new RuntimeException("Invalid arguments.");
 		}
-		
+
 		this.buffer = buffer;
-		this.power = nextPowerTwo(alignment);
-		this.alignment = 1 << this.power;
+		this.power = nextPowerTwo(DEFAULT_SLOTSIZE);
+		this.slotSize = 1 << this.power;
 		this.slots = buffer.capacity() >> power;
-		this.zeros = new byte[alignment];
 	}
 	
 	private int nextPowerTwo(int a) {
@@ -67,11 +66,11 @@ class AlignedMappedDataBuffer {
 	}
 	
 	int slotsNeeded(int length) {
-		if (length <= alignment) {
+		if (length <= slotSize) {
 			return 1;
 		} else {		
-			int r = length % alignment;
-			return ((r == 0) ? length : length + (alignment - r)) >> power;
+			int r = length % slotSize;
+			return ((r == 0) ? length : length + (slotSize - r)) >> power;
 		}
 	}
 	
@@ -131,12 +130,8 @@ class AlignedMappedDataBuffer {
 		return res;
 	}
 	
-	int alignment() {
-		return this.alignment;
-	}
-	
-	int slotSize() {
-		return this.alignment;
+	public int slotSize() {
+		return this.slotSize;
 	}
 	
 	int slots() {
@@ -144,7 +139,7 @@ class AlignedMappedDataBuffer {
 	}
 
 	void zero(int pos, int slots) {
-		int length = alignment * slots;
+		int length = slotSize * slots;
 		buffer.zero(toIndex(pos), length);
 	}
 	

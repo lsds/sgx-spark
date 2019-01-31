@@ -5,10 +5,9 @@ public class RingBuffProducerRaw {
 	private final int FIRST_SLOT;
 	private int pos;
 	private int readPos;
-	private final int ALIGNMENT = 64;
 	
 	public RingBuffProducerRaw(MappedDataBuffer buffer, int reserved_slots) {
-		this.buffer = new AlignedMappedDataBuffer(buffer, ALIGNMENT);
+		this.buffer = new AlignedMappedDataBuffer(buffer);
 		FIRST_SLOT = reserved_slots;
 		pos = FIRST_SLOT;
 		readPos = pos;
@@ -43,10 +42,6 @@ public class RingBuffProducerRaw {
 		return buffer.slots() - FIRST_SLOT - 1; 		
 	}
 
-	public int bytesFree() {
-		return slotsFree() * ALIGNMENT;
-	}
-
 	public boolean hasEnoughSpace(int slotsNeeded) {
 		return slotsNeeded <= slotsFree();
 	}
@@ -62,7 +57,7 @@ public class RingBuffProducerRaw {
 	}
 
 	public void write(byte[] bytes) throws InterruptedException {
-		if (bytes.length > (buffer.slots() - 1 - FIRST_SLOT) * buffer.alignment()) {
+		if (bytes.length > (buffer.slots() - 1 - FIRST_SLOT) * buffer.slotSize()) {
 			throw new RuntimeException(buffer + " Buffer too small to hold an element of size " + bytes.length);
 		}
 		int slotsNeeded = buffer.slotsNeeded(bytes.length);
@@ -78,7 +73,7 @@ public class RingBuffProducerRaw {
 			buffer.putBytes(pos+1, bytes);
 		} else {
 			// There is not enough space. So we need to divide up the payload data.
-			int wrapPoint = (buffer.slots() - pos - 1) * buffer.alignment();
+			int wrapPoint = (buffer.slots() - pos - 1) * buffer.slotSize();
 			buffer.putBytes(pos+1, bytes, 0, wrapPoint);
 			buffer.putBytes(FIRST_SLOT, bytes, wrapPoint, bytes.length - wrapPoint);
 		}
