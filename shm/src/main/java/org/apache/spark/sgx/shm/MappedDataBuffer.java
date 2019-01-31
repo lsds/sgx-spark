@@ -16,6 +16,8 @@ public class MappedDataBuffer {
 	
 	private final long address;
 	private final int capacity;
+
+	private static boolean checkIndexes = false;  // Set to true to enable runtime index checks
 	
 	public MappedDataBuffer (long address, int capacity) {
 		this.address = address;
@@ -42,9 +44,9 @@ public class MappedDataBuffer {
 	long address () {
 		return address;
 	}
-	
+
 	private long ix (int offset) {
-		return (address + (offset << 0));
+		return (address + offset);
 	}
 	
 	private int checkIndex (int index, int bound) {
@@ -62,7 +64,10 @@ public class MappedDataBuffer {
 	}
 	
 	int getInt (int index) {
-		return getInt(ix(checkIndex(index, (1 << 2))));
+		if (checkIndexes) {
+			checkIndex(index, 4 /* size of int */);
+		}
+		return getInt(ix(index));
 	}
 	
 	private long getLong (long a) {
@@ -74,7 +79,10 @@ public class MappedDataBuffer {
 	}
 	
 	long getLong(int index) {
-		return getLong(ix(checkIndex(index, (1 << 3))));
+		if (checkIndexes) {
+			checkIndex(index, 8 /* size of long */);
+		}
+		return getLong(ix(index));
 	}
 
 	public void put(int index, byte[] value) {
@@ -82,10 +90,13 @@ public class MappedDataBuffer {
 	}
 
 	public void put(int index, byte[] value, int from, int length) {
-		if (from < 0 || from >= value.length || from + length > value.length ) {
-			throw new RuntimeException("Invalid index: from=" + from + ", length=" + length + " for array of size " + value.length + ".");
+		if (checkIndexes) {
+			if (from < 0 || from >= value.length || from + length > value.length ) {
+				throw new RuntimeException("Invalid index: from=" + from + ", length=" + length + " for array of size " + value.length + ".");
+			}
+			checkIndex(index, from + length);
 		}
-		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(checkIndex(index, from + length)), length);
+		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(index), length);
 	}
 
 	public byte[] get(int index, byte[] value) {
@@ -93,12 +104,11 @@ public class MappedDataBuffer {
 	}
 
 	public byte[] get(int index, byte[] value, int from, int length) {
-		unsafe.copyMemory(null, ix(checkIndex(index, length)), value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, length);
+		if (checkIndexes) {
+			checkIndex(index, length);
+		}
+		unsafe.copyMemory(null, ix(index), value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, length);
 		return value;
-	}
-
-	static void checkBounds(int off, int len, int size) {
-		if ((off | len | (off + len) | (size - (off + len))) < 0) throw new IndexOutOfBoundsException();
 	}
 
 	private void putInt(long a, int x) {
@@ -111,7 +121,10 @@ public class MappedDataBuffer {
 	}
 	
 	void putInt (int index, int value) {
-		putInt(ix(checkIndex(index, (1 << 2))), value);
+		if (checkIndexes) {
+			checkIndex(index, 4 /* size of int */);
+		}
+		putInt(ix(index), value);
 	}
 
 	private void putLong(long a, long x) {
@@ -123,12 +136,22 @@ public class MappedDataBuffer {
 		}
 	}
 	
-	void putLong (int index, long value) {
-		putLong(ix(checkIndex(index, (1 << 3))), value);
+	void putLong(int index, long value) {
+		if (checkIndexes) {
+			checkIndex(index, 8 /* size of long */);
+		}
+		putLong(ix(index), value);
 	}
 
 	public void memset(long a, long b, byte v) {
 		unsafe.setMemory(a, b, v);
+	}
+
+	public void zero(int index, int numBytes) {
+		if (checkIndexes) {
+			checkIndex(index, numBytes);
+		}
+		memset(ix(index), numBytes, (byte)0);
 	}
 
 	public String toString() {
