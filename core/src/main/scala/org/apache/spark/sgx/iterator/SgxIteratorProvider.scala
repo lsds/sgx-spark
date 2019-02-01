@@ -40,7 +40,7 @@ abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) w
 
 class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with SgxCallable[Unit] {
 
-	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+	private val com = ShmCommunicationManager.newShmCommunicator(false)
 
 	private val identifier = new SgxIteratorProviderIdentifier[T](com.getMyPort)
 
@@ -100,7 +100,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 
 class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]) extends SgxIteratorProv[(K,V)] with SgxCallable[Unit] {
   
-	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+	private val com = ShmCommunicationManager.newShmCommunicator(false)
 
 	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, 
         if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].getBufferOffset() else recordReader.getLineReader.getBufferOffset(),
@@ -152,7 +152,7 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
 	private val buffer = new MallocedMappedDataBuffer(MappedDataBufferManager.get().startAddress() + offset, size)
 	val writer = new RingBuffProducer(buffer, Serialization.serializer)
   
-	private val com = ShmCommunicationManager.get().newShmCommunicator(false)
+	private val com = ShmCommunicationManager.newShmCommunicator(false)
 
 	private val identifier = new SgxWritablePartitionedIteratorProviderIdentifier[K,V](com.getMyPort, offset, size)
 

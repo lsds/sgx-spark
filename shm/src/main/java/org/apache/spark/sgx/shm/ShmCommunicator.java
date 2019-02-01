@@ -52,11 +52,11 @@ public class ShmCommunicator extends SgxCommunicator {
 	}
 
 	private void write(ShmMessage msg) {
-		ShmCommunicationManager.get().write(msg);
+		ShmCommunicationManager.write(msg);
 	}
 
 	public void write(Object o) {
-		ShmCommunicationManager.get().write(o, theirPort);
+		ShmCommunicationManager.write(o, theirPort);
 	}
 
 	public Object read() {
@@ -75,7 +75,7 @@ public class ShmCommunicator extends SgxCommunicator {
 	@Override
 	public void close() {
 		inbox.clear();
-		ShmCommunicationManager.get().close(this);
+		ShmCommunicationManager.close(this);
 	}
 
 	public String toString() {

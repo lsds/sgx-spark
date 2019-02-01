@@ -17,21 +17,14 @@ import org.apache.spark.sgx.SgxSettings;
  *
  */
 public final class ShmCommunicationManager<T> implements Callable<T> {
-	// TODO: This class is a bottleneck and should be removed. Threads should
-	//       be able to read concurrently from the shared memory implementation
-	//       and not have to spin while waiting for this single thread to copy
-	//       the request across to an inbox. Unneccessary blocking and memcpy!	
-	private RingBuffConsumer reader;
-	private RingBuffProducer writer;
+	private static boolean initialized = false;
+	private static RingBuffConsumer reader;
+	private static RingBuffProducer writer;
 
-	private final static Object lockInstance = new Object();
-
-	private Map<Long, BlockingQueue<Object>> inboxes = new ConcurrentHashMap<>();
-	private BlockingQueue<ShmCommunicator> accepted = new LinkedBlockingQueue<>();
+	private static Map<Long, BlockingQueue<Object>> inboxes = new ConcurrentHashMap<>();
+	private static BlockingQueue<ShmCommunicator> accepted = new LinkedBlockingQueue<>();
 	
-	private AtomicLong inboxCtr = new AtomicLong(1);
-	
-	private static ShmCommunicationManager<?> _instance = null;
+	private static AtomicLong inboxCtr = new AtomicLong(1);
 	
 	/**
 	 * This constructor is called by the outside JVM. 
@@ -43,20 +36,23 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param size
 	 */
 	private ShmCommunicationManager(String file, int size) {
-		long[] handles = RingBuffLibWrapper.init_shm(file, size);
-		
-		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
-			// debugging case: switch producer and consumer,
-			// since this instance of the code is actually the enclave side of things
-			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
-			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
-		} else {
-			// default case
-			this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
-			this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
-		}
+		if (!initialized) {
+			long[] handles = RingBuffLibWrapper.init_shm(file, size);
 
-		MappedDataBufferManager.init(new MappedDataBuffer(handles[2], size));
+			if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
+				// debugging case: switch producer and consumer,
+				// since this instance of the code is actually the enclave side of things
+				this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
+				this.writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
+			} else {
+				// default case
+				this.reader = new RingBuffConsumer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
+				this.writer = new RingBuffProducer(new MappedDataBuffer(handles[1], size), Serialization.serializer);
+			}
+
+			MappedDataBufferManager.init(new MappedDataBuffer(handles[2], size));
+			initialized = true;
+		}
 	}
 
 	/**
@@ -69,48 +65,30 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param size the size of each of those memory regions
 	 */
 	private ShmCommunicationManager(long writeBuff, long readBuff, long commonBuff, int size) {
-		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
-		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
-		MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
-	}
-	
-	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> create(String file, int size) {
-		synchronized(lockInstance) {
-			if (_instance == null) {
-				_instance = new ShmCommunicationManager<T>(file, size);
-			}
+		if (!initialized) {
+			this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
+			this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
+			MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
+			initialized = true;
 		}
-		return (ShmCommunicationManager<T>) _instance;
-	}	
-	
-	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff, long commonBuff, int size) {
-		synchronized(lockInstance) {
-			if (_instance == null) {
-				_instance = new ShmCommunicationManager<T>(writeBuff, readBuff, commonBuff, size);
-			}
-		}
-		return (ShmCommunicationManager<T>) _instance;
-	}
-	
-	@SuppressWarnings("unchecked")
-	public static <T> ShmCommunicationManager<T> get() {
-		if (_instance == null) {
-			throw new RuntimeException("ShmCommunicationManager was not instantiated.");
-		}
-		return (ShmCommunicationManager<T>) _instance;
 	}
 
-	public ShmCommunicator newShmCommunicator() {
+	public static <T> ShmCommunicationManager<T> create(String file, int size) {
+		return new ShmCommunicationManager<T>(file, size);
+	}
+
+	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff, long commonBuff, int size) {
+		return new ShmCommunicationManager<T>(writeBuff, readBuff, commonBuff, size);
+	}
+
+	public static ShmCommunicator newShmCommunicator() {
 		return newShmCommunicator(true);
 	}
 
-	public ShmCommunicator newShmCommunicator(boolean doConnect) {
+	public static ShmCommunicator newShmCommunicator(boolean doConnect) {
 		BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 		long myport;
 		myport = inboxCtr.getAndIncrement();
-		System.out.println("Counter: " + inboxCtr.toString());
 		inboxes.put(myport, inbox);
 
 		return new ShmCommunicator(myport, inbox, doConnect);
@@ -125,7 +103,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * 
 	 * @return a {@link ShmCommunicator} representing the accepted connection
 	 */
-	public ShmCommunicator accept() {
+	public static ShmCommunicator accept() {
 		ShmCommunicator result = null;
 		do {
 			try {
@@ -144,15 +122,15 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * @param o the object to write
 	 * @return whether the write was successful
 	 */
-	void write(Object o, long theirPort) {
+	public static void write(Object o, long theirPort) {
 		write(new ShmMessage(EShmMessageType.REGULAR, o, theirPort));
 	}
 
-	void write(ShmMessage m) {
+	public static void write(ShmMessage m) {
 		writer.writeShmMessage(m);
 	}
 	
-	void close(ShmCommunicator com) {
+	public static void close(ShmCommunicator com) {
 		inboxes.remove(com.getMyPort());
 	}
 
@@ -168,7 +146,6 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 					BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 					long myport;
 					myport = inboxCtr.getAndIncrement();
-					System.out.println("Counter: " + inboxCtr.toString());
 					inboxes.put(myport, inbox);
 					write(new ShmMessage(EShmMessageType.ACCEPTED_CONNECTION, myport, (long) msg.getMsg()));
 					accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox));

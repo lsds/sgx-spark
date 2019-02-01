@@ -7,7 +7,7 @@ import org.apache.spark.internal.Logging
 
 class SgxBroadcastProviderIdentifier(myPort: Long) extends Serializable with Logging {
 	def connect(): SgxCommunicator = {
-		val con = ShmCommunicationManager.get().newShmCommunicator(false)
+		val con = ShmCommunicationManager.newShmCommunicator(false)
 		con.connect(myPort)
 		con.sendOne(con.getMyPort)
 		SgxBroadcastEnclave.init(con)

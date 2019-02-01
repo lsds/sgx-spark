@@ -12,7 +12,7 @@ import org.apache.spark.storage.DiskBlockObjectWriter
 abstract class SgxIteratorProvIdentifier[T](myPort: Long) extends SgxIteratorIdentifier[T] with Logging {
   
 	def connect(): SgxCommunicator = {
-		val con = ShmCommunicationManager.get().newShmCommunicator(false)
+		val con = ShmCommunicationManager.newShmCommunicator(false)
 		con.connect(myPort)
 		con.sendOne(con.getMyPort)
 		con
@@ -36,7 +36,7 @@ class SgxShmIteratorProviderIdentifier[K,V](myPort:Long, offset: Long, size: Int
 class SgxWritablePartitionedIteratorProviderIdentifier[K,V](myPort:Long, offset: Long, size: Int) extends WritablePartitionedIterator with Serializable {
  
 	def connect(): SgxCommunicator = {
-		val con = ShmCommunicationManager.get().newShmCommunicator(false)
+		val con = ShmCommunicationManager.newShmCommunicator(false)
 		con.connect(myPort)
 		con.sendOne(con.getMyPort)
 		con
