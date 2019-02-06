@@ -30,6 +30,7 @@ import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.util.ThreadUtils
 
 object SgxRddFct {
 
@@ -49,7 +50,7 @@ object SgxRddFct {
 	def count[T](rddId: Int) =
 		new Count[T](rddId).send().decrypt[Long]
 		
-	def cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) = 
+	def cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) =
 		new Cogroup[K,V,W](rddId1, rddId2, partitioner).send()
 
 	def filter[T](rddId: Int, f: T => Boolean) =
@@ -124,7 +125,7 @@ private abstract class SgxTaskRDD[T](val _rddId: Int) extends SgxMessage[T] {
 }
 
 private case class Collect[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].collect())
 	}, Duration.Inf)
 }
