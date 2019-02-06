@@ -1,6 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.spark.sgx
-
-
 
 import org.apache.spark.internal.Logging
 
@@ -30,7 +44,7 @@ object EncryptionAlgorithm extends Enumeration {
 object Encrypt {
   
 	def apply(plain: Any): Encrypted = {
-//	  Base64StringEncrypt(plain)
+	// Base64StringEncrypt(plain)
 	  new NoEncryption(plain)
 	}
 }
@@ -47,19 +61,18 @@ private object Base64StringEncrypt extends Logging {
 				  val a = Serialization.serialize(plain)
 					val b = org.apache.commons.codec.binary.Base64.encodeBase64(a)
 					b
-//				  val stream = new ByteArrayOutputStream()
-//				  val cos = new ObjectOutputStream(new CipherOutputStream(stream, new NullCipher))
-//				  cos.writeObject(plain)
-//				  val r = stream.toByteArray()
-//				  cos.close()
-//				  r
+					// val stream = new ByteArrayOutputStream()
+					// val cos = new ObjectOutputStream(new CipherOutputStream(stream, new NullCipher))
+					//  cos.writeObject(plain)
+					// val r = stream.toByteArray()
+					// cos.close()
+					// r
 				},
 					(x: Array[Byte]) => {
 					  val y = org.apache.commons.codec.binary.Base64.decodeBase64(x)
 					  val z = Serialization.deserialize(y)
 					  z
-					  
-//					  new ObjectInputStream(new CipherInputStream(new ByteArrayInputStream(x), new NullCipher)).readObject()
+						// new ObjectInputStream(new CipherInputStream(new ByteArrayInputStream(x), new NullCipher)).readObject()
 					}
 				)
 		}

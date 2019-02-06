@@ -1,19 +1,30 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.spark.sgx
 
-import org.apache.spark.sgx.broadcast.SgxBroadcastProvider
-import org.apache.spark.sgx.iterator.SgxIteratorProv
-import org.apache.spark.sgx.iterator.SgxIteratorProvider
-import org.apache.spark.sgx.iterator.SgxShmIteratorProvider
-import org.apache.spark.sgx.shm.ShmCommunicationManager
-
-import org.apache.spark.util.NextIterator
-import org.apache.hadoop.util.LineReader
 import org.apache.hadoop.mapred.RecordReader
-import org.apache.spark.rdd.HadoopPartition
-import org.apache.spark.executor.InputMetrics
+
 import org.apache.spark.Partition
+import org.apache.spark.executor.InputMetrics
+import org.apache.spark.sgx.broadcast.SgxBroadcastProvider
+import org.apache.spark.sgx.iterator.{SgxIteratorProv, SgxIteratorProvider, SgxShmIteratorProvider, SgxWritablePartitionedIteratorProvider}
+import org.apache.spark.sgx.shm.ShmCommunicationManager
+import org.apache.spark.util.NextIterator
 import org.apache.spark.util.collection.WritablePartitionedIterator
-import org.apache.spark.sgx.iterator.SgxWritablePartitionedIteratorProvider
 
 object SgxFactory {
 	val mgr =
@@ -37,13 +48,13 @@ object SgxFactory {
 	}
 	
 	def newSgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: RecordReader[K,V], theSplit: Partition, inputMetrics: InputMetrics, splitLength: Long, splitStart: Long, delimiter: Array[Byte]): SgxIteratorProv[(K,V)] = {
-		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader, theSplit, inputMetrics, splitLength, splitStart, delimiter)		
+		val prov = new SgxShmIteratorProvider[K,V](delegate, recordReader, theSplit, inputMetrics, splitLength, splitStart, delimiter)
 		Completor.submit(prov)
 		prov
 	}
 	
 	def newSgxWritablePartitionedIteratorProvider[K,V](delegate: Iterator[Product2[Product2[Int,K],V]], offset: Long, size: Int): WritablePartitionedIterator = {
-		val prov = new SgxWritablePartitionedIteratorProvider(delegate, offset, size)		
+		val prov = new SgxWritablePartitionedIteratorProvider(delegate, offset, size)
 		Completor.submit(prov)
 		prov
 	}
