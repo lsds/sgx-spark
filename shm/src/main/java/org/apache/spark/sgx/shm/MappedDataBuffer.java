@@ -96,6 +96,7 @@ public class MappedDataBuffer {
 			}
 			checkIndex(index, from + length);
 		}
+		// TODO: check performance (size tradeoff)
 		unsafe.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + from * Unsafe.ARRAY_BYTE_INDEX_SCALE, null, ix(index), length);
 	}
 
