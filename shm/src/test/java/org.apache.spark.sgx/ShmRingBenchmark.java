@@ -17,6 +17,7 @@
 
 package org.apache.spark.sgx;
 
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,7 +44,7 @@ public class ShmRingBenchmark {
     @Override
     public void run() {
       while (true) {
-        Integer tmp = (Integer) reader.readAny();
+        reader.readAny();
         count++;
       }
 
@@ -53,9 +54,11 @@ public class ShmRingBenchmark {
   private static class TestProducerThread implements Runnable {
 
     private RingBuffProducer writer;
+    private byte[] bytes = new byte[1024];
 
     public TestProducerThread(){
       writer = new RingBuffProducer(new MappedDataBuffer(handles[0], size), Serialization.serializer);
+      Arrays.fill( bytes, (byte) 1 );
     }
 
 
@@ -63,7 +66,7 @@ public class ShmRingBenchmark {
     public void run() {
       Random rand = new Random();
       while (true) {
-        writer.writeAny(new Integer(rand.nextInt()));
+        writer.writeAny(bytes);
       }
     }
   }
@@ -88,12 +91,18 @@ public class ShmRingBenchmark {
 
     executor.shutdown();
 
-    System.out.println("SharedMemory: " + count + " Ints (4bytes) in " + runtimeSecs + " seconds" );
-    System.out.println("Throughput: "+ ((count * 4l)/runtimeSecs)/1024l + " KBytes/sec");
+    System.out.println("SharedMemory: " + count + " bytes-chunks (1KB) in " + runtimeSecs + " seconds" );
+    System.out.println("Throughput: "+ ((count * 1024l)/runtimeSecs)/1024l + " KB/sec");
   }
   /**
    * MemoryShared: 4558173 Ints (4bytes) in 30 seconds
-   * Throughput: 593 KBytes/sec
+   * Throughput: 593 KB/sec
+   *
+   * SharedMemory: 4558170 byte-chunks (100bytes) in 30 seconds
+   * Throughput: 1.5 MB/sec
+   *
+   * SharedMemory: 506463 bytes-chunks (1KB) in 30 seconds
+   * Throughput: 16 MB/sec
    *
    * // TODO: Use static Object Pool, test plain Int, Long and ShMessages
    *
