@@ -17,10 +17,12 @@ fi
 
 MODE=$1
 INFILE=
+OUTFILE=$(pwd)/output/
 
 if [ $MODE -eq 0 ]; then
 	INFILE=$(pwd)/phasor/phasor.txt
-	rm -rf $(pwd)/output
+	rm -rf $OUTFILE
+	mkdir $OUTFILE
 fi
 
 ./bin/spark-submit \
@@ -38,4 +40,4 @@ fi
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
 --conf "spark.default.parallelism=1" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar $MODE $(pwd)/output/ $INFILE 2>&1 | tee outside-driver
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar $MODE $OUTFILE $INFILE 2>&1 | tee outside-driver
