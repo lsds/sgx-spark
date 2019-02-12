@@ -18,7 +18,7 @@ export SGXLKL_IMAGE=lkl/alpine-rootfs.img
 export SGXLKL_SHMEM_SIZE=2147483647 
 export PREFETCH=2048
 export CONNECTIONS=8
-export SERIALIZER=commons
+export SERIALIZER=default
 export BACKOFF_WAIT_MIN=1
 export BACKOFF_WAIT_MAX=64
 
