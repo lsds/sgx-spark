@@ -23,6 +23,6 @@ rm -rf $(pwd)/output
 --conf "spark.app.id=$SPARK_JOBNAME" \
 --conf "spark.executor.extraLibraryPath=$(pwd)/lib" \
 --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
---conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-2.11/jars/*:$(pwd)/examples/target/scala-2.11/jars/*" \
+--conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-2.11/jars/spark-examples_2.11-${SPARK_VERSION}-SNAPSHOT.jar $(pwd)/data/mllib/kmeans_data.txt 2>&1 | tee outside-driver
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SGX.jar $(pwd)/data/mllib/kmeans_data.txt 2>&1 | tee outside-driver
