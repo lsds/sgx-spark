@@ -44,8 +44,6 @@ This file is divided into 3 sections:
   <!--                               rules we enforce                                   -->
   <!-- ================================================================================ -->
 
-  <check level="error" class="org.scalastyle.file.FileTabChecker" enabled="true"></check>
-
   <check level="error" class="org.scalastyle.file.HeaderMatchesChecker" enabled="true">
     <parameters>
        <parameter name="header"><![CDATA[/*
@@ -70,16 +68,6 @@ This file is divided into 3 sections:
   <check level="error" class="org.scalastyle.scalariform.SpacesAfterPlusChecker" enabled="true"></check>
 
   <check level="error" class="org.scalastyle.scalariform.SpacesBeforePlusChecker" enabled="true"></check>
-
-  <check level="error" class="org.scalastyle.file.WhitespaceEndOfLineChecker" enabled="true"></check>
-
-  <check level="error" class="org.scalastyle.file.FileLineLengthChecker" enabled="false">
-    <parameters>
-      <parameter name="maxLineLength"><![CDATA[100]]></parameter>
-      <parameter name="tabSize"><![CDATA[2]]></parameter>
-      <parameter name="ignoreImports">true</parameter>
-    </parameters>
-  </check>
 
   <check level="error" class="org.scalastyle.scalariform.ClassNamesChecker" enabled="true">
     <parameters><parameter name="regex"><![CDATA[[A-Z][A-Za-z]*]]></parameter></parameters>
@@ -113,8 +101,6 @@ This file is divided into 3 sections:
   </check>
 
   <check level="error" class="org.scalastyle.scalariform.PublicMethodsHaveTypeChecker" enabled="false"></check>
-
-  <check level="error" class="org.scalastyle.file.NewLineAtEofChecker" enabled="true"></check>
 
   <check customId="nonascii" level="error" class="org.scalastyle.scalariform.NonASCIICharacterChecker" enabled="true"></check>
 
@@ -233,16 +219,6 @@ This file is divided into 3 sections:
     is slower.  </customMessage>
   </check>
 
-  <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="true">
-    <parameters>
-      <parameter name="groups">java,scala,3rdParty,spark</parameter>
-      <parameter name="group.java">javax?\..*</parameter>
-      <parameter name="group.scala">scala\..*</parameter>
-      <parameter name="group.3rdParty">(?!org\.apache\.spark\.).*</parameter>
-      <parameter name="group.spark">org\.apache\.spark\..*</parameter>
-    </parameters>
-  </check>
-
   <check level="error" class="org.scalastyle.scalariform.DisallowSpaceBeforeTokenChecker" enabled="true">
     <parameters>
       <parameter name="tokens">COMMA</parameter>
@@ -271,6 +247,34 @@ This file is divided into 3 sections:
   <check level="error" class="org.scalastyle.scalariform.OverrideJavaChecker" enabled="true"></check>
 
   <check level="error" class="org.scalastyle.scalariform.DeprecatedJavaChecker" enabled="true"></check>
+
+  <!-- ================================================================================ -->
+  <!--                        SGX specific conf                                         -->
+  <!-- ================================================================================ -->
+
+  <check level="error" class="org.scalastyle.file.FileTabChecker" enabled="false"></check>
+
+  <check level="error" class="org.scalastyle.file.NewLineAtEofChecker" enabled="false"></check>
+
+  <check level="error" class="org.scalastyle.file.WhitespaceEndOfLineChecker" enabled="false"></check>
+
+  <check level="error" class="org.scalastyle.file.FileLineLengthChecker" enabled="false">
+    <parameters>
+      <parameter name="maxLineLength"><![CDATA[100]]></parameter>
+      <parameter name="tabSize"><![CDATA[2]]></parameter>
+      <parameter name="ignoreImports">true</parameter>
+    </parameters>
+  </check>
+
+  <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="false">
+    <parameters>
+      <parameter name="groups">java,scala,3rdParty,spark</parameter>
+      <parameter name="group.java">javax?\..*</parameter>
+      <parameter name="group.scala">scala\..*</parameter>
+      <parameter name="group.3rdParty">(?!org\.apache\.spark\.).*</parameter>
+      <parameter name="group.spark">org\.apache\.spark\..*</parameter>
+    </parameters>
+  </check>
 
   <!-- ================================================================================ -->
   <!--       rules we'd like to enforce, but haven't cleaned up the codebase yet        -->

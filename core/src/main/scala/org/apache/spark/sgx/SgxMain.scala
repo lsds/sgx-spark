@@ -1,34 +1,50 @@
- package org.apache.spark.sgx
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import java.util.concurrent.{Executors, Callable, ExecutorCompletionService}
+package org.apache.spark.sgx
 
-import org.apache.spark.internal.Logging
+import java.util.concurrent.{Callable, ExecutorCompletionService, Executors}
 
 import org.apache.spark.SparkContext
-
-import scala.reflect.{classTag, ClassTag}
-import java.io.FileInputStream
-import java.io.File
-import java.io.ObjectInputStream
-
-import org.apache.spark.sgx.shm.ShmMessage
-import scala.collection.mutable.Queue
+import org.apache.spark.internal.Logging
 
 object Completor extends ExecutorCompletionService[Unit](Executors.newCachedThreadPool()) {}
 
 class Waiter() extends Callable[Unit] {
-       def call(): Unit = while (true) Completor.take
+       def call(): Unit =
+				 while (true) {
+				 Completor.take
+			 }
 }
 
 object SgxMain extends Callable[Unit] with Logging {
+
+	logInfo(s"Starting SGX Worker Main")
+
 	val rddIds = new IdentifierManager[Any]()
 	var sparkContext: SparkContext = _
 
 	def main(args: Array[String]): Unit = {
 		logDebug("Running SgxMain.main()")
-		
+
 		Completor.submit(new Waiter())
-		while (true) Completor.submit(new SgxMainRunner(SgxFactory.acceptCommunicator()))
+		while (true) {
+			Completor.submit(new SgxMainRunner(SgxFactory.acceptCommunicator()))
+		}
 	}
 
 	def call(): Unit = main(null)

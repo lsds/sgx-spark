@@ -1,39 +1,41 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.spark.sgx.iterator
 
-import java.util.concurrent.{Executors, Callable, ExecutorCompletionService, Future}
-import java.util.concurrent.{BlockingQueue, LinkedBlockingQueue}
-
-import scala.collection.JavaConverters._
+import java.io.IOException
+import java.util.concurrent.{Callable, Future, LinkedBlockingQueue}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sgx.Completor
-import org.apache.spark.sgx.Encrypted
-import org.apache.spark.sgx.SgxCommunicator
-import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.shm.ShmCommunicationManager;
-import org.apache.spark.sgx.shm.MappedDataBufferManager
-import org.apache.spark.sgx.shm.MappedDataBuffer
-import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
-import org.apache.spark.util.NextIterator
-import org.apache.spark.deploy.SparkHadoopUtil
-import java.io.IOException
-import org.apache.hadoop.mapred.FileSplit
+import org.apache.hadoop.mapred.{EncryptedRecordReader, FileSplit, LineRecordReader, RecordReader}
 import org.apache.hadoop.mapred.lib.CombineFileSplit
-import org.apache.spark.rdd.HadoopPartition
+
 import org.apache.spark.Partition
+import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.executor.InputMetrics
-import java.text.SimpleDateFormat
-import org.apache.spark.rdd.HadoopRDD
-import java.util.Locale
-import org.apache.hadoop.mapred.RecordReader
-import org.apache.hadoop.mapred.LineRecordReader
-import org.apache.spark.sgx.Serialization
-import org.apache.spark.util.collection.WritablePartitionedIterator
+import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.HadoopPartition
+import org.apache.spark.sgx.{Completor, Encrypted, Serialization, SgxSettings}
+import org.apache.spark.sgx.shm.{MallocedMappedDataBuffer, MappedDataBufferManager, RingBuffConsumer}
 import org.apache.spark.storage.DiskBlockObjectWriter
-import org.apache.spark.sgx.shm.RingBuffConsumer
-import org.apache.hadoop.mapred.EncryptedRecordReader
+import org.apache.spark.util.NextIterator
+import org.apache.spark.util.collection.WritablePartitionedIterator
 
 
 class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Logging {
@@ -46,14 +48,14 @@ class Filler[T](consumer: SgxIteratorConsumer[T]) extends Callable[Unit] with Lo
 				consumer.close
 			}
 			else consumer.objects.addAll({
-				if (consumer.context == "" && list.size > 0 && list.head.isInstanceOf[Product2[Any,Any]] && list.head.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {				  
+        if (consumer.context == "" && list.size > 0 && list.head.isInstanceOf[Product2[Any,Any]] &&
+          list.head.asInstanceOf[Product2[Any,Any]]._2.isInstanceOf[SgxFakePairIndicator]) {
 					list.map(c => {
-						val y = c.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[Product2[Product2[Any,Any],Any]]
-						(y._1._2,y._2).asInstanceOf[T]
-					})
-				} else list
-			}.asJava)
-
+            val y = c.asInstanceOf[Product2[Encrypted,SgxFakePairIndicator]]._1.decrypt[Product2[Product2[Any,Any],Any]]
+            (y._1._2,y._2).asInstanceOf[T]})
+        }
+        else list
+      }.asJava)
 		}
 		logDebug("new objects: " + consumer.objects.size())
 		consumer.Lock.synchronized {
@@ -120,8 +122,9 @@ class SgxShmIteratorConsumer[K,V](id: SgxShmIteratorProviderIdentifier[K,V], off
   logDebug("Creating " + this)
   
   val com = id.connect()
-  
-  override def close() = com.sendOne(new SgxShmIteratorConsumerClose()) //com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
+
+  // com.sendRecv[Unit](new SgxShmIteratorConsumerClose())
+  override def close() = com.sendOne(new SgxShmIteratorConsumerClose())
   
   /* Code from HadoopRDD follows */
   

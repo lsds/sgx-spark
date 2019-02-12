@@ -1,33 +1,35 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.spark.sgx.iterator
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.Breaks._
-import org.apache.commons.lang3.SerializationUtils
-import org.apache.commons.lang3.SerializationException
-import org.apache.spark.InterruptibleIterator
-import org.apache.spark.internal.Logging
-import org.apache.spark.util.NextIterator
-import org.apache.spark.sgx.Encrypt
-import org.apache.spark.sgx.Encrypted
-import org.apache.spark.sgx.SgxCommunicator
-import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.shm.ShmCommunicationManager
-import org.apache.spark.rdd.HadoopPartition
-import org.apache.spark.executor.InputMetrics
-import org.apache.spark.Partition
-import org.apache.hadoop.mapred.RecordReader
-import org.apache.hadoop.mapreduce.lib.input.UncompressedSplitLineReader
-import org.apache.hadoop.mapred.EncryptedRecordReader
-import org.apache.spark.sgx.shm.MappedDataBufferManager
-import org.apache.spark.sgx.shm.MappedDataBuffer
-import org.apache.spark.sgx.Serialization
-import org.apache.spark.sgx.SgxCallable
-import org.apache.spark.util.collection.WritablePartitionedIterator
-import org.apache.spark.storage.DiskBlockObjectWriter
-import org.apache.spark.sgx.shm.MallocedMappedDataBuffer
-import org.apache.spark.sgx.shm.RingBuffProducer
 
-import scala.runtime.BoxedUnit
+import org.apache.commons.lang3.SerializationUtils
+import org.apache.hadoop.mapred.{EncryptedRecordReader, RecordReader}
+
+import org.apache.spark.{InterruptibleIterator, Partition}
+import org.apache.spark.executor.InputMetrics
+import org.apache.spark.internal.Logging
+import org.apache.spark.sgx.{Encrypt, Serialization, SgxCallable, SgxSettings}
+import org.apache.spark.sgx.shm.{MallocedMappedDataBuffer, MappedDataBufferManager, RingBuffProducer, ShmCommunicationManager}
+import org.apache.spark.storage.DiskBlockObjectWriter
+import org.apache.spark.util.NextIterator
+import org.apache.spark.util.collection.WritablePartitionedIterator
 
 abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) with SgxIterator[T] with Logging {
   def getIdentifier: SgxIteratorProvIdentifier[T]
@@ -35,7 +37,7 @@ abstract class SgxIteratorProv[T] extends InterruptibleIterator[T](null, null) w
   def writeNext(writer: DiskBlockObjectWriter): Unit = {
     logError("Method writeNext() must be implemented by subclass")
     throw new RuntimeException("Method writeNext() must be implemented by subclass")
-  }  
+  }
 }
 
 class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends SgxIteratorProv[T] with SgxCallable[Unit] {
@@ -49,12 +51,13 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 	override final def hasNext: Boolean = delegate.hasNext
   
   logDebug("xxx creating " + this)
-
 	/**
 	 * Always throws an UnsupportedOperationException. Access this Iterator via the message interface.
 	 * Note: We allow calls to hasNext(), since they are, e.g., used by the superclass' toString() method.
 	 */
-	override final def next(): T = throw new UnsupportedOperationException("Access this special Iterator via messages.")
+  override def next(): T = {
+		throw new UnsupportedOperationException("Access this special Iterator via messages.")
+	}
 
 	override def getIdentifier = identifier
 
@@ -64,7 +67,7 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 
 		while (isRunning) {
 			com.recvOne() match {
-				case num: MsgIteratorReqNextN => {
+				case num: MsgIteratorReqNextN =>
 					val q = new ArrayBuffer[T](num.num)
 					if (delegate.isInstanceOf[NextIterator[T]] && delegate.hasNext) {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
@@ -77,18 +80,18 @@ class SgxIteratorProvider[T](delegate: Iterator[T], doEncrypt: Boolean) extends 
 						}
 					} else {
 						for (i <- 0 to num.num - 1 if delegate.hasNext) {
-						  val n = 
-							q.insert(i, delegate.next)
+							val n = q.insert(i, delegate.next)
 						}
 					}
 					val qe = if (doEncrypt) Encrypt(q) else q
 					com.sendOne(qe)
-				}
+
 				case MsgIteratorReqClose =>
 					stop
 					com.close()
 
-				case x: Any => logDebug(this + ": Unknown input message provided.")
+				case x: Any =>
+					logDebug(this + ": Unknown input message provided.")
 			}
 		}
 	}
@@ -102,9 +105,11 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
   
 	private val com = ShmCommunicationManager.newShmCommunicator(false)
 
-	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort, 
-        if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].getBufferOffset() else recordReader.getLineReader.getBufferOffset(),
-        if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].getBufferSize() else recordReader.getLineReader.getBufferSize(),
+	private val identifier = new SgxShmIteratorProviderIdentifier[K,V](com.getMyPort,
+        if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].getBufferOffset()
+				else recordReader.getLineReader.getBufferOffset(),
+        if (SgxSettings.USE_HDFS_ENCRYPTION) recordReader.asInstanceOf[EncryptedRecordReader].getBufferSize()
+				else recordReader.getLineReader.getBufferSize(),
         theSplit, inputMetrics, splitLength, splitStart, delimiter)
 
 	private def do_accept() = com.connect(com.recvOne.asInstanceOf[Long])
@@ -138,13 +143,11 @@ class SgxShmIteratorProvider[K,V](delegate: NextIterator[(K,V)], recordReader: R
 	override def toString() = this.getClass.getSimpleName + "(identifier=" + identifier + ")"
 }
 
-class SgxObj extends Serializable {}
+class SgxPair[K,V](val key: K, val value: V) extends Serializable {}
 
-class SgxPair[K,V](val key: K, val value: V) extends SgxObj {}
+class SgxPartition(val id: Int) extends Serializable {}
 
-class SgxPartition(val id: Int) extends SgxObj {}
-
-class SgxDone extends SgxObj {}
+class SgxDone extends Serializable {}
 
 
 class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Product2[Product2[Int,K],V]], offset: Long, size: Int) extends WritablePartitionedIterator with SgxCallable[Unit] with Logging {
@@ -172,23 +175,21 @@ class SgxWritablePartitionedIteratorProvider[K,V](@transient it: Iterator[Produc
 	def hasNext(): Boolean = cur != null
 
 	def nextPartition(): Int = cur._1._1
-  
-	def fill() = {    
-		var oldPartId = -1
-    
+
+	def fill() = {
 		while (it.hasNext) {
 			val partitionId = nextPartition()
-			if (oldPartId != partitionId) {
-				//TODO PL: creating an object for just an int is overkill
+			if (partitionId != -1) {
+				// TODO PL: creating an object for just an int is overkill
 				writer.writeAny(new SgxPartition(partitionId))
 			}
-			//TODO PL: batching
+			// TODO PL: batching
 			while (hasNext && nextPartition() == partitionId) {
 				writer.writeAny(new SgxPair(cur._1._2, cur._2))
 				cur = if (it.hasNext) it.next() else null
 			}
 		}
-		//TODO PL: creating an object for nothing is overkill
+		// TODO PL: creating an object for nothing is overkill
 		writer.writeAny(new SgxDone)
 	}
 	
