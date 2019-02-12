@@ -40,18 +40,13 @@ import org.apache.spark.partial.BoundedDouble
 import org.apache.spark.partial.CountEvaluator
 import org.apache.spark.partial.GroupedCountEvaluator
 import org.apache.spark.partial.PartialResult
+import org.apache.spark.sgx.SgxRddFct
+import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.storage.{RDDBlockId, StorageLevel}
 import org.apache.spark.util.{BoundedPriorityQueue, Utils}
 import org.apache.spark.util.collection.{OpenHashMap, Utils => collectionUtils}
 import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, PoissonSampler,
   SamplingUtils}
-
-import org.apache.spark.sgx.Serialization
-import org.apache.spark.sgx.Encrypt
-import org.apache.spark.sgx.SgxFactory
-import org.apache.spark.sgx.SgxSettings
-import org.apache.spark.sgx.SgxIteratorFct
-import org.apache.spark.sgx.SgxRddFct
 
 /**
  * A Resilient Distributed Dataset (RDD), the basic abstraction in Spark. Represents an immutable,
@@ -936,7 +931,7 @@ abstract class RDD[T: ClassTag](
   def zipPartitions[B: ClassTag, C: ClassTag, V: ClassTag]
       (rdd2: RDD[B], rdd3: RDD[C], preservesPartitioning: Boolean)
       (f: (Iterator[T], Iterator[B], Iterator[C]) => Iterator[V]): RDD[V] = withScope {
-    //PL: TODO
+    // PL: TODO
     new ZippedPartitionsRDD3(sc, sc.clean(f), this, rdd2, rdd3, preservesPartitioning)
   }
 
@@ -949,7 +944,7 @@ abstract class RDD[T: ClassTag](
   def zipPartitions[B: ClassTag, C: ClassTag, D: ClassTag, V: ClassTag]
       (rdd2: RDD[B], rdd3: RDD[C], rdd4: RDD[D], preservesPartitioning: Boolean)
       (f: (Iterator[T], Iterator[B], Iterator[C], Iterator[D]) => Iterator[V]): RDD[V] = withScope {
-    //PL: TODO
+    // PL: TODO
     new ZippedPartitionsRDD4(sc, sc.clean(f), this, rdd2, rdd3, rdd4, preservesPartitioning)
   }
 

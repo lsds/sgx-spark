@@ -6,6 +6,9 @@ import java.util.Arrays;
 
 public class RingBuffConsumer extends RingBuffConsumerRaw {
 	private ISerialization serializer;
+        // TODO: So only one thread can read from the buffer at a time?
+        //       This seems bad to me... We should allow multiple threads
+        //       to read from the buffer concurrently.
 	private Object readlock = new Object();
 
 	public RingBuffConsumer(MappedDataBuffer buffer, ISerialization serializer) {

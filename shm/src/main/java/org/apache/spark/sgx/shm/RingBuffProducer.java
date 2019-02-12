@@ -5,6 +5,9 @@ import java.util.Arrays;
 
 public class RingBuffProducer extends RingBuffProducerRaw {
 	private ISerialization serializer;
+	// TODO: So only one thread can write to the buffer at a time?
+	//       This seems bad to me... We should allow multiple threads
+	//       to write to the buffer concurrently.
 	private Object writelock = new Object();
 	
 	public RingBuffProducer(MappedDataBuffer buffer, ISerialization serializer) {

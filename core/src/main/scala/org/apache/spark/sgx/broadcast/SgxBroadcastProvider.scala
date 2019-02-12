@@ -14,7 +14,7 @@ import org.apache.spark.sgx.SgxCommunicator
 
 class SgxBroadcastProvider() extends SgxCallable[Unit] with Logging {
 
-	private val _com = ShmCommunicationManager.get().newShmCommunicator(false)
+	private val _com = ShmCommunicationManager.newShmCommunicator(false)
 
 	ClientHandle.sendRecv[Boolean](new SgxBroadcastProviderIdentifier(_com.getMyPort))
 
