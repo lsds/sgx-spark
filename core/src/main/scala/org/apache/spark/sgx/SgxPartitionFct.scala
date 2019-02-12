@@ -14,15 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sgx
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
+import org.apache.spark.util.ThreadUtils
 
 object SgxPartitionFct {
 
@@ -34,7 +35,7 @@ object SgxPartitionFct {
 	}
 
 	private case class DefaultPartitioner(rddId: Int, otherIds: Int*) extends SgxTaskPartitioner {
-		def execute() = Await.result( Future {
+		def execute() = ThreadUtils.awaitResult( Future {
 			val rdd = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[_]]
 			val others = otherIds.map(id => SgxMain.rddIds.get(id).asInstanceOf[RDD[_]])
 			try {

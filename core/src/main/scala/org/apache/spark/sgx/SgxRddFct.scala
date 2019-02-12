@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sgx
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -24,7 +24,6 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.Partition
 import org.apache.spark.Partitioner
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.OrderedRDDFunctions
 import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.spark.rdd.RDD
@@ -139,41 +138,41 @@ private case class CombineByKeyWithClassTag[C:ClassTag,V:ClassTag,K:ClassTag](
       mapSideCombine: Boolean,
       serializer: Serializer) extends SgxTaskRDD[RDD[(K, C)]](rddId) {
 
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).combineByKeyWithClassTag(createCombiner, mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class Count[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].count())
 	}, Duration.Inf)
 }
 
 private case class Cogroup[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) extends SgxTaskRDD[RDD[(K, (Iterable[V], Iterable[W]))]](rddId1) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[(K, V)]]).cogroup(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[(K, W)]], partitioner)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class Filter[T](rddId: Int, f: T => Boolean) extends SgxTaskRDD[RDD[T]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].filter(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class FlatMap[T,U:ClassTag](rddId: Int, f: T => TraversableOnce[U]) extends SgxTaskRDD[RDD[U]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].flatMap(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class FlatMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => TraversableOnce[U]) extends SgxTaskRDD[RDD[(K, U)]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).flatMapValues(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
@@ -181,7 +180,7 @@ private case class FlatMapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => Tr
 
 
 private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[Encrypted](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].fold(v)(op))
 	}, Duration.Inf)
 
@@ -189,68 +188,68 @@ private case class Fold[T](rddId: Int, v: T, op: (T,T) => T) extends SgxTaskRDD[
 }
 
 private case class Join[K:ClassTag,V:ClassTag,W](rddId1: Int, rddId2: Int, partitioner: Partitioner) extends SgxTaskRDD[RDD[(K, (V, W))]](rddId1) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[(K,V)]]).join(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[(K,W)]], partitioner)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
-} 
+}
 
 private case class Map[T,U:ClassTag](rddId: Int, f: T => U) extends SgxTaskRDD[RDD[U]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].map(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class MapPartitions[T,U:ClassTag](rddId: Int, f: Iterator[T] => Iterator[U], preservesPartitioning: Boolean) extends SgxTaskRDD[RDD[U]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].mapPartitions(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class MapPartitionsWithIndex[T,U:ClassTag](rddId: Int, f: (Int, Iterator[T]) => Iterator[U], preservesPartitioning: Boolean) extends SgxTaskRDD[RDD[U]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].mapPartitionsWithIndex(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class MapValues[U,V:ClassTag,K:ClassTag](rddId: Int, f: V => U) extends SgxTaskRDD[RDD[(K, U)]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = new PairRDDFunctions(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[(K, V)]]).mapValues(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class Partitions[T](rddId: Int) extends SgxTaskRDD[Encrypted](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].partitions)
 	}, Duration.Inf)
 }
 
 private case class Persist[T](rddId: Int, level: StorageLevel) extends SgxTaskRDD[RDD[T]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].persist(level)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class Reduce[T](rddId: Int, f: (T, T) => T) extends SgxTaskRDD[Encrypted](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].reduce(f))
 	}, Duration.Inf)
 }
 
 private case class Sample[T](rddId: Int, withReplacement: Boolean, fraction: Double, seed: Long) extends SgxTaskRDD[RDD[T]](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].sample(withReplacement, fraction, seed)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class SaveAsTextFile[T](rddId: Int, path: String) extends SgxTaskRDD[Unit](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].saveAsTextFile(path)
 	}, Duration.Inf)
 }
@@ -260,26 +259,26 @@ private case class SortByKey[
 		V: ClassTag,
 		P <: Product2[K, V] : ClassTag](rddId: Int, ascending: Boolean, numPartitions: Int) extends SgxTaskRDD[RDD[(K,V)]](rddId) {
 
-	def execute() = Await.result(Future {
+	def execute() = ThreadUtils.awaitResult(Future {
 		val r = new OrderedRDDFunctions[K, V, P](SgxMain.rddIds.get(rddId).asInstanceOf[RDD[P]]).sortByKey(ascending, numPartitions)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
 }
 
 private case class Take[T](rddId: Int, num: Int) extends SgxMessage[Encrypted] {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		Encrypt(SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].take(num))
 	}, Duration.Inf)
 }
 
 private case class Unpersist[T](rddId: Int) extends SgxTaskRDD[Unit](rddId) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		SgxMain.rddIds.get(rddId).asInstanceOf[RDD[T]].unpersist()
 	}, Duration.Inf)
 }
 
 private case class Zip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxTaskRDD[RDD[(T,U)]](-1) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[T]].zip(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[U]])
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)
@@ -288,7 +287,7 @@ private case class Zip[T,U:ClassTag](rddId1: Int, rddId2: Int) extends SgxTaskRD
 }
 
 private case class ZippedPartitionsRDD2[T, B: ClassTag, V: ClassTag](rddId1: Int, rddId2: Int, preservesPartitioning: Boolean, f: (Iterator[T], Iterator[B]) => Iterator[V]) extends SgxTaskRDD[RDD[V]](-1) {
-	def execute() = Await.result( Future {
+	def execute() = ThreadUtils.awaitResult( Future {
 		val r = SgxMain.rddIds.get(rddId1).asInstanceOf[RDD[T]].zipPartitions(SgxMain.rddIds.get(rddId2).asInstanceOf[RDD[B]], preservesPartitioning)(f)
 		SgxMain.rddIds.put(r.id, r)
 	}, Duration.Inf)

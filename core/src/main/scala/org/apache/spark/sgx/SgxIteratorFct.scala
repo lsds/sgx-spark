@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sgx
 
 import scala.concurrent.{Await, Future}
@@ -22,6 +23,7 @@ import scala.concurrent.duration.Duration
 
 import org.apache.spark.{Partitioner, TaskContext}
 import org.apache.spark.sgx.iterator.{SgxFakeIterator, SgxIteratorIdentifier}
+import org.apache.spark.util.ThreadUtils
 import org.apache.spark.util.collection.{PartitionedAppendOnlyMap, SizeTrackingAppendOnlyMapIdentifier}
 import org.apache.spark.util.random.RandomSampler
 
@@ -72,8 +74,8 @@ private case class ComputeMapPartitionsRDD[U, T](
 	extends SgxMessage[Iterator[U]] {
 
 	def execute() = SgxFakeIterator(
-		Await.result(Future {
-			fct(partIndex, id.getIterator())		  
+		ThreadUtils.awaitResult(Future {
+			fct(partIndex, id.getIterator())
 		}, Duration.Inf)
 	)
 
@@ -85,7 +87,7 @@ private case class ComputePartitionwiseSampledRDD[T, U](
 	sampler: RandomSampler[T, U]) extends SgxMessage[Iterator[U]] {
 
 	def execute() = SgxFakeIterator(
-		Await.result( Future {
+		ThreadUtils.awaitResult( Future {
 			sampler.sample(it.getIterator())
 		}, Duration.Inf)
 	)
@@ -99,7 +101,7 @@ private case class ComputeZippedPartitionsRDD2[A, B, Z](
 	fct: (Iterator[A], Iterator[B]) => Iterator[Z]) extends SgxMessage[Iterator[Z]] {
 
 	def execute() = SgxFakeIterator(
-		Await.result( Future {
+		ThreadUtils.awaitResult( Future {
 			fct(a.getIterator(), b.getIterator())
 		}, Duration.Inf)
 	)
@@ -114,8 +116,8 @@ private case class ExternalAppendOnlyMapInsertAll[K,V,C](
 	createCombiner: V => C,
 	depNum: Int) extends SgxMessage[Unit] {
 
-	def execute() = Await.result(Future {
-		val entries = 
+	def execute() = ThreadUtils.awaitResult(Future {
+		val entries =
 			if (depNum == Integer.MIN_VALUE) {
 				entries2.getIterator()
 			}
@@ -147,7 +149,7 @@ private case class externalAppendOnlyMapInsertAllCoGrouped[K](
 	mapId: SizeTrackingAppendOnlyMapIdentifier,
 	numDep: Int) extends SgxMessage[Unit] {
  
-	def execute() = Await.result(Future {
+	def execute() = ThreadUtils.awaitResult(Future {
 		mapId.getMap[K,Any]
 	}, Duration.Inf)
 }
@@ -160,7 +162,7 @@ private case class ExternalSorterInsertAllCombine[K,V,C](
 	shouldPartition: Boolean,
 	partitioner: Option[Partitioner]) extends SgxMessage[Unit] {
 
-	def execute() = Await.result(Future {
+	def execute() = ThreadUtils.awaitResult(Future {
 		val records = records2.getIterator()
 		val map = mapId.getMap[K,C].asInstanceOf[PartitionedAppendOnlyMap[K,C]]
 		var kv: Product2[K, V] = null
@@ -171,7 +173,7 @@ private case class ExternalSorterInsertAllCombine[K,V,C](
         	kv = records.next()
         	map.changeValue((if (shouldPartition) partitioner.get.getPartition(kv._1) else 0, kv._1), update)
 		}
-	}, Duration.Inf)//.asInstanceOf[U]
+	}, Duration.Inf) // .asInstanceOf[U]
 }
 
 private case class ResultTaskRunTask[T,U](
@@ -179,7 +181,7 @@ private case class ResultTaskRunTask[T,U](
 	func: (TaskContext, Iterator[T]) => U,
 	context: TaskContext) extends SgxMessage[U] {
 
-	def execute() = Await.result(Future {
+	def execute() = ThreadUtils.awaitResult(Future {
 		func(context, id.getIterator())
 	}, Duration.Inf).asInstanceOf[U]
 
@@ -191,7 +193,7 @@ private case class ResultTaskRunTaskAfterShuffle[T,U](
 	func: (TaskContext, Iterator[T]) => U,
 	context: TaskContext) extends SgxMessage[U] {
 
-	def execute() = Await.result(Future {
+	def execute() = ThreadUtils.awaitResult(Future {
 		func(context, id.getIterator().asInstanceOf[Iterator[Product2[Encrypted,Any]]].map(_._1.decrypt[Product2[Product2[Any,Any],Any]]).map(c => (c._1._2, c._2)).asInstanceOf[Iterator[T]])
 	}, Duration.Inf).asInstanceOf[U]
 
