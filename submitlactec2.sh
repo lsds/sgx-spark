@@ -37,5 +37,5 @@ JARS_COLON=$(echo $JARS | tr ' ' ':')
 --conf "spark.executor.extraClassPath=$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar $DATADIR/TestCustomer.csv $DATADIR/TestDSM.csv $DATADIR/TestFaults.csv 2016-01-01 2016-12-31  2>&1 | tee outside-driver
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SGX.jar $DATADIR/TestCustomer.csv $DATADIR/TestDSM.csv $DATADIR/TestFaults.csv 2016-01-01 2016-12-31  2>&1 | tee outside-driver
 
