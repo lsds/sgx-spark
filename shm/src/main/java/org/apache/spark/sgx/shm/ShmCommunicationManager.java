@@ -11,12 +11,12 @@ import org.apache.spark.sgx.SgxSettings;
 
 /**
  * This class is to be used by the enclave to communicate with the outside.
- * 
+ *
  * @author Florian Kelbert
  *
  */
 public final class ShmCommunicationManager<T> implements Callable<T> {
-	
+
 	private RingBuffConsumer reader;
 	private RingBuffProducer writer;
 
@@ -25,25 +25,23 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 
 	private Map<Long, BlockingQueue<Object>> inboxes = new HashMap<>();
 	private BlockingQueue<ShmCommunicator> accepted = new LinkedBlockingQueue<>();
-	
+
 	private long inboxCtr = 1;
-	
+
 	private static ShmCommunicationManager<?> _instance = null;
-	
+
 	/**
 	 * This constructor is called by the outside JVM. 
 	 * For debugging purposes, this might indeed also be a JVM that fulfills
 	 * the duties of the enclave (i.e., a JVM that runs outside of the enclave
 	 * but does what the enclave is supposed to do). 
-	 * 
+	 *
 	 * @param file
 	 * @param size
 	 */
 	private ShmCommunicationManager(String file, int size) {
-	System.err.println("Create a new ShmCommunicationManager1");
-
 		long[] handles = RingBuffLibWrapper.init_shm(file, size);
-		
+
 		if (SgxSettings.IS_ENCLAVE() && !SgxSettings.DEBUG_IS_ENCLAVE_REAL()) {
 			// debugging case: switch producer and consumer,
 			// since this instance of the code is actually the enclave side of things
@@ -62,19 +60,18 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	/**
 	 * This constructor is called by the enclave, which is provided with
 	 * corresponding pointers to shared memory by sgx-lkl.
-	 * 
+	 *
 	 * @param writeBuff pointer to the memory to write to
 	 * @param readBuff pointer to the memory to read from
 	 * @param commonBuff pointer to the memory that can be used arbitrarily
 	 * @param size the size of each of those memory regions
 	 */
 	private ShmCommunicationManager(long writeBuff, long readBuff, long commonBuff, int size) {
-		System.err.println("Create a new ShmCommunicationManager2");
 		this.reader = new RingBuffConsumer(new MappedDataBuffer(readBuff, size), Serialization.serializer);
 		this.writer = new RingBuffProducer(new MappedDataBuffer(writeBuff, size), Serialization.serializer);
 		MappedDataBufferManager.init(new MappedDataBuffer(commonBuff, size));
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public static <T> ShmCommunicationManager<T> create(String file, int size) {
 		synchronized(lockInstance) {
@@ -83,8 +80,8 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 			}
 		}
 		return (ShmCommunicationManager<T>) _instance;
-	}	
-	
+	}
+
 	@SuppressWarnings("unchecked")
 	public static <T> ShmCommunicationManager<T> create(long writeBuff, long readBuff, long commonBuff, int size) {
 		synchronized(lockInstance) {
@@ -94,7 +91,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 		}
 		return (ShmCommunicationManager<T>) _instance;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public static <T> ShmCommunicationManager<T> get() {
 		if (_instance == null) {
@@ -124,17 +121,10 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	 * this method returns a {@link ShmCommunicator} object that
 	 * represents this new connection. 
 	 * This is conceptually similar to accept() on TCP sockets.
-	 * 
+	 *
 	 * @return a {@link ShmCommunicator} representing the accepted connection
 	 */
 	public ShmCommunicator accept() {
-
-		try {
-			throw new Exception ("ShmCommunicator.accept()");
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
 		ShmCommunicator result = null;
 		do {
 			try {
@@ -144,19 +134,12 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 				e.printStackTrace();
 			}
 		} while (result == null);
-
-		try {
-			throw new Exception ("ShmCommunicator.accept() -> " + result);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
 		return result;
 	}
 
 	/**
 	 * Writes to the outside.
-	 * 
+	 *
 	 * @param o the object to write
 	 * @return whether the write was successful
 	 */
@@ -167,7 +150,7 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	void write(ShmMessage m) {
 		writer.writeShmMessage(m);
 	}
-	
+
 	void close(ShmCommunicator com) {
 		inboxes.remove(com.getMyPort());
 	}
@@ -176,38 +159,34 @@ public final class ShmCommunicationManager<T> implements Callable<T> {
 	public T call() throws Exception {
 		ShmMessage msg = null;
 		while (true) {
-		System.err.println("Call: reading a new message1");
 			msg = ((ShmMessage) reader.readShmMessage());
-			System.err.println("Call: has read a new message: " + msg);
 
 			if (msg.getPort() == 0) {
 				switch (msg.getType()) {
-				case NEW_CONNECTION:
-					BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
-					long myport;
-					synchronized (lockInboxes) {
-						myport = inboxCtr++;
-						inboxes.put(myport, inbox);
-					}
-					accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox));
-					write(new ShmMessage(EShmMessageType.ACCEPTED_CONNECTION, myport, (long) msg.getMsg()));
-					break;
+					case NEW_CONNECTION:
+						BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
+						long myport;
+						synchronized (lockInboxes) {
+							myport = inboxCtr++;
+							inboxes.put(myport, inbox);
+						}
+						accepted.put(new ShmCommunicator(myport, (long) msg.getMsg(), inbox));
+						write(new ShmMessage(EShmMessageType.ACCEPTED_CONNECTION, myport, (long) msg.getMsg()));
+						break;
 
-				default:
-					break;
+					default:
+						break;
 				}
 			} else {
 				BlockingQueue<Object> inbox;
 				synchronized (lockInboxes) {
 					inbox = inboxes.get(msg.getPort());
 				}
-				System.err.println("Adding message " + msg.toString() + " on port " + msg.getPort());
 				inbox.add(msg.getMsg());
-				System.err.println("Done for adding message " + msg.toString() + " on port " + msg.getPort());
 			}
 		}
 	}
-	
+
 	@Override
 	public String toString() {
 		return this.getClass().getSimpleName();

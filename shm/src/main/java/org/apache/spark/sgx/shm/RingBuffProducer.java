@@ -19,18 +19,16 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 	public void writeAny(Object o) {
 		try {
 			byte[] b = serializer.serialize(o);
+
+			/*
+			try {
+				throw new Exception("write object " + o + ", " + o.getClass().getSimpleName() + " of size " + b.length);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			*/
+
 			synchronized(writelock) {
-
-/*
-				try {
-					throw new Exception("write object " + o + ", " + o.getClass().getSimpleName() + " of size " + b.length);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				*/
-
-				//System.err.println("The written message " + o + " of size " + b.length + " is "+ Arrays.toString(b));
-
 				write(b);
 			}
 		} catch (Exception e) {
@@ -56,15 +54,14 @@ public class RingBuffProducer extends RingBuffProducerRaw {
 				}
 			} else {
 				b = serializer.serialize(m);
-				synchronized(writelock) {
 				/*
-					try {
-						throw new Exception("write object " + m + ", " + m.getClass().getSimpleName() + " of size " + b.length);
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-					*/
-
+				try {
+					throw new Exception("write object " + m + ", " + m.getClass().getSimpleName() + " of size " + b.length);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				*/
+				synchronized(writelock) {
 					write(b);
 				}
 			}

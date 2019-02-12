@@ -15,15 +15,7 @@ public abstract class SgxCommunicator {
 	 * @return the received object
 	 */
 	public final Object recvOne() {
-	try {
-		throw new Exception("recvOne");
-	}catch (Exception e) {
-		e.printStackTrace();
-	}
-
-		System.err.println("SgxCommunicator.recvOne1");
 		Object o = read();
-		System.err.println("SgxCommunicator.recvOne2, o = " + o);
 		return o;
 	}
 	
@@ -34,11 +26,8 @@ public abstract class SgxCommunicator {
 	 */
 	@SuppressWarnings("unchecked")
 	public final <T> T sendRecv(Object o) {
-System.err.println("SgxCommunicator.sendRecv1 o = " + o);
 		sendOne(o);
-		System.err.println("SgxCommunicator.sendRecv2");
 		Object ret = recvOne();
-		System.err.println("SgxCommunicator.sendRecv3, ret = " + ret);
 		return (T) ret;
 	}
 	

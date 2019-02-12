@@ -24,15 +24,11 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 			Object o;
 			synchronized(readlock) {
 				b = readBytes();
-
-				System.err.println("RingBuffConsumer: reading a new message from an array of size " + b.length);
-				//System.err.println("The read message of size " + b.length + " is "+ Arrays.toString(b));
-
-				o = serializer.deserialize(b);
-				System.err.println("RingBuffConsumer: read object " + o + " of size " + b.length);
 			}
 
-/*
+			o = serializer.deserialize(b);
+
+			/*
 			try {
 				throw new Exception("read object " + o + ", " + " of size " + b.length);
 			} catch (Exception e) {
@@ -41,7 +37,6 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 			*/
 
 			return (T) o;
-			//return (T) serializer.deserialize(b);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -74,7 +69,7 @@ public class RingBuffConsumer extends RingBuffConsumerRaw {
 
 				o = serializer.deserialize(b);
 
-/*
+				/*
 				try {
 					throw new Exception("read object " + o + ", " + " of size " + b.length);
 				} catch (Exception e) {
