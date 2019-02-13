@@ -10,17 +10,10 @@
 
   <groupId>sgx-spark</groupId>
   <artifactId>sgx-spark-shm</artifactId>
+  <packaging>jar</packaging>
   <name>Sgx-Spark Shared Memory</name>
-  <version>0.0.1-SNAPSHOT</version>
-  
+
   <dependencies>
-    <dependency>
-        <groupId>sgx-spark</groupId>
-        <artifactId>sgx-spark-common</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
-        <scope>system</scope>
-        <systemPath>${basedir}/../sgx/target/sgx-spark-common-0.0.1-SNAPSHOT.jar</systemPath>
-    </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
@@ -31,18 +24,15 @@
       <artifactId>fst</artifactId>
       <version>2.57</version>
     </dependency>
+    <dependency>
+      <groupId>sgx-spark</groupId>
+      <artifactId>sgx-spark-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.7.0</version>
-        <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
-      </plugin>
-    </plugins>
+    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
+    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
   </build>
 </project>
