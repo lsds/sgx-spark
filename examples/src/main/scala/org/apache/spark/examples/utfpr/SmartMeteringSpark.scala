@@ -412,10 +412,10 @@ object SmartMeteringSpark {
 
       val s_time = System.nanoTime()
 
-      val http_data_responses = sm_final.map(x => (x._1, Rest.sendCompanyData(x._1,x._2)))
+      val http_data_responses = sm_final.map(x => (x._1, Rest.sendCompanyData(x)))
       http_data_responses.persist()
 
-      LOGGER.warning("http_data_responses: " + http_data_responses.collect().mkString("\n"))
+      LOGGER.warning("http_data_responses: " + http_data_responses.collect()/*.mkString("\n")*/)
 
       LOGGER.warning("------> KVS storing time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
