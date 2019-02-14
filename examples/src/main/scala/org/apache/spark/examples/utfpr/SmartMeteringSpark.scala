@@ -1,23 +1,25 @@
-package org.apache.spark.examples.utfpr;
 
-//http
+//logging
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.logging._
 
+//http
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
-import org.apache.http.client.methods.{CloseableHttpResponse, HttpGet, HttpPost}
+import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.impl.client._
 import org.apache.http.entity.StringEntity
 import org.apache.http.util.EntityUtils
+
+//spark
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 
+//utils
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
-import scala.util.parsing.json.{JSONArray, JSONObject}
 
 // for hashing
 import java.security.MessageDigest
@@ -37,161 +39,6 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.binary.Hex
 
 object SmartMeteringSpark {
-
-  object Rest{
-
-    //val DATASTORES_URL = "https://127.0.0.1:12345/"
-    val DATASTORES_URL = "http://192.168.10.135:5000/datastores/"
-    val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i"
-    val CODE_OK_POST = 201
-    val CODE_OK_GET = 200
-    val CODE_CONFLICT_POST = 409
-
-    var DATASTORE : String = ""
-
-    //a definir
-    val MAX_ATTEMPTS = 3
-    val MAX_DELAY_MS = 1000
-    val TIMEOUT_MS = 10000
-    //
-
-    val LOGGER = Logger.getLogger("Log Rest")
-    val currentDate = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())
-    val fh = new FileHandler("logs/" + currentDate + "_worker.log")
-    fh.setFormatter(new SimpleFormatter())
-    LOGGER.addHandler(fh)
-
-    val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS).build).build
-    //var httpClient = HttpClientBuilder.create().build()
-
-    @throws(classOf[Exception])
-    def post(uri : String, data : String, content_type : String, max_attempts : Int, delay_ms : Int) : Int = {
-
-      LOGGER.info("POST " + uri + " delayed for " + delay_ms + " ms");
-      Thread.sleep(delay_ms)
-
-      //TESTE DE ERRO
-      if (new Random().nextInt(5) == 1) {
-        LOGGER.info("POST " + uri + " => 400")
-        return 400
-      }
-
-      val t0 = System.nanoTime()
-
-      var resp : Int = -1
-      var i = 0
-      while (i < max_attempts && (resp != CODE_OK_POST && resp != CODE_CONFLICT_POST)) {
-        var httpPost = new HttpPost(uri)
-        httpPost.addHeader(HttpHeaders.AUTHORIZATION, API_KEY)
-        var strEntity = new StringEntity(data)
-        strEntity.setContentType(content_type)
-        httpPost.setEntity(strEntity)
-
-        try {
-          val response = httpClient.execute(httpPost)
-          LOGGER.info("POST " + uri + " => attempt " + i + " : " + response.getStatusLine().getStatusCode() + " " + response.getStatusLine().getReasonPhrase)
-          resp = response.getStatusLine().getStatusCode()
-        }catch{
-          case e: Exception => {
-            LOGGER.info("POST " + uri + " => attempt " + i + " : Exception: " + e.getMessage())
-            resp = -1
-          }
-        }
-
-        httpPost.releaseConnection()
-        i=i+1
-      }
-
-      LOGGER.info("POST " + uri + " => time: " + (System.nanoTime() - t0)/1000000 + "ms")
-
-      return resp
-    }
-
-    @throws(classOf[Exception])
-    def get(uri : String, max_attempts : Int, delay_ms : Int) : (Int, String) = {
-
-      LOGGER.info("GET " + uri + " delayed for " + delay_ms + " ms");
-      Thread.sleep(delay_ms)
-
-      //TESTE DE ERRO
-      if (new Random().nextInt(5) == 1) {
-        LOGGER.info("GET " + uri + " => 400")
-        return (400, "")
-      }
-
-      var resp : Int = -1
-      var resp_body = ""
-      var i = 0
-      while (i < max_attempts && resp != CODE_OK_GET) {
-        var httpGet = new HttpGet(uri)
-        httpGet.addHeader(HttpHeaders.AUTHORIZATION, API_KEY)
-
-        try {
-          val response = httpClient.execute(httpGet)
-          LOGGER.info("GET " + uri + " => attempt " + i + " : " + response.getStatusLine().getStatusCode() + " " + response.getStatusLine().getReasonPhrase)
-          resp = response.getStatusLine().getStatusCode()
-          resp_body = EntityUtils.toString(response.getEntity)
-
-        }catch{
-          case e: Exception => {
-            LOGGER.info("GET " + uri + " => attempt " + i + " : Exception: " + e.getMessage())
-            resp = -1
-            resp_body = ""
-          }
-        }
-
-        httpGet.releaseConnection()
-        i=i+1
-      }
-
-      return (resp,resp_body)
-    }
-
-
-
-    def createDatastore(storage_policy : String) : Int = {
-      return post(DATASTORES_URL, "name=" + DATASTORE.substring(0,DATASTORE.length-1) + "&storage_policy_name=" + storage_policy, "application/x-www-form-urlencoded", MAX_ATTEMPTS,0)
-    }
-
-    def sendCompanyData(v : (String, scala.collection.mutable.ListBuffer[String])) : Int = {
-      //envia sequencia, hash e totalizadores
-      val resp = post(DATASTORES_URL + DATASTORE + v._1 + ";0", v._2.mkString(", "), "application/json", MAX_ATTEMPTS, new Random().nextInt(MAX_DELAY_MS))
-      return resp
-    }
-
-    def sendCompanyTot(v : (String, ((String, String), (Double, Double, Double)))) : Int = {
-      //envia sequencia, hash e totalizadores
-      //    seq                    hash                   tot1                    tot2                    tot3
-      val str = v._2._1._1 + ";" + v._2._1._2 + ";" + v._2._2._1 + ";" + v._2._2._2 + ";" + v._2._2._3
-      val resp = post(DATASTORES_URL + DATASTORE + v._1 + ";1", str, "application/json", MAX_ATTEMPTS, new Random().nextInt(MAX_DELAY_MS))
-      return resp
-    }
-
-    def getCompanies() : (Int, List[String]) = {
-      //retorna as empresas que existem no datastore
-      val response = get(DATASTORES_URL + DATASTORE ,MAX_ATTEMPTS,new Random().nextInt(MAX_DELAY_MS))
-      var companies : List[String] = null
-      if (response._1 == CODE_OK_GET)
-        companies = scala.util.parsing.json.JSON.parseFull(response._2).get.asInstanceOf[Map[String,List[Map[String,String]]]].get("objects").get.map(x=>x.get("key").get)
-      //companies = scala.util.parsing.json.JSON.parseFull(response._2).get.asInstanceOf[Map[String,List[Map[String,String]]]].get("objects").get.map(x=>x.get("key").get.split(";")(0))
-
-      return (response._1, companies)
-    }
-
-    def getCompanyData(company : String) : (Int, scala.collection.mutable.ListBuffer[String]) = {
-      val response = get(DATASTORES_URL + DATASTORE + company + ";0" ,MAX_ATTEMPTS,new Random().nextInt(MAX_DELAY_MS))
-      var lb = new scala.collection.mutable.ListBuffer[String]
-      if (response._1 == CODE_OK_GET)
-        response._2.split(", ").foreach(lb.append(_))
-
-      return (response._1, lb)
-    }
-
-    def httpClientClose() : Unit = {
-      httpClient.close()
-    }
-  }
-
 
   object Inmetro_cipher {
     // object to carry out all ciphering procedures used in smartmeter demo.
@@ -310,71 +157,301 @@ object SmartMeteringSpark {
 
   def main(args: Array[String]) {
 
+    //Configuration
+
+    //val SPARK_MASTER = "local[3]"
+    val SPARK_MASTER = "spark://192.168.10.126:7077"
+    //val SPARK_MASTER = "spark://10.5.0.97:7077"
+    //val LOGS_DIRECTORY = "/home/ubuntu/smartmeter-demo/log/"
+    val LOGS_DIRECTORY = "/home/giovanni/"
+    val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i"
+    //val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i0123456789012345"
+    val STORAGE_POLICY = "storage_policy_1"
+    val FAKE_ERROR = false //para debug - simula erro aleatoriamente no post ou get
+
+    //Tuning Variables
+
+    val MAX_ATTEMPTS = 3 //numero maximo de tentativas de post ou get
+    val MAX_DELAY_MS = 1000 //maximo intervalo de delay para cada requisicao http
+    val TIMEOUT_MS = 10000 //timeout para tentativa de conexao
+
+    //
+
+
+    //create spark context
+    val conf = new SparkConf().setAppName("SmartMetering").setMaster(SPARK_MASTER)
+    val sc = new SparkContext(conf)
+	  sc.setLogLevel("WARN")
+
+    //inicializa o logger do master
+
     val LOGGER = Logger.getLogger("Log")
     val currentDate = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())
-    val fh = new FileHandler("logs/" + currentDate + "_master.log")
+    val fh = new FileHandler(LOGS_DIRECTORY + currentDate + "_master.log")
     fh.setFormatter(new SimpleFormatter())
     LOGGER.addHandler(fh)
+    LOGGER.setLevel(Level.WARNING)
 
-    val conf = new SparkConf().setAppName("AppTeste").setMaster("local[3]")
-    val sc = new SparkContext(conf)
+    //leitura args
+    var mode = "0"  //0 => envia dados;  1 => envia totalizadores;  2 => envia dados remanescentes
+    if (args.length > 0) mode = args(0)
 
-
-    Rest.DATASTORE = "2018-11/" //sempre com barra no final
-
-    //cria datastore se não existe
-    val r = Rest.createDatastore("storage_policy_1")
-    if (r == Rest.CODE_CONFLICT_POST){
-      LOGGER.info("Datastore " + Rest.DATASTORE + " already exists")
+    if (mode == "0") {
+      LOGGER.warning("Mode: 0 (Aggregation mode).")
+      if (args.length != 5) {
+        LOGGER.severe("Invalid arguments - Required: 0 <datastore_url> <datastore_name> <path_to_input_file> <path_to_not_sent>")
+        return
+      }
     }
-    else if (r != Rest.CODE_OK_POST){
-      LOGGER.info("Could not create datastore " + Rest.DATASTORE + " ERROR CODE = " + r)
-      System.exit(-1)
+    else if (mode == "1") {
+      LOGGER.warning("Mode 1 (Billing mode).")
+      if (args.length != 3) {
+        LOGGER.severe("Invalid arguments - Required: 1 <datastore_url> <datastore_name>")
+        return
+      }
     }
-    else LOGGER.info("Datastore " + Rest.DATASTORE + " created")
+    else if (mode == "2"){
+      LOGGER.warning("Mode 2 (SendRemaining mode).")
+      if (args.length != 5) {
+        LOGGER.severe("Invalid arguments - Required: 2 <datastore_url> <datastore_name> <path_to_input_not_sent> <path_to_output_not_sent>")
+        return
+      }
+    }
+    else{
+      LOGGER.severe("Invalid mode.")
+      return
+    }
 
 
-    //manda dados e totalizadores que estao no arquivo
-    LOGGER.info("send_all_data() returned " + send_all_data("phasor/*.txt", "output/not_sent_data"))
-    LOGGER.info("send_remaining_totalizers() returned " + send_remaining_totalizers())
+    ////broadcast constants
+    val CODE_OK_POST = sc.broadcast(201)
+    val CODE_OK_GET = sc.broadcast(200)
+    val CODE_CONFLICT_POST = sc.broadcast(409)
+    val DATASTORES_URL = sc.broadcast(args(1))
+    val DATASTORE = sc.broadcast(args(2))
+    val API_KEY_B = sc.broadcast(API_KEY)
+    val FAKE_ERROR_B = sc.broadcast(FAKE_ERROR)
+    val MAX_ATTEMPTS_B = sc.broadcast(MAX_ATTEMPTS)
+    val MAX_DELAY_MS_B = sc.broadcast(MAX_DELAY_MS)
+    val TIMEOUT_MS_B = sc.broadcast(TIMEOUT_MS)
 
-    //manda dados que falharam anteriormente
-    //LOGGER.info("send_remaining_data() returned " + send_remaining_data("output/not_sent_data", "output/not_sent_data2"))
-    //LOGGER.info("send_remaining_totalizers() returned " + send_remaining_totalizers())
+    object Rest extends java.io.Serializable{
+
+      @throws(classOf[Exception])
+      def post(uri : String, data : String, content_type : String, max_attempts : Int, delay_ms : Int) : Int = {
+
+        val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).build
+
+        Thread.sleep(delay_ms)
+
+        //TESTE DE ERRO
+        if (FAKE_ERROR_B.value == true){
+          if (new Random().nextInt(5) == 1) return 999
+        }
+
+        var resp : Int = -1
+        var i = 0
+        while (i < max_attempts && (resp != CODE_OK_POST.value && resp != CODE_CONFLICT_POST.value)) {
+          var httpPost = new HttpPost(uri)
+          httpPost.addHeader(HttpHeaders.AUTHORIZATION, API_KEY_B.value)
+          var strEntity = new StringEntity(data)
+          strEntity.setContentType(content_type)
+          httpPost.setEntity(strEntity)
+
+          try {
+            val response = httpClient.execute(httpPost)
+            resp = response.getStatusLine().getStatusCode()
+          }catch{
+            case e: Exception => {
+              resp = -1
+            }
+          }
+
+          httpPost.releaseConnection()
+          i=i+1
+        }
+
+        httpClient.close()
+
+        return resp
+      }
+
+      @throws(classOf[Exception])
+      def get(uri : String, max_attempts : Int, delay_ms : Int) : (Int, String) = {
+
+        val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).build
+
+        Thread.sleep(delay_ms)
+
+        //TESTE DE ERRO
+        if (FAKE_ERROR_B.value == true){
+          if (new Random().nextInt(5) == 1) return (999, "")
+        }
+
+        var resp : Int = -1
+        var resp_body = ""
+        var i = 0
+        while (i < max_attempts && resp != CODE_OK_GET.value) {
+          var httpGet = new HttpGet(uri)
+          httpGet.addHeader(HttpHeaders.AUTHORIZATION, API_KEY_B.value)
+
+          try {
+            val response = httpClient.execute(httpGet)
+            resp = response.getStatusLine().getStatusCode()
+            resp_body = EntityUtils.toString(response.getEntity)
+
+          }catch{
+            case e: Exception => {
+              resp = -1
+              resp_body = ""
+            }
+          }
+
+          httpGet.releaseConnection()
+          i=i+1
+        }
+
+        httpClient.close()
+
+        return (resp,resp_body)
+      }
 
 
-    Rest.httpClientClose()
 
+      def createDatastore(storage_policy : String) : Int = {
+        return post(DATASTORES_URL.value, "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy, "application/x-www-form-urlencoded", MAX_ATTEMPTS_B.value ,0)
+      }
+
+      def sendCompanyData(v : (String, scala.collection.mutable.ListBuffer[String])) : Int = {
+        //envia sequencia, hash e totalizadores
+        val resp = post(DATASTORES_URL.value + DATASTORE.value + v._1 + ";0", v._2.mkString(", "), "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
+        return resp
+      }
+
+      def sendCompanyTot(v : (String, ((String, String), (Double, Double, Double)))) : Int = {
+        //envia sequencia, hash e totalizadores
+        //    seq                    hash                   tot1                    tot2                    tot3
+        val str = v._2._1._1 + ";" + v._2._1._2 + ";" + v._2._2._1 + ";" + v._2._2._2 + ";" + v._2._2._3
+        val resp = post(DATASTORES_URL.value + DATASTORE.value + v._1 + ";1", str, "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
+        return resp
+      }
+
+      def getCompanies() : (Int, List[String]) = {
+        //retorna as empresas que existem no datastore
+        val response = get(DATASTORES_URL.value + DATASTORE.value + "?cursor=O2tleTtUcnVlOzA7MA%3D%3D",MAX_ATTEMPTS_B.value ,new Random().nextInt(MAX_DELAY_MS_B.value ))
+		    //?cursor=O2tleTtUcnVlOzA7MA%3D%3D makes the kvs return the whole data instead of chunks
+        var companies : List[String] = null
+        if (response._1 == CODE_OK_GET.value)
+          companies = scala.util.parsing.json.JSON.parseFull(response._2).get.asInstanceOf[Map[String,List[Map[String,String]]]].get("objects").get.map(x=>x.get("key").get)
+
+        return (response._1, companies)
+      }
+
+      def getCompanyData(company : String) : (Int, scala.collection.mutable.ListBuffer[String]) = {
+        val response = get(DATASTORES_URL.value + DATASTORE.value + company + ";0" ,MAX_ATTEMPTS_B.value ,new Random().nextInt(MAX_DELAY_MS_B.value ))
+        var lb = new scala.collection.mutable.ListBuffer[String]
+        if (response._1 == CODE_OK_GET.value)
+          response._2.split(", ").foreach(lb.append(_))
+
+        return (response._1, lb)
+      }
+    }
+
+
+    val s_time = System.nanoTime()
+
+    //cria datastore se ainda nao existe
+
+    LOGGER.warning("Creating datastore " +  DATASTORE.value)
+    val r = Rest.createDatastore(STORAGE_POLICY)
+    if (r == CODE_CONFLICT_POST.value){
+      LOGGER.info("Datastore " + DATASTORE.value + " already exists.")
+    }
+    else if (r != CODE_OK_POST.value){
+      LOGGER.severe("Could not create datastore " + DATASTORE.value + " ERROR CODE = " + r)
+      return
+    }
+    else LOGGER.warning("Datastore " + DATASTORE.value + " created.")
+
+    //faz agregacao ou totalizacao e envio para o banco
+
+    if (mode == "0") {
+      val ret = send_all_data(args(3), args(4))
+      LOGGER.warning("send_all_data() returned " + ret)
+
+      if (ret != 0) LOGGER.warning("!!! Some data were not saved at KVS. Please retry in mode 2.")
+      else LOGGER.warning("!!! Execution OK.")
+    }
+
+    else if (mode == "1") {
+      val ret = send_remaining_totalizers()
+      LOGGER.warning("send_remaining_totalizers() returned " + ret)
+
+      if (ret != 0) LOGGER.warning("!!! Some companies could not send billing data to KVS. Please retry.")
+      else LOGGER.warning("!!! Execution OK.")
+    }
+
+    else if (mode == "2"){
+      val ret = send_remaining_data(args(3), args(4))
+      LOGGER.warning("send_remaining_data() returned " + ret)
+
+      if (ret != 0) LOGGER.warning("!!! Some data were not saved at KVS. Please retry.")
+      else LOGGER.warning("!!! Execution OK.")
+    }
+
+    LOGGER.warning("------> Total execution time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
+
+    /////////
+    //Funcões auxiliares
     /////////
 
     //envia os dados que estao no rdd e salva as falhas em remaining_file
     def send_rdd_data(sm_final :  RDD[(String, ListBuffer[String])], remaining_file : String):Int = {
 
       //send data
-      val http_data_responses = sm_final.map(x => (x._1, Rest.sendCompanyData((x._1,x._2))))
+
+      val s_time = System.nanoTime()
+
+      val http_data_responses = sm_final.map(x => (x._1, Rest.sendCompanyData(x._1,x._2)))
       http_data_responses.persist()
 
-      LOGGER.info("http_data_responses: " + http_data_responses.collect().mkString("\n"))
+      LOGGER.warning("http_data_responses: " + http_data_responses.collect().mkString("\n"))
+
+      LOGGER.warning("------> KVS storing time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
       //salva os que deram erro ao enviar
-      val not_sent_data = http_data_responses.filter(x => x._2 != Rest.CODE_OK_POST && x._2 != Rest.CODE_CONFLICT_POST).join(sm_final).map(x=>(x._1,x._2._2))
-      not_sent_data.saveAsObjectFile(remaining_file)
+      val not_sent_data = http_data_responses.filter(x => x._2 != CODE_OK_POST.value && x._2 != CODE_CONFLICT_POST.value).join(sm_final).map(x=>(x._1,x._2._2))
 
-      if (not_sent_data.collect().length > 0) //se alguma empresa não conseguiu enviar dados retorna -1
-        return -1
-      else
+      if (!not_sent_data.isEmpty()) {
+        if (remaining_file != "null") { //if "null", failures are not saved
+          not_sent_data.saveAsTextFile(remaining_file) //use saveAsTextFile() instead of saveAsObjectFile() for running on sgx-spark
+          LOGGER.warning("Not sent data were saved at " + remaining_file)
+        } else {
+          LOGGER.warning("Not sent data were discarded.")
+        }
+        return -1 //se alguma empresa nao conseguiu enviar dados retorna -1
+      }
+      else{
+        LOGGER.warning("All data has been succesfully sent.")
         return 0
+      }
     }
 
-    //envia dados de todas as empresas a partir do arquivo
+    //cria o rdd com a agregacao das empresas a partir do arquivo e envia os dados
     def send_all_data(path : String, outputRemaining : String): Int = {
-      // Solution 2
+
+      LOGGER.warning("Aggregating data ...")
+
       // Getting all files in a directory:
       // It creates a map: full filename -> content of a file
       val sm_rdd = sc.textFile(path)
 
+	  
+	    val s_time = System.nanoTime()
+
       // map the name of companies (column 0)
-      val sm_company_contents = sm_rdd.map(a_line => (a_line.split(",")(0), a_line))
+      //val sm_company_contents = sm_rdd.map(a_line => (a_line.split(",")(0), a_line))
+      val sm_company_contents = sm_rdd.map(a_line => new String(new Base64().decode(a_line))).map(a_line => (a_line.split(",")(0), a_line))
 
       // Agregate all contents by company
       val initial_set        = scala.collection.mutable.ListBuffer.empty[String]
@@ -383,36 +460,48 @@ object SmartMeteringSpark {
 
       val sm_final           = sm_company_contents.aggregateByKey(initial_set)(inner_aggregation, outer_aggregation)
 
-      LOGGER.info("sm_company_contents: " + sm_company_contents.collect.mkString("\n"))
-      LOGGER.info("sm_final: " + sm_final.collect.mkString("\n"))
+      LOGGER.warning("------> Data processing time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
-      return send_rdd_data(sm_final, outputRemaining)
+      LOGGER.warning("Sending aggregated data to KVS ...")
+
+      val result = send_rdd_data(sm_final, outputRemaining)
+
+      //these lines are disabled because collect() function uses lot of memory and the process breaks for huge amount of data
+      //LOGGER.info("sm_company_contents: " + sm_company_contents.collect().mkString("\n"))
+      //LOGGER.info("sm_final: " + sm_final.collect().mkString("\n"))
+	
+	    return result;
 
     }
 
-    //envia totalizadores de todas empresas que já enviaram os dados mas não mandaram os totalizadores
+    //envia totalizadores de todas empresas que já enviaram os dados mas nao mandaram os totalizadores
     def send_remaining_totalizers(): Int = {
 
-      //get companies
+	    var s_time = System.nanoTime()
+
+      LOGGER.warning("Getting companies from KVS ...")
+
+      //pega todas as empresas do datastore
       val get_result = Rest.getCompanies()
-      if (get_result._1 != Rest.CODE_OK_GET) {
-        LOGGER.info("get companies failed (" + get_result._1 + ") - ABORTING")
+      if (get_result._1 != CODE_OK_GET.value) {
+        LOGGER.severe("get companies failed (" + get_result._1 + ") - ABORTING")
         return get_result._1
       }
 
+      //empresas que enviaram dados mas nao enviaram totalizadores
       val companies = sc.parallelize(get_result._2).map(x=>(x.split(";")(0),x.split(";")(1).toInt)).aggregateByKey(0)((s:Int, v:Int) => s+v, (s:Int, v:Int) => s+v).filter(x=>x._2 == 0).map(x=>x._1)
 
-      //get companies data (sm_final_get deve ser igual sm_final); filtrando os que deram erro no get
-      val sm_final_get = companies.map(x=>(x,Rest.getCompanyData(x))).filter(x=>x._2._1 == Rest.CODE_OK_GET).map(x=>(x._1,x._2._2))
+      LOGGER.warning("Getting companies data from KVS ...")
+
+      //pega dados das empresas; filtrando os que deram erro no get
+      val sm_final_get = companies.map(x=>(x,Rest.getCompanyData(x))).filter(x=>x._2._1 == CODE_OK_GET.value).map(x=>(x._1,x._2._2))
       sm_final_get.persist()
 
-      LOGGER.info("companies: " + companies.collect.mkString("\n"))
-      LOGGER.info("sm_final_get: " + sm_final_get.collect.mkString("\n"))
+      LOGGER.warning("------> KVS retrieving time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
-      // getting totalizers for specific columns
-      // val totalizer_1 = sm_final.mapValues(x => x.map(y => y.split(";")(18))).mapValues(y => y.flatMap(s => scala.util.Try(s.toDouble).toOption).reduce(_+_))
-      // val totalizer_2 = sm_final.mapValues(x => x.map(y => y.split(";")(20))).mapValues(y => y.flatMap(s => scala.util.Try(s.toDouble).toOption).reduce(_+_))
-      // val totalizer_3 = sm_final.mapValues(x => x.map(y => y.split(";")(21))).mapValues(y => y.flatMap(s => scala.util.Try(s.toDouble).toOption).reduce(_+_))
+      s_time = System.nanoTime()
+
+      LOGGER.warning("Calculating billing data and hashes...")
 
       // getting totalizers for specific columns by company => clean version
       def get_values_from_columns(content: String) : (Double, Double, Double) = {
@@ -422,62 +511,82 @@ object SmartMeteringSpark {
 
       val totalizer = sm_final_get.mapValues(x => x.map(y => get_values_from_columns(y))).mapValues(x => x.reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3)))
 
-      // signing all content by company
       def get_order_and_hash(content: String) : (String, String) = {
         val splitted = content.split(",")
         return (splitted(28) + "-" + splitted(29) + ";", splitted(27))
       }
 
-      def hash_and_sign(content: String) : String = {
-        return String.format("%032x", new BigInteger(1, MessageDigest.getInstance("SHA-256").digest(content.getBytes("UTF-8"))))
-      }
-
-      val orders_and_hashes = sm_final_get.mapValues(x => x.map(y => get_order_and_hash(y))).mapValues(x => x.reduce((a, b) => (a._1 + b._1, a._2 + b._2))).mapValues(x => (x._1, hash_and_sign(x._2)))
+      val orders_and_hashes = sm_final_get.mapValues(x => x.map(y => get_order_and_hash(y))).mapValues(x => x.reduce((a, b) => (a._1 + b._1, a._2 + b._2))).mapValues(x => (x._1, Inmetro_cipher.sign(x._2)))
 
 
       //verify hashes
 
       // retorna a parte da linha em que o hash foi calculado e assinado anteriormente
       def get_hash_content(line : String) : String = {
-        return line.split(",").slice(1,27).mkString(",") + ",'"
-        //return line.split(",").slice(1,27).mkString("")
+        return line.split(",").slice(1,27).mkString("")
       }
 
       //maps company name, hash ok
       val sm_company_contents_get = sm_final_get.flatMap(x=>x._2).map(x=>(x.split(",")(0),x))
-      //val sm_company_verify = sm_company_contents_get.mapValues(a_line => (a_line, calculateLineHash(a_line) == get_order_and_hash(a_line)._2))
       val sm_company_verify = sm_company_contents_get.mapValues(a_line => (a_line, Inmetro_cipher.verify(get_hash_content(a_line), get_order_and_hash(a_line)._2)))
       val sm_final_verify = sm_company_verify.mapValues(x=>x._2).aggregateByKey(true)((s: Boolean, v: Boolean) =>  s && v, (s: Boolean, v: Boolean) =>  s && v)
       val failed_hashes = sm_company_verify.filter(x=>x._2._2==false)
 
-      // merging totalizer, hash_and_sign, and sm_final and filter failed hashes in order to send it to chocolatecloud
-      //val merged = orders_and_hashes.join(totalizer).join(sm_final).join(sm_final_verify)
+      // merging correct hashes totalizers, hash_and_sign, and sm_final and filter failed hashes in order to send it to chocolatecloud
       val merged = orders_and_hashes.join(totalizer).join(sm_final_get).join(sm_final_verify).filter(x=>x._2._2 == true).mapValues(x=>x._1)
 
-
-      LOGGER.info("totalizer: " + totalizer.collect.mkString("\n"))
-      LOGGER.info("orders_and_hashes: " + orders_and_hashes.collect.mkString("\n"))
-      LOGGER.info("failed_hashes: " + failed_hashes.collect.mkString("\n"))
-      LOGGER.info("sm_final_verify: " + sm_final_verify.collect.mkString("\n"))
-
+      LOGGER.warning("Sending billing data to KVS ...")
 
       val http_tot_responses = merged.map(x => (x._1, Rest.sendCompanyTot((x._1,x._2._1))))
       http_tot_responses.persist()
 
-      LOGGER.info("http_tot_responses: " + http_tot_responses.collect().mkString("\n"))
+      http_tot_responses.collect()
+      LOGGER.warning("------> Processing execution time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
-      if (http_tot_responses.filter(x=>(x._2!=Rest.CODE_OK_POST)).collect().length > 0) //se alguma empresa não conseguiu enviar totalizadores retorna -1
+
+      //these lines are disabled because collect() function uses lot of memory and the process breaks for huge amount of data
+      //LOGGER.info("companies: " + companies.collect().mkString("\n"))
+      //LOGGER.info("sm_final_get: " + sm_final_get.collect().mkString("\n"))
+      //LOGGER.info("totalizer: " + totalizer.collect().mkString("\n"))
+      //LOGGER.info("orders_and_hashes: " + orders_and_hashes.collect().mkString("\n"))
+      //LOGGER.info("failed_hashes: " + failed_hashes.collect().mkString("\n"))
+      //LOGGER.info("sm_final_verify: " + sm_final_verify.collect().mkString("\n"))
+      //LOGGER.info("http_tot_responses: " + http_tot_responses.collect().mkString("\n"))
+
+      if (http_tot_responses.filter(x=>(x._2!=CODE_OK_POST.value)).collect().length > 0) //se alguma empresa nao conseguiu enviar totalizadores retorna -1
         return -1
       else
         return 0
 
     }
 
-    //envia dados das empresas que falharam anteriormente
+    //envia dados das empresas que falharam anteriormente a partir do arquivo
     def send_remaining_data(inputRemaining : String, outputRemaining : String) : Int = {
 
-      val sm_final = sc.objectFile[(String, scala.collection.mutable.ListBuffer[String])](inputRemaining)
-      LOGGER.info("sm_final: " + sm_final.collect.mkString("\n"))
+      //function to convert string to desired object value
+      def textToObj(str : String) : (String, scala.collection.mutable.ListBuffer[String]) = {
+        val s = ",ListBuffer("
+        val idx = str.indexOf(s)
+        val str1 = str.substring(1,idx)
+        val str2 = str.substring(idx+s.size,str.size-2)
+        return (str1,str2.split(", ").to[scala.collection.mutable.ListBuffer])
+      }
+
+
+      LOGGER.info("Sending remaining data ...")
+
+      var sm_final : RDD[(String, scala.collection.mutable.ListBuffer[String])] = null
+      try {
+        sm_final = sc.textFile(inputRemaining).map(x=>textToObj(x))
+        LOGGER.info("sm_final: " + sm_final.collect.mkString("\n"))
+      }
+      catch{
+        case e: Exception => {
+          LOGGER.severe(e.getMessage)
+          return -1
+        }
+      }
+
       return send_rdd_data(sm_final, outputRemaining)
     }
 
