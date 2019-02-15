@@ -3,9 +3,6 @@
 source variables.sh
 
 export IS_ENCLAVE=true
-export IS_DRIVER=false
-export IS_WORKER=true
-
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
 
 # -Dcom.sun.management.jmxremote \

@@ -3,12 +3,8 @@
 source variables.sh
 
 export IS_ENCLAVE=false
-export IS_DRIVER=true
-export IS_WORKER=false
-
-export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
-
 export SPARK_JOBNAME=sparksql
+export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
 
 ./bin/spark-submit \
 --class org.apache.spark.examples.sql.SparkSQLExample \
@@ -24,4 +20,4 @@ export SPARK_JOBNAME=sparksql
 --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SGX.jar ${SPARKPI_ARG} 2>&1 | tee outside-driver
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}.jar ${SPARKPI_ARG} 2>&1 | tee outside-driver

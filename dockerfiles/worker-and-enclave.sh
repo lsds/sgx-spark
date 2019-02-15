@@ -6,9 +6,6 @@ sudo make finalize-image
 cd ${SPARK_DIR}
 sudo chown user:user ${SPARK_DIR}/lkl/alpine-rootfs.img
 
-export IS_WORKER=true
-export IS_DRIVER=false
-
 (
 export IS_ENCLAVE=true
 

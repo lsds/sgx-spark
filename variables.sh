@@ -1,11 +1,11 @@
 #!/bin/bash
 
-export SGX_ENABLED=false
+export SGX_ENABLED=true
 export USE_HDFS_ENCRYPTION=false
 
 export SCALA_VERSION=2.11
 
-export SPARK_VERSION=2.3.2
+export SPARK_VERSION=2.3.2-SGX
 export SPARK_MASTER_HOST=$(hostname -f)
 export SPARK_MASTER_PORT=7077
 export SPARK_LOCAL_IP=127.0.0.1

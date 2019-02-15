@@ -5,12 +5,9 @@ source variables.sh
 export SGX_ENABLED=false
 
 export IS_ENCLAVE=false
-export IS_DRIVER=true
-export IS_WORKER=false
-
-export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
-
+export SGX_ENABLED=false
 export SPARK_JOBNAME=wordcount
+export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
 
 rm -rf $(pwd)/output
 
@@ -41,4 +38,4 @@ INFILE=$(pwd)/README.md
 --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SGX.jar $INFILE output 2>&1 | tee outside-driver
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}.jar $INFILE output 2>&1 | tee outside-driver

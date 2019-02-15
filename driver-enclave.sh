@@ -3,8 +3,6 @@
 source variables.sh
 
 export IS_ENCLAVE=true
-export IS_DRIVER=true
-export IS_WORKER=false
 
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
 

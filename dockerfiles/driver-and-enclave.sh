@@ -6,9 +6,6 @@ sudo make finalize-image
 cd ${SPARK_DIR}
 sudo chown user:user ${SPARK_DIR}/lkl/alpine-rootfs.img
 
-export IS_DRIVER=true
-export IS_WORKER=false
-
 (
 export IS_ENCLAVE=true
 
@@ -51,7 +48,7 @@ JARS_COLON=$(echo $JARS | tr ' ' ':')
 --conf "spark.executor.extraClassPath=$JARS_COLON" \
 --conf "spark.driver.extraClassPath=$JARS_COLON" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SNAPSHOT.jar \
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}.jar \
 ${SPARK_JOB_ARG0} ${SPARK_JOB_ARG1} ${SPARK_JOB_ARG2} ${SPARK_JOB_ARG3} ${SPARK_JOB_ARG4} ${SPARK_JOB_ARG5} ${SPARK_JOB_ARG6} ${SPARK_JOB_ARG7} ${SPARK_JOB_ARG8} ${SPARK_JOB_ARG9} 2>&1 | tee outside-driver
 
 )

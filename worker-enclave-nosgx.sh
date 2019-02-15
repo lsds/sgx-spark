@@ -3,11 +3,7 @@
 source variables.sh
 
 export IS_ENCLAVE=true
-export IS_DRIVER=false
-export IS_WORKER=true
-
 export DEBUG_IS_ENCLAVE_REAL=false
-
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem
 
 #-Xverify:none might make it faster but break things (removes bytecode verification)

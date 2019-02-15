@@ -3,8 +3,6 @@
 source variables.sh
 
 export IS_ENCLAVE=true
-export IS_DRIVER=true
-export IS_WORKER=false
 
 export DEBUG_IS_ENCLAVE_REAL=false
 
