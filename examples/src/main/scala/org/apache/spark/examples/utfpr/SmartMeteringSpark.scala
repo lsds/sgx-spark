@@ -1,3 +1,4 @@
+package org.apache.spark.examples.utfpr;
 
 //logging
 import java.text.SimpleDateFormat
