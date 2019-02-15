@@ -20,15 +20,13 @@ INFILE=
 OUTFILE=$(pwd)/output/
 
 if [ $MODE -eq 0 ]; then
-	DATASTORE_URL=http://150.165.15.19:31305/datastores
-	DATASTORE_NAME=50k-teste/
 	INFILE=$(pwd)/phasor/e100/phasor50k.txt
 	rm -rf $OUTFILE
 	mkdir $OUTFILE
 fi
 
 ./bin/spark-submit \
---class org.apache.spark.examples.utfpr.SmartMeteringSpark \
+--class org.apache.spark.examples.utfpr.SmartMeteringSparkFileMode \
 --master spark://${SPARK_MASTER_HOST}:${SPARK_MASTER_PORT} \
 --deploy-mode client \
 --driver-memory 2g \
@@ -42,4 +40,4 @@ fi
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
 --conf "spark.default.parallelism=1" \
-examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SGX.jar $MODE $DATASTORE_URL $DATASTORE_NAME $INFILE $OUTFILE 2>&1 | tee outside-driver
+examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}-SGX.jar $MODE $OUTFILE $INFILE 2>&1 | tee outside-driver

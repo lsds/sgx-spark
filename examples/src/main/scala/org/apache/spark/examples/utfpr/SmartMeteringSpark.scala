@@ -159,11 +159,7 @@ object SmartMeteringSpark {
 
     //Configuration
 
-    //val SPARK_MASTER = "local[3]"
-    val SPARK_MASTER = "spark://192.168.10.126:7077"
-    //val SPARK_MASTER = "spark://10.5.0.97:7077"
-    //val LOGS_DIRECTORY = "/home/ubuntu/smartmeter-demo/log/"
-    val LOGS_DIRECTORY = "/home/giovanni/"
+    val LOGS_DIRECTORY = "/tmp/"
     val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i"
     //val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i0123456789012345"
     val STORAGE_POLICY = "storage_policy_1"
@@ -179,18 +175,13 @@ object SmartMeteringSpark {
 
 
     //create spark context
-    val conf = new SparkConf().setAppName("SmartMetering").setMaster(SPARK_MASTER)
+    val conf = new SparkConf()
     val sc = new SparkContext(conf)
 	  sc.setLogLevel("WARN")
 
     //inicializa o logger do master
 
     val LOGGER = Logger.getLogger("Log")
-    val currentDate = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())
-    val fh = new FileHandler(LOGS_DIRECTORY + currentDate + "_master.log")
-    fh.setFormatter(new SimpleFormatter())
-    LOGGER.addHandler(fh)
-    LOGGER.setLevel(Level.WARNING)
 
     //leitura args
     var mode = "0"  //0 => envia dados;  1 => envia totalizadores;  2 => envia dados remanescentes
