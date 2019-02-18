@@ -317,7 +317,7 @@ object SmartMeteringSpark {
 
       def sendCompanyData(v : (String, scala.collection.mutable.ListBuffer[String])) : Int = {
         //envia sequencia, hash e totalizadores
-        System.err.println("sendCompanyData on " + DATASTORES_URL.value + DATASTORE.value + v._1 + ";0", v._2.mkString(", "))
+        System.err.println("sendCompanyData on " + DATASTORES_URL.value + DATASTORE.value + v._1 + ";0")
         val resp = post(DATASTORES_URL.value + DATASTORE.value + v._1 + ";0", v._2.mkString(", "), "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
         return resp
       }
