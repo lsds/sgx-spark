@@ -31,7 +31,7 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.HadoopPartition
-import org.apache.spark.sgx.{Completor, Encrypted, Serialization, SgxSettings}
+import org.apache.spark.sgx._
 import org.apache.spark.sgx.shm.{MallocedMappedDataBuffer, MappedDataBufferManager, RingBuffConsumer}
 import org.apache.spark.storage.DiskBlockObjectWriter
 import org.apache.spark.util.NextIterator
@@ -79,6 +79,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	fill()
 
 	override def hasNext: Boolean = {
+    logDebug("hasNext")
 		fill()
 		if (objects.size > 0) true
 		else if (closed) false
@@ -89,6 +90,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	}
 
 	override def next: T = {
+    logDebug("next")
 		// This assumes that a next object exist. The caller needs to ensure
 		// this by preceeding this call with a call to hasNext()
 		val n = objects.take
@@ -97,6 +99,7 @@ class SgxIteratorConsumer[T](id: SgxIteratorProviderIdentifier[T], val context: 
 	}
 
 	def fill(): Unit = {
+    logDebug(s"Fill ${objects.size}")
 		if (objects.size <= SgxSettings.PREFETCH / 2) {
 			Lock.synchronized {
 				if (!closed && fillingFuture == null) {

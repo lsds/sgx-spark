@@ -25,10 +25,9 @@ import java.util.Properties
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-
 import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.sgx.Serialization
-import org.apache.spark.sgx.iterator.SgxFakeIterator
+import org.apache.spark.sgx.iterator.{SgxFakeIterator, SgxIteratorProvider}
 import org.apache.spark.sgx.SgxIteratorFct
 import org.apache.spark.sgx.SgxFactory
 
@@ -112,7 +111,7 @@ private[spark] class ResultTask[T, U](
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] =>
-        	SgxIteratorFct.resultTaskRunTask(f, func, /*ctx*/)
+        	SgxIteratorFct.resultTaskRunTask(f, func, null/*ctx*/)
       	case i: Iterator[T] =>
       		func(context, i)
       }

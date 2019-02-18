@@ -57,6 +57,7 @@ object MyWordCount extends Logging {
       .reduceByKey {
         case (x, y) => x + y
       }.collect
+      counts
     }
 
     logInfo("Result:")
