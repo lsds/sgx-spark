@@ -311,7 +311,7 @@ object SmartMeteringSpark {
 
 
       def createDatastore(storage_policy : String) : Int = {
-        System.err.println("createDatastore with " + DATASTORES_URL.value, "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy)
+        System.err.println("createDatastore with " + DATASTORES_URL.value + "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy)
         return post(DATASTORES_URL.value, "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy, "application/x-www-form-urlencoded", MAX_ATTEMPTS_B.value ,0)
       }
 
