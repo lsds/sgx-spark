@@ -163,7 +163,7 @@ object SmartMeteringSpark {
     val LOGS_DIRECTORY = "/tmp/"
     val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i"
     //val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i0123456789012345"
-    val STORAGE_POLICY = "storage_policy_1"
+    val STORAGE_POLICY = "sparkdemo_sp"
     val FAKE_ERROR = false //para debug - simula erro aleatoriamente no post ou get
 
     //Tuning Variables
@@ -311,11 +311,13 @@ object SmartMeteringSpark {
 
 
       def createDatastore(storage_policy : String) : Int = {
+        System.err.println("createDatastore with " + DATASTORES_URL.value, "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy)
         return post(DATASTORES_URL.value, "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy, "application/x-www-form-urlencoded", MAX_ATTEMPTS_B.value ,0)
       }
 
       def sendCompanyData(v : (String, scala.collection.mutable.ListBuffer[String])) : Int = {
         //envia sequencia, hash e totalizadores
+        System.err.println("sendCompanyData on " + DATASTORES_URL.value + DATASTORE.value + v._1 + ";0", v._2.mkString(", "))
         val resp = post(DATASTORES_URL.value + DATASTORE.value + v._1 + ";0", v._2.mkString(", "), "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
         return resp
       }
@@ -354,6 +356,8 @@ object SmartMeteringSpark {
 
     //cria datastore se ainda nao existe
 
+// the datastore has already been created
+/*
     LOGGER.warning("Creating datastore " +  DATASTORE.value)
     val r = Rest.createDatastore(STORAGE_POLICY)
     if (r == CODE_CONFLICT_POST.value){
@@ -364,6 +368,7 @@ object SmartMeteringSpark {
       return
     }
     else LOGGER.warning("Datastore " + DATASTORE.value + " created.")
+*/
 
     //faz agregacao ou totalizacao e envio para o banco
 
