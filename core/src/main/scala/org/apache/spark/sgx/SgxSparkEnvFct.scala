@@ -20,21 +20,42 @@ package org.apache.spark.sgx
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-
 import org.apache.spark.SparkEnv
+import org.apache.spark.SparkConf
+import org.apache.spark.scheduler.OutputCommitCoordinator
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.util.ThreadUtils
 
 object SgxSparkEnvFct {
 
   private var serializer: Serializer = null
+  private var conf: SparkConf = null;
+  private var outputCommitCoordinator: OutputCommitCoordinator = null
   
   def getSerializer = {
     if (serializer == null) serializer = GetSerializer().send()
     serializer
   }
+
+  def getConf = {
+    if (conf == null) conf = GetConf().send()
+    conf
+  }
+
+  def getOutputCommitCoordinator = {
+    if (outputCommitCoordinator == null) outputCommitCoordinator = GetOutputCommitCoordinator().send()
+    outputCommitCoordinator
+  }
 }
 
 private case class GetSerializer() extends SgxMessage[Serializer] {
   def execute() = ThreadUtils.awaitResult( Future { SparkEnv.get.serializer }, Duration.Inf)
+}
+
+private case class GetConf() extends SgxMessage[SparkConf] {
+  def execute() = ThreadUtils.awaitResult( Future { SparkEnv.get.conf }, Duration.Inf)
+}
+
+private case class GetOutputCommitCoordinator() extends SgxMessage[OutputCommitCoordinator] {
+  def execute() = ThreadUtils.awaitResult( Future { SparkEnv.get.outputCommitCoordinator }, Duration.Inf)
 }

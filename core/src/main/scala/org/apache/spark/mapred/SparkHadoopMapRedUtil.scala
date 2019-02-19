@@ -21,10 +21,10 @@ import java.io.IOException
 
 import org.apache.hadoop.mapreduce.{TaskAttemptContext => MapReduceTaskAttemptContext}
 import org.apache.hadoop.mapreduce.{OutputCommitter => MapReduceOutputCommitter}
-
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.executor.CommitDeniedException
 import org.apache.spark.internal.Logging
+import org.apache.spark.sgx.{SgxSettings, SgxSparkEnvFct, SgxTaskContextFct}
 
 object SparkHadoopMapRedUtil extends Logging {
   /**
@@ -60,7 +60,7 @@ object SparkHadoopMapRedUtil extends Logging {
     // First, check whether the task's output has already been committed by some other attempt
     if (committer.needsTaskCommit(mrTaskContext)) {
       val shouldCoordinateWithDriver: Boolean = {
-        val sparkConf = SparkEnv.get.conf
+        val sparkConf = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getConf else SparkEnv.get.conf
         // We only need to coordinate with the driver if there are concurrent task attempts.
         // Note that this could happen even when speculation is not enabled (e.g. see SPARK-8029).
         // This (undocumented) setting is an escape-hatch in case the commit code introduces bugs.
@@ -68,9 +68,9 @@ object SparkHadoopMapRedUtil extends Logging {
       }
 
       if (shouldCoordinateWithDriver) {
-        val outputCommitCoordinator = SparkEnv.get.outputCommitCoordinator
-        val taskAttemptNumber = TaskContext.get().attemptNumber()
-        val stageId = TaskContext.get().stageId()
+        val outputCommitCoordinator = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getOutputCommitCoordinator else SparkEnv.get.outputCommitCoordinator
+        val taskAttemptNumber = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) 0/*SgxTaskContextFct.getTaskContext.attemptNumber()*/ else TaskContext.get().attemptNumber()
+        val stageId = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) 1/*SgxTaskContextFct.getTaskContext.stageId()*/ else TaskContext.get().stageId()
         val canCommit = outputCommitCoordinator.canCommit(stageId, splitId, taskAttemptNumber)
 
         if (canCommit) {

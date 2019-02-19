@@ -40,7 +40,7 @@ private case class AskPermissionToCommitOutput(stage: Int, partition: Int, attem
  * This class was introduced in SPARK-4879; see that JIRA issue (and the associated pull requests)
  * for an extensive design discussion.
  */
-private[spark] class OutputCommitCoordinator(conf: SparkConf, isDriver: Boolean) extends Logging {
+private[spark] class OutputCommitCoordinator(conf: SparkConf, isDriver: Boolean) extends Logging with Serializable {
 
   // Initialized by SparkEnv
   var coordinatorRef: Option[RpcEndpointRef] = None

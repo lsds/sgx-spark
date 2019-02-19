@@ -90,6 +90,20 @@ private[spark] class ResultTask[T, U](
       threadMXBean.getCurrentThreadCpuTime - deserializeStartCpuTime
     } else 0L
 
+    // ideally we would like to pass the context but we have serialization problems later on with saveAsTextFile()
+    /*
+    val ctx: TaskContext = new TaskContextImpl(
+      stageId,
+      stageAttemptId, // stageAttemptId and stageAttemptNumber are semantically equal
+      partitionId,
+      context.taskAttemptId(),
+      context.attemptNumber(),
+      null,
+      null,
+      null,
+      metrics)
+    */
+
     if (SgxSettings.SGX_ENABLED) {
       // SGX: func() corresponds to the Action of the entire Spark Job
       // and will return the corresponding output. As such, it transfers
@@ -98,7 +112,7 @@ private[spark] class ResultTask[T, U](
       // corresponding in-enclave SgxIteratorProvider.
       rdd.iterator(partition, context) match {
         case f: SgxFakeIterator[T] =>
-        	SgxIteratorFct.resultTaskRunTask(f, func, null)
+        	SgxIteratorFct.resultTaskRunTask(f, func, /*ctx*/)
       	case i: Iterator[T] =>
       		func(context, i)
       }
