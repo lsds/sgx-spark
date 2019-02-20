@@ -75,7 +75,7 @@ private case class ComputeMapPartitionsRDD[U, T](
 
 	def execute() = SgxFakeIterator(
 		ThreadUtils.awaitResult(Future {
-		//XXX decrypt the data and apply the function
+		// XXX decrypt the data and apply the function
 			fct(partIndex, id.getIterator())
 		}, Duration.Inf)
 	)

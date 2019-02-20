@@ -69,8 +69,10 @@ object SparkHadoopMapRedUtil extends Logging {
 
       if (shouldCoordinateWithDriver) {
         val outputCommitCoordinator = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxSparkEnvFct.getOutputCommitCoordinator else SparkEnv.get.outputCommitCoordinator
-        val taskAttemptNumber = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) 0/*SgxTaskContextFct.getTaskContext.attemptNumber()*/ else TaskContext.get().attemptNumber()
-        val stageId = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) 1/*SgxTaskContextFct.getTaskContext.stageId()*/ else TaskContext.get().stageId()
+        /* SgxTaskContextFct.getTaskContext.attemptNumber() */
+        val taskAttemptNumber = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) 0 else TaskContext.get().attemptNumber()
+        /* SgxTaskContextFct.getTaskContext.stageId() */
+        val stageId = if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) 1 else TaskContext.get().stageId()
         val canCommit = outputCommitCoordinator.canCommit(stageId, splitId, taskAttemptNumber)
 
         if (canCommit) {
