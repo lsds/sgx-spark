@@ -14,7 +14,7 @@ fi
 #-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 \
 
 java \
--cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/\*:shm/target/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:sgx-spark-common/target/\*:sgx-spark-shm/target/\* \
 org.apache.spark.deploy.worker.Worker \
 spark://${SPARK_MASTER_HOST}:${SPARK_MASTER_PORT} 2>&1 | tee outside-worker
 

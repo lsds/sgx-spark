@@ -30,5 +30,5 @@ java \
 -XX:+UseMembar \
 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 \
 -Djava.library.path=lib/ \
--cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:examples/target/scala-${SCALA_VERSION}/jars/\*:sgx/target/\*:shm/target/\* \
+-cp conf/:assembly/target/scala-${SCALA_VERSION}/jars/\*:examples/target/scala-${SCALA_VERSION}/jars/\*:sgx-spark-common/target/\*:sgx-spark-shm/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-worker

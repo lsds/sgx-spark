@@ -24,5 +24,5 @@ ${SGXLKL_EXECUTABLE} ${SGXLKL_IMAGE} /opt/j2re-image/bin/java \
 -XX:+UseMembar \
 -Djava.library.path=/spark/lib/ \
 -cp \
-/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/*:/spark/sgx/target/\*:/spark/shm/target/\* \
+/home/scala-library/:/spark/conf/:/spark/assembly/target/scala-${SCALA_VERSION}/jars/\*:/spark/examples/target/scala-${SCALA_VERSION}/jars/*:/spark/sgx-spark-common/target/\*:/spark/sgx-spark-shm/target/\* \
 org.apache.spark.sgx.SgxMain 2>&1 | tee enclave-worker

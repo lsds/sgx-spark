@@ -23,9 +23,8 @@ JARS_COLON=$(echo $JARS | tr ' ' ':')
 --jars "$JARS_COMMA" \
 --conf "spark.app.id=kmeans" \
 --conf "spark.executor.extraLibraryPath=$(pwd)/lib" \
+--conf "spark.executor.extraClassPath=$(pwd)/sgx-spark-common/target/*:$(pwd)/sgx-spark-shm/target/*" \
 --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
---conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx/target/*:$(pwd)/shm/target/*" \
---conf "spark.executor.extraClassPath=$JARS_COLON" \
---conf "spark.driver.extraClassPath=$JARS_COLON" \
+--conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx-spark-common/target/*:$(pwd)/sgx-spark-shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
 examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}.jar (pwd)/TestLactec/TestCustomer2.csv 2>&1 | tee outside-driver
