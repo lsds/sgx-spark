@@ -1547,11 +1547,15 @@ abstract class RDD[T: ClassTag](
     //
     // Therefore, here we provide an explicit Ordering `null` to make sure the compiler generate
     // same bytecodes for `saveAsTextFile`.
-    if (SgxSettings.SGX_ENABLED && SgxSettings.IS_ENCLAVE) SgxRddFct.saveAsTextFile[T](this.id, path)
-    else {
+    val dataRDD: RDD[T] = if (!SgxSettings.SGX_ENABLED) {
+      val colData = this.collect()
+      sc.makeRDD(colData, numSlices = 1)
+    } else {
+      this
+    }
     val nullWritableClassTag = implicitly[ClassTag[NullWritable]]
     val textClassTag = implicitly[ClassTag[Text]]
-    val r = this.mapPartitions { iter =>
+    val r = dataRDD.mapPartitions { iter =>
       val text = new Text()
       iter.map { x =>
         text.set(x.toString)
@@ -1560,7 +1564,6 @@ abstract class RDD[T: ClassTag](
     }
     RDD.rddToPairRDDFunctions(r)(nullWritableClassTag, textClassTag, null)
       .saveAsHadoopFile[TextOutputFormat[NullWritable, Text]](path)
-    }
   }
 
   /**
