@@ -47,6 +47,7 @@ import org.apache.hadoop.util.StringUtils;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
+import org.apache.spark.sgx.SgxSettings;
 
 /** 
  * A base class for file-based {@link InputFormat}.
@@ -349,10 +350,10 @@ public abstract class FileInputFormat<K, V> implements InputFormat<K, V> {
           long blockSize = file.getBlockSize();
           long splitSize = computeSplitSize(goalSize, minSize, blockSize);
 
+          // with HDFS_ENCRYPTION
           // if length < 8kB -> one split only
           // if length > 8kB -> need to align the splitsize to the multiple of 8kB before
-          System.out.println("length=" + length + ", encryptedblocklength=" + getEncryptedBlockLength() + ", splitsize=" + splitSize);
-          if (length < getEncryptedBlockLength()) {
+          if (SgxSettings.USE_HDFS_ENCRYPTION() && length < getEncryptedBlockLength()) {
             splitSize = length;
           } else {
             // what is the next multiple?
@@ -363,7 +364,12 @@ public abstract class FileInputFormat<K, V> implements InputFormat<K, V> {
             long nextSplitSize = splitSize + getEncryptedBlockLength() - splitSize % getEncryptedBlockLength();
             splitSize = (prevSplitSize <= 0 ? nextSplitSize : prevSplitSize);
           }
-          System.out.println("File is splitable: block size " + blockSize + ", splitsize " + splitSize);
+
+          if (SgxSettings.USE_HDFS_ENCRYPTION()) {
+            LOG.debug(
+                "SGX-HDFS: File size=" + length + ", encryptedblockSize=" + getEncryptedBlockLength()
+                    + ", splitsize=" + splitSize + ", block size " + blockSize );
+          }
 
           long bytesRemaining = length;
           while (((double) bytesRemaining)/splitSize > SPLIT_SLOP) {

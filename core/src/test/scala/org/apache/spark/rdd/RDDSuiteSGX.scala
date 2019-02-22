@@ -101,6 +101,13 @@ class RDDSuiteSGX extends SparkFunSuite with SharedSparkContext {
     }
   }
 
+  test("Enclave decrypt") {
+    // Read encrypted data and decrypt inside enclave
+    // Make sure `USE_HDFS_ENCRYPTION` is set to true on both Worker sides
+    val encData = sc.textFile(getClass.getResource("/inputarray.enc.txt").getPath, minPartitions = 1)
+    assert(encData.distinct.collect().toList.map(x => Integer.parseInt(x)).sortWith((x1, x2) => x1 < x2) === List(1, 2, 3, 4))
+  }
+
 
   test("basic operations") {
     val nums = sc.makeRDD(Array(1, 2, 3, 4), 2)
