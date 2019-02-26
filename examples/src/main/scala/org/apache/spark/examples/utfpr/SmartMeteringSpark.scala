@@ -22,6 +22,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.logging._
 
+import org.apache.http.config.ConnectionConfig
+
 // http
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
