@@ -4,7 +4,7 @@ source variables.sh
 
 export SGX_ENABLED=false # no need for enclave driver
 export IS_ENCLAVE=false
-export IS_DRIVER=true
+export IS_DRIVER=false # normal spark, no sgx
 export IS_WORKER=false
 
 export SGXLKL_SHMEM_FILE=sgx-lkl-shmem-driver
