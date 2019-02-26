@@ -24,6 +24,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.deploy.ApplicationDescription
 import org.apache.spark.rpc.RpcEndpointRef
+import org.apache.spark.sgx.SgxSettings
 import org.apache.spark.util.Utils
 
 private[spark] class ApplicationInfo(
@@ -85,6 +86,12 @@ private[spark] class ApplicationInfo(
       useID: Option[Int] = None): ExecutorDesc = {
     val exec = new ExecutorDesc(newExecutorId(useID), this, worker, cores, desc.memoryPerExecutorMB)
     executors(exec.id) = exec
+    if (SgxSettings.SGX_ENABLED) {
+      // Add extra Trusted executor
+      val trusted_workerInfo = new WorkerInfo(worker.id + "-Trusted", worker.host, worker.port, worker.cores, worker.memory, worker.endpoint, worker.webUiAddress)
+      val trusted_exec =  new ExecutorDesc(newExecutorId(useID), this, trusted_workerInfo, cores, desc.memoryPerExecutorMB)
+      executors(exec.id + 1) = trusted_exec
+    }
     coresGranted += cores
     exec
   }
@@ -92,7 +99,9 @@ private[spark] class ApplicationInfo(
   private[master] def removeExecutor(exec: ExecutorDesc) {
     if (executors.contains(exec.id)) {
       removedExecutors += executors(exec.id)
+      removedExecutors += executors(exec.id + 1)
       executors -= exec.id
+      executors -= exec.id + 1
       coresGranted -= exec.cores
     }
   }

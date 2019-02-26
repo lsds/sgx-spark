@@ -22,8 +22,8 @@ import scala.collection.mutable
 import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.util.Utils
 
-private[spark] class WorkerInfo(
-    val id: String,
+class WorkerInfo(
+    var id: String,
     val host: String,
     val port: Int,
     val cores: Int,
