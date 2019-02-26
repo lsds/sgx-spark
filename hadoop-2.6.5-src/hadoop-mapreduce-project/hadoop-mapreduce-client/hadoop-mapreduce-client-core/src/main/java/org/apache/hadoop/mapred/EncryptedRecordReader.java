@@ -289,7 +289,7 @@ public class EncryptedRecordReader implements RecordReader<LongWritable, Text> {
    *                     available.
    */
   @SuppressWarnings("Duplicates")
-  private static CryptoCodec getCryptoCodec(Configuration conf,
+  public static CryptoCodec getCryptoCodec(Configuration conf,
                                             FileEncryptionInfo feInfo) throws IOException {
     final CipherSuite suite = feInfo.getCipherSuite();
     if (suite.equals(CipherSuite.UNKNOWN)) {
