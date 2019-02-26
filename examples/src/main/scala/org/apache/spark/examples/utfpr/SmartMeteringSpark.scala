@@ -186,9 +186,10 @@ object SmartMeteringSpark {
 
     //Tuning Variables
 
-    val MAX_ATTEMPTS = 3 //numero maximo de tentativas de post ou get
+    val MAX_ATTEMPTS = 5 //numero maximo de tentativas de post ou get
     val MAX_DELAY_MS = 1000 //maximo intervalo de delay para cada requisicao http
     val TIMEOUT_MS = 10000 //timeout para tentativa de conexao
+    val MAX_POST_SIZE_BYTES = 10485760 //10MB
 
     //
 
@@ -244,13 +245,16 @@ object SmartMeteringSpark {
     val MAX_ATTEMPTS_B = sc.broadcast(MAX_ATTEMPTS)
     val MAX_DELAY_MS_B = sc.broadcast(MAX_DELAY_MS)
     val TIMEOUT_MS_B = sc.broadcast(TIMEOUT_MS)
+    val MAX_POST_SIZE_BYTES_B = sc.broadcast(MAX_POST_SIZE_BYTES)
+
 
     object Rest extends java.io.Serializable{
 
       @throws(classOf[Exception])
       def post(uri : String, data : String, content_type : String, max_attempts : Int, delay_ms : Int) : Int = {
 
-        val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).build
+        //val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).build
+        val httpClient = HttpClientBuilder.create.setDefaultConnectionConfig(ConnectionConfig.custom.setBufferSize(MAX_POST_SIZE_BYTES_B.value).build).setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value).build).build
 
         Thread.sleep(delay_ms)
 
@@ -374,8 +378,6 @@ object SmartMeteringSpark {
 
     //cria datastore se ainda nao existe
 
-// the datastore has already been created
-/*
     LOGGER.warning("Creating datastore " +  DATASTORE.value)
     val r = Rest.createDatastore(STORAGE_POLICY)
     if (r == CODE_CONFLICT_POST.value){
@@ -386,7 +388,6 @@ object SmartMeteringSpark {
       return
     }
     else LOGGER.warning("Datastore " + DATASTORE.value + " created.")
-*/
 
     //faz agregacao ou totalizacao e envio para o banco
 
@@ -566,7 +567,7 @@ object SmartMeteringSpark {
       //LOGGER.info("orders_and_hashes: " + orders_and_hashes.collect().mkString("\n"))
       //LOGGER.info("failed_hashes: " + failed_hashes.collect().mkString("\n"))
       //LOGGER.info("sm_final_verify: " + sm_final_verify.collect().mkString("\n"))
-      //LOGGER.info("http_tot_responses: " + http_tot_responses.collect().mkString("\n"))
+      LOGGER.warning("http_tot_responses: " + http_tot_responses.collect().mkString("\n"))
 
       if (http_tot_responses.filter(x=>(x._2!=CODE_OK_POST.value)).collect().length > 0) //se alguma empresa nao conseguiu enviar totalizadores retorna -1
         return -1
