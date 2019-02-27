@@ -50,8 +50,8 @@ private[ui] class ApplicationPage(parent: MasterWebUI) extends WebUIPage("app") 
       !ExecutorState.isFinished(exec.state) || exec.state == ExecutorState.EXITED
     }
     val removedExecutors = allExecutors.diff(executors)
-    val executorsTable = UIUtils.listingTable(executorHeaders, executorRow, executors)
-    val removedExecutorsTable = UIUtils.listingTable(executorHeaders, executorRow, removedExecutors)
+    val executorsTable = UIUtils.listingTable(executorHeaders, executorRow, executors, stripeRowsWithCss = false)
+    val removedExecutorsTable = UIUtils.listingTable(executorHeaders, executorRow, removedExecutors, stripeRowsWithCss = false)
 
     val content =
       <div class="row-fluid">
@@ -116,20 +116,30 @@ private[ui] class ApplicationPage(parent: MasterWebUI) extends WebUIPage("app") 
   private def executorRow(executor: ExecutorDesc): Seq[Node] = {
     val workerUrlRef = UIUtils.makeHref(parent.master.reverseProxy,
       executor.worker.id, executor.worker.webUiAddress)
-    <tr>
-      <td>{executor.id}</td>
-      <td>
-        <a href={workerUrlRef}>{executor.worker.id}</a>
-      </td>
-      <td>{executor.cores}</td>
-      <td>{executor.memory}</td>
-      <td>{executor.state}</td>
-      <td>
-        <a href={s"$workerUrlRef/logPage?appId=${executor.application.id}&executorId=${executor.
-          id}&logType=stdout"}>stdout</a>
-        <a href={s"$workerUrlRef/logPage?appId=${executor.application.id}&executorId=${executor.
-          id}&logType=stderr"}>stderr</a>
-      </td>
-    </tr>
+    if (executor.worker.id.contains("Trusted")) {
+      <tr>
+        <td bgcolor="green">{executor.id}</td>
+        <td><a href={workerUrlRef}>{executor.worker.id}</a></td>
+        <td>{executor.cores}</td>
+        <td>{executor.memory}</td>
+        <td>{executor.state}</td>
+        <td><a href={s"$workerUrlRef/logPage?appId=${executor.application.id}&executorId=${executor.id}&logType=stdout"}>stdout</a>
+          <a href={s"$workerUrlRef/logPage?appId=${executor.application.id}&executorId=${executor.id}&logType=stderr"}>stderr</a>
+        </td>
+      </tr>
+    } else {
+      <tr>
+        <td bgcolor="red">{executor.id}</td>
+        <td><a href={workerUrlRef}>{executor.worker.id}</a></td>
+        <td>{executor.cores}</td>
+        <td>{executor.memory}</td>
+        <td>{executor.state}</td>
+        <td>
+          <a href={s"$workerUrlRef/logPage?appId=${executor.application.id}&executorId=${executor.id}&logType=stdout"}>stdout</a>
+          <a href={s"$workerUrlRef/logPage?appId=${executor.application.id}&executorId=${executor.id}&logType=stderr"}>stderr</a>
+        </td>
+      </tr>
+
+    }
   }
 }
