@@ -16,15 +16,27 @@ if [ $# -ne 1 ]; then
 fi
 
 MODE=$1
-INFILE=
-OUTFILE=$(pwd)/output/
+INOUT_DIR=$(pwd)/output
+
+#DATASTORE_URL=http://150.165.15.67:31305/datastores/			# HTTP
+DATASTORE_URL=https://kvs.lsd.ufcg.edu.br:7778/datastores/   # HTTPS
+DATASTORE_NAME=sparkdemo
 
 if [ $MODE -eq 0 ]; then
-	DATASTORE_URL=http://150.165.15.19:31305/datastores
-	DATASTORE_NAME=50k-teste/
 	INFILE=$(pwd)/phasor/e100/phasor50k.txt
+	OUTFILE=$INOUT_DIR
 	rm -rf $OUTFILE
-	mkdir $OUTFILE
+	rm -rf $OUTFILE2
+#	mkdir $OUTFILE
+elif [ $MODE -eq 1 ]; then
+	INFILE=
+	OUTFILE=
+elif [ $MODE -eq 2 ]; then
+	INFILE=${INOUT_DIR}
+	OUTFILE=${INOUT_DIR}2
+else
+	echo $MODE is unknown
+	exit 0
 fi
 
 ./bin/spark-submit \

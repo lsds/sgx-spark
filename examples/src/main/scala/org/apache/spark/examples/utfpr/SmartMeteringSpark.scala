@@ -18,11 +18,13 @@
 package org.apache.spark.examples.utfpr;
 
 // logging
-import java.text.SimpleDateFormat
-import java.util.Calendar
+import java.security.cert.X509Certificate
 import java.util.logging._
+import javax.net.ssl._
 
 import org.apache.http.config.ConnectionConfig
+import org.apache.http.conn.socket.LayeredConnectionSocketFactory
+import org.apache.http.conn.ssl.NoopHostnameVerifier
 
 // http
 import org.apache.http.HttpHeaders
@@ -41,12 +43,7 @@ import org.apache.spark.rdd.RDD
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-// for hashing
-import java.security.MessageDigest
-import java.math.BigInteger
-
 // for RSA ciphering
-import java.nio.charset.StandardCharsets.UTF_8
 import java.security._
 import java.security.spec.X509EncodedKeySpec
 import java.security.spec.RSAPrivateCrtKeySpec
@@ -54,7 +51,6 @@ import javax.crypto._
 import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
 import sun.security.util.DerInputStream
-import sun.security.util.DerValue
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.binary.Hex
 
@@ -181,8 +177,9 @@ object SmartMeteringSpark {
     //Configuration
 
     val LOGS_DIRECTORY = "/tmp/"
-    val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i"
-    //val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i0123456789012345"
+    //val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i" // use this key for HTTP access to the KVS
+    val API_KEY = "ApiKey 0131Byd7N220T32qp088kIT53ryT113i0123456789012345"
+
     val STORAGE_POLICY = "sparkdemo_sp"
     val FAKE_ERROR = false //para debug - simula erro aleatoriamente no post ou get
 
@@ -252,11 +249,24 @@ object SmartMeteringSpark {
 
     object Rest extends java.io.Serializable{
 
+      // Create a trust manager that does not validate certificate chains// Create a trust manager that does not validate certificate chains
+
+      val trustAllCerts = Array[TrustManager](new X509TrustManager {
+      override def checkServerTrusted(x509Certificates: Array[X509Certificate], s: String): Unit = {}
+
+        override def checkClientTrusted(x509Certificates: Array[X509Certificate], s: String): Unit = {}
+
+        override def getAcceptedIssuers: Array[X509Certificate] = null
+      })
+
+      val sc = SSLContext.getInstance("SSL")
+      sc.init(null, trustAllCerts, new SecureRandom)
+
       @throws(classOf[Exception])
       def post(uri : String, data : String, content_type : String, max_attempts : Int, delay_ms : Int) : Int = {
 
         //val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).build
-        val httpClient = HttpClientBuilder.create.setDefaultConnectionConfig(ConnectionConfig.custom.setBufferSize(MAX_POST_SIZE_BYTES_B.value).build).setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value).build).build
+        val httpClient = HttpClientBuilder.create.setDefaultConnectionConfig(ConnectionConfig.custom.setBufferSize(MAX_POST_SIZE_BYTES_B.value).build).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)/*.setDefaultSSLSocketFactory(sc.getSocketFactory)*/.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value).build).build
 
         Thread.sleep(delay_ms)
 
@@ -265,7 +275,7 @@ object SmartMeteringSpark {
           if (new Random().nextInt(5) == 1) return 999
         }
 
-        var resp : Int = -1
+        var resp = -1
         var i = 0
         while (i < max_attempts && (resp != CODE_OK_POST.value && resp != CODE_CONFLICT_POST.value)) {
           var httpPost = new HttpPost(uri)
@@ -273,12 +283,14 @@ object SmartMeteringSpark {
           var strEntity = new StringEntity(data)
           strEntity.setContentType(content_type)
           httpPost.setEntity(strEntity)
+          System.err.println("post: " + httpPost.toString)
 
           try {
             val response = httpClient.execute(httpPost)
             resp = response.getStatusLine().getStatusCode()
           }catch{
             case e: Exception => {
+              e.printStackTrace()
               resp = -1
             }
           }
@@ -295,7 +307,7 @@ object SmartMeteringSpark {
       @throws(classOf[Exception])
       def get(uri : String, max_attempts : Int, delay_ms : Int) : (Int, String) = {
 
-        val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).build
+        val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)/*.setSSLSocketFactory(sc.getSocketFactory)*/.build
 
         Thread.sleep(delay_ms)
 
@@ -310,6 +322,7 @@ object SmartMeteringSpark {
         while (i < max_attempts && resp != CODE_OK_GET.value) {
           var httpGet = new HttpGet(uri)
           httpGet.addHeader(HttpHeaders.AUTHORIZATION, API_KEY_B.value)
+          System.err.println("get: " + httpGet.toString)
 
           try {
             val response = httpClient.execute(httpGet)
@@ -318,6 +331,7 @@ object SmartMeteringSpark {
 
           }catch{
             case e: Exception => {
+              e.printStackTrace()
               resp = -1
               resp_body = ""
             }
@@ -332,17 +346,15 @@ object SmartMeteringSpark {
         return (resp,resp_body)
       }
 
-
-
       def createDatastore(storage_policy : String) : Int = {
-        System.err.println("createDatastore with " + DATASTORES_URL.value + "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy)
-        return post(DATASTORES_URL.value, "name=" + DATASTORE.value.substring(0,DATASTORE.value.length-1) + "&storage_policy_name=" + storage_policy, "application/x-www-form-urlencoded", MAX_ATTEMPTS_B.value ,0)
+        System.err.println("createDatastore with " + DATASTORES_URL.value + "name=" + DATASTORE.value + "&storage_policy_name=" + storage_policy)
+        return post(DATASTORES_URL.value, "name=" + DATASTORE.value + "&storage_policy_name=" + storage_policy, "application/x-www-form-urlencoded", MAX_ATTEMPTS_B.value ,0)
       }
 
       def sendCompanyData(v : (String, scala.collection.mutable.ListBuffer[String])) : Int = {
         //envia sequencia, hash e totalizadores
         System.err.println("sendCompanyData on " + DATASTORES_URL.value + DATASTORE.value + v._1 + ";0")
-        val resp = post(DATASTORES_URL.value + DATASTORE.value + v._1 + ";0", v._2.mkString(", "), "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
+        val resp = post(DATASTORES_URL.value + DATASTORE.value + "/" + v._1 + ";0", v._2.mkString(", "), "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
         return resp
       }
 
@@ -350,13 +362,13 @@ object SmartMeteringSpark {
         //envia sequencia, hash e totalizadores
         //    seq                    hash                   tot1                    tot2                    tot3
         val str = v._2._1._1 + ";" + v._2._1._2 + ";" + v._2._2._1 + ";" + v._2._2._2 + ";" + v._2._2._3
-        val resp = post(DATASTORES_URL.value + DATASTORE.value + v._1 + ";1", str, "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
+        val resp = post(DATASTORES_URL.value + DATASTORE.value + "/" +  v._1 + ";1", str, "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
         return resp
       }
 
       def getCompanies() : (Int, List[String]) = {
         //retorna as empresas que existem no datastore
-        val response = get(DATASTORES_URL.value + DATASTORE.value + "?cursor=O2tleTtUcnVlOzA7MA%3D%3D",MAX_ATTEMPTS_B.value ,new Random().nextInt(MAX_DELAY_MS_B.value ))
+        val response = get(DATASTORES_URL.value + DATASTORE.value + "/" + "?cursor=O2tleTtUcnVlOzA7MA%3D%3D",MAX_ATTEMPTS_B.value ,new Random().nextInt(MAX_DELAY_MS_B.value ))
 		    //?cursor=O2tleTtUcnVlOzA7MA%3D%3D makes the kvs return the whole data instead of chunks
         var companies : List[String] = null
         if (response._1 == CODE_OK_GET.value)
@@ -366,7 +378,7 @@ object SmartMeteringSpark {
       }
 
       def getCompanyData(company : String) : (Int, scala.collection.mutable.ListBuffer[String]) = {
-        val response = get(DATASTORES_URL.value + DATASTORE.value + company + ";0" ,MAX_ATTEMPTS_B.value ,new Random().nextInt(MAX_DELAY_MS_B.value ))
+        val response = get(DATASTORES_URL.value + DATASTORE.value + "/" + company + ";0" ,MAX_ATTEMPTS_B.value ,new Random().nextInt(MAX_DELAY_MS_B.value ))
         var lb = new scala.collection.mutable.ListBuffer[String]
         if (response._1 == CODE_OK_GET.value)
           response._2.split(", ").foreach(lb.append(_))
@@ -380,6 +392,8 @@ object SmartMeteringSpark {
 
     //cria datastore se ainda nao existe
 
+    // The datastore must already exist
+    /*
     LOGGER.warning("Creating datastore " +  DATASTORE.value)
     val r = Rest.createDatastore(STORAGE_POLICY)
     if (r == CODE_CONFLICT_POST.value){
@@ -390,6 +404,7 @@ object SmartMeteringSpark {
       return
     }
     else LOGGER.warning("Datastore " + DATASTORE.value + " created.")
+    */
 
     //faz agregacao ou totalizacao e envio para o banco
 
@@ -437,6 +452,7 @@ object SmartMeteringSpark {
 
       LOGGER.warning("------> KVS storing time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
+/*
       //salva os que deram erro ao enviar
       val not_sent_data = http_data_responses.filter(x => x._2 != CODE_OK_POST.value && x._2 != CODE_CONFLICT_POST.value).join(sm_final).map(x=>(x._1,x._2._2))
 
@@ -453,6 +469,10 @@ object SmartMeteringSpark {
         LOGGER.warning("All data has been succesfully sent.")
         return 0
       }
+      */
+
+      println("IT'S OK!!!")
+      return 0;
     }
 
     //cria o rdd com a agregacao das empresas a partir do arquivo e envia os dados
@@ -507,7 +527,7 @@ object SmartMeteringSpark {
       }
 
       //empresas que enviaram dados mas nao enviaram totalizadores
-      val companies = sc.parallelize(get_result._2).map(x=>(x.split(";")(0),x.split(";")(1).toInt)).aggregateByKey(0)((s:Int, v:Int) => s+v, (s:Int, v:Int) => s+v).filter(x=>x._2 == 0).map(x=>x._1)
+      val companies = sc.parallelize(get_result._2).map(x=>{println("x=" + x); (x.split(";")(0),x.split(";")(1).toInt)}).aggregateByKey(0)((s:Int, v:Int) => s+v, (s:Int, v:Int) => s+v).filter(x=>x._2 == 0).map(x=>x._1)
 
       LOGGER.warning("Getting companies data from KVS ...")
 
