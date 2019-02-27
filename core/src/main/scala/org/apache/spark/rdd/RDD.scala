@@ -1547,7 +1547,7 @@ abstract class RDD[T: ClassTag](
     //
     // Therefore, here we provide an explicit Ordering `null` to make sure the compiler generate
     // same bytecodes for `saveAsTextFile`.
-    val dataRDD: RDD[T] = if (!SgxSettings.SGX_ENABLED) {
+    val dataRDD: RDD[T] = if (SgxSettings.SGX_ENABLED) {
       val colData = this.collect()
       sc.makeRDD(colData, numSlices = 1)
     } else {
