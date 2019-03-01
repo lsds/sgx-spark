@@ -23,8 +23,14 @@ DATASTORE_URL=https://kvs.lsd.ufcg.edu.br:7778/datastores/   # HTTPS
 DATASTORE_NAME=sparkdemo
 
 if [ $MODE -eq 0 ]; then
-	INFILE=$(pwd)/phasor/e100/phasor50k.txt
+	#INFILE=$(pwd)/phasor/e100/phasor50k.txt
+	INFILE=hdfs://spark-master:9000/phasor50k.txt
 	OUTFILE=$INOUT_DIR
+
+	# clean the datastore
+	curl -k -H "Authorization: ApiKey 0131Byd7N220T32qp088kIT53ryT113i0123456789012345" -X "DELETE" ${DATASTORE_URL}${DATASTORE_NAME}/
+	curl -k  -d 'name=sparkdemo&storage_policy_name=sparkdemo_sp' -H "Authorization: ApiKey 0131Byd7N220T32qp088kIT53ryT113i0123456789012345" -H "Content-Type: application/x-www-form-urlencoded" -X POST ${DATASTORE_URL}
+
 	rm -rf $OUTFILE
 	rm -rf $OUTFILE2
 #	mkdir $OUTFILE
@@ -38,6 +44,8 @@ else
 	echo $MODE is unknown
 	exit 0
 fi
+
+#--conf "spark.default.parallelism=1" \
 
 ./bin/spark-submit \
 --class org.apache.spark.examples.utfpr.SmartMeteringSpark \
@@ -53,5 +61,5 @@ fi
 --conf "spark.driver.extraLibraryPath=$(pwd)/lib" \
 --conf "spark.driver.extraClassPath=$(pwd)/assembly/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/examples/target/scala-${SCALA_VERSION}/jars/*:$(pwd)/sgx-spark-common/target/*:$(pwd)/sgx-spark-shm/target/*" \
 --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$(pwd)/conf/log4j.properties" \
---conf "spark.default.parallelism=1" \
 examples/target/scala-${SCALA_VERSION}/jars/spark-examples_${SCALA_VERSION}-${SPARK_VERSION}.jar $MODE $DATASTORE_URL $DATASTORE_NAME $INFILE $OUTFILE 2>&1 | tee outside-driver
+
