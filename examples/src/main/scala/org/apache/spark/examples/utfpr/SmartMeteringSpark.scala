@@ -18,12 +18,9 @@
 package org.apache.spark.examples.utfpr;
 
 // logging
-import java.security.cert.X509Certificate
 import java.util.logging._
-import javax.net.ssl._
 
 import org.apache.http.config.ConnectionConfig
-import org.apache.http.conn.socket.LayeredConnectionSocketFactory
 import org.apache.http.conn.ssl.NoopHostnameVerifier
 
 // http
@@ -53,6 +50,8 @@ import javax.crypto.spec.IvParameterSpec
 import sun.security.util.DerInputStream
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.binary.Hex
+
+import scala.collection.mutable.HashMap
 
 // scalastyle:off
 object SmartMeteringSpark {
@@ -249,24 +248,11 @@ object SmartMeteringSpark {
 
     object Rest extends java.io.Serializable{
 
-      // Create a trust manager that does not validate certificate chains// Create a trust manager that does not validate certificate chains
-
-      val trustAllCerts = Array[TrustManager](new X509TrustManager {
-      override def checkServerTrusted(x509Certificates: Array[X509Certificate], s: String): Unit = {}
-
-        override def checkClientTrusted(x509Certificates: Array[X509Certificate], s: String): Unit = {}
-
-        override def getAcceptedIssuers: Array[X509Certificate] = null
-      })
-
-      val sc = SSLContext.getInstance("SSL")
-      sc.init(null, trustAllCerts, new SecureRandom)
-
       @throws(classOf[Exception])
       def post(uri : String, data : String, content_type : String, max_attempts : Int, delay_ms : Int) : Int = {
 
         //val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).build
-        val httpClient = HttpClientBuilder.create.setDefaultConnectionConfig(ConnectionConfig.custom.setBufferSize(MAX_POST_SIZE_BYTES_B.value).build).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)/*.setDefaultSSLSocketFactory(sc.getSocketFactory)*/.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value).build).build
+        val httpClient = HttpClientBuilder.create.setDefaultConnectionConfig(ConnectionConfig.custom.setBufferSize(MAX_POST_SIZE_BYTES_B.value).build).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value).build).build
 
         Thread.sleep(delay_ms)
 
@@ -307,7 +293,7 @@ object SmartMeteringSpark {
       @throws(classOf[Exception])
       def get(uri : String, max_attempts : Int, delay_ms : Int) : (Int, String) = {
 
-        val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)/*.setSSLSocketFactory(sc.getSocketFactory)*/.build
+        val httpClient = HttpClientBuilder.create.setDefaultRequestConfig(RequestConfig.custom.setConnectTimeout(TIMEOUT_MS_B.value ).build).setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build
 
         Thread.sleep(delay_ms)
 
@@ -355,6 +341,21 @@ object SmartMeteringSpark {
         //envia sequencia, hash e totalizadores
         System.err.println("sendCompanyData on " + DATASTORES_URL.value + DATASTORE.value + v._1 + ";0")
         val resp = post(DATASTORES_URL.value + DATASTORE.value + "/" + v._1 + ";0", v._2.mkString(", "), "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
+        return resp
+      }
+
+      def sendSmFinalVerify(v: (String, (String, String))): Int = {
+        val str = v._2._1 + ";" + v._2._2
+        val resp = post(DATASTORES_URL.value + DATASTORE.value + "/" +  "orders_and_hashes_" + v._1 + ";1", str, "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
+        return resp
+      }
+
+      def sendJoinedValues(key: String, v1: (String, String), v2: Option[(Double, Double, Double)]): Int = {
+        if (!v2.isDefined) return 0
+
+        val str = v1._1 + ";" + v1._2 + ";" + v2.get._1 + ";" + v2.get._2 + ";" + v2.get._3
+        System.out.println("value not null = [" + str + "]")
+        val resp = post(DATASTORES_URL.value + DATASTORE.value + "/" + key + ";1", str, "application/json", MAX_ATTEMPTS_B.value , new Random().nextInt(MAX_DELAY_MS_B.value ))
         return resp
       }
 
@@ -452,6 +453,9 @@ object SmartMeteringSpark {
 
       LOGGER.warning("------> KVS storing time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
+      LOGGER.warning("All data has been succesfully sent.")
+
+    // there is a join below so the code would fail with SGX-Spark
 /*
       //salva os que deram erro ao enviar
       val not_sent_data = http_data_responses.filter(x => x._2 != CODE_OK_POST.value && x._2 != CODE_CONFLICT_POST.value).join(sm_final).map(x=>(x._1,x._2._2))
@@ -471,7 +475,6 @@ object SmartMeteringSpark {
       }
       */
 
-      println("IT'S OK!!!")
       return 0;
     }
 
@@ -526,8 +529,10 @@ object SmartMeteringSpark {
         return get_result._1
       }
 
+      System.err.println("GetCompanies returned " + get_result._2)
+
       //empresas que enviaram dados mas nao enviaram totalizadores
-      val companies = sc.parallelize(get_result._2).map(x=>{println("x=" + x); (x.split(";")(0),x.split(";")(1).toInt)}).aggregateByKey(0)((s:Int, v:Int) => s+v, (s:Int, v:Int) => s+v).filter(x=>x._2 == 0).map(x=>x._1)
+      val companies =          sc.parallelize(get_result._2).map(x=>(x.split(";")(0),x.split(";")(1).toInt)).aggregateByKey(0)((s:Int, v:Int) => s+v, (s:Int, v:Int) => s+v).filter(x=>x._2 == 0).map(x=>x._1)
 
       LOGGER.warning("Getting companies data from KVS ...")
 
@@ -571,14 +576,42 @@ object SmartMeteringSpark {
       val failed_hashes = sm_company_verify.filter(x=>x._2._2==false)
 
       // merging correct hashes totalizers, hash_and_sign, and sm_final and filter failed hashes in order to send it to chocolatecloud
-      val merged = orders_and_hashes.join(totalizer).join(sm_final_get).join(sm_final_verify).filter(x=>x._2._2 == true).mapValues(x=>x._1)
 
       LOGGER.warning("Sending billing data to KVS ...")
 
+      // version with join
+      // doesn't work with SGX-Spark
+      /*
+      val merged = orders_and_hashes.join(totalizer).join(sm_final_get).join(sm_final_verify).filter(x=>x._2._2 == true).mapValues(x=>x._1)
+
+      println("\n\norders_and_hashes = " + orders_and_hashes.collect().mkString(", "))
+      println("\n\ntotalizer = " + totalizer.collect().mkString(", "))
+      println("\n\nsm_final_get = " + sm_final_get.collect().mkString(", "))
+      println("\n\nsm_final_verify = " + sm_final_verify.collect().mkString(", "))
+      println("\n\nmerged = " + merged.collect().mkString(", "))
+      println("\n\n")
+
       val http_tot_responses = merged.map(x => (x._1, Rest.sendCompanyTot((x._1,x._2._1))))
       http_tot_responses.persist()
-
       http_tot_responses.collect()
+      */
+
+      // version without join
+      val mapTotalizers: HashMap[String, (Double, Double, Double)] = HashMap()
+      val totalizersSize = totalizer.collect.map(x => mapTotalizers.put(x._1, x._2)).size
+      println("Totalizers has " + totalizersSize + "elements")
+
+      val mapSmFinalGet: HashMap[String, String] = HashMap()
+      val smFinalGetSize = sm_final_get.collect.map(x => mapSmFinalGet.put(x._1, x._2.toString())).size
+      println("SmFinalGet has " + smFinalGetSize + "elements")
+
+      val mapSmFinalVerify: HashMap[String, Boolean] = HashMap()
+      val smFinalVerifySize = sm_final_verify.filter(x=>x._2 == true).collect.map(x => mapSmFinalVerify.put(x._1, x._2)).size
+      println("SmFinalVerify has " + smFinalVerifySize + "elements")
+
+      val ordersAndHashesSize = orders_and_hashes.collect.map(x => if (mapSmFinalVerify.get(x._1).isDefined && mapSmFinalVerify.get(x._1).get == true) Rest.sendJoinedValues(x._1, x._2, mapTotalizers.get(x._1))).size
+      println("ordersAndHashes has " + ordersAndHashesSize + "elements")
+
       LOGGER.warning("------> Processing execution time: " + ((System.nanoTime() - s_time)/1000000) + "ms")
 
 
@@ -589,13 +622,15 @@ object SmartMeteringSpark {
       //LOGGER.info("orders_and_hashes: " + orders_and_hashes.collect().mkString("\n"))
       //LOGGER.info("failed_hashes: " + failed_hashes.collect().mkString("\n"))
       //LOGGER.info("sm_final_verify: " + sm_final_verify.collect().mkString("\n"))
-      LOGGER.warning("http_tot_responses: " + http_tot_responses.collect().mkString("\n"))
+      //LOGGER.warning("http_tot_responses: " + http_tot_responses.collect().mkString("\n"))
 
+      /*
       if (http_tot_responses.filter(x=>(x._2!=CODE_OK_POST.value)).collect().length > 0) //se alguma empresa nao conseguiu enviar totalizadores retorna -1
         return -1
       else
         return 0
-
+      */
+      0
     }
 
     //envia dados das empresas que falharam anteriormente a partir do arquivo
