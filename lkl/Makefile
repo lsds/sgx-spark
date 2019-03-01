@@ -55,10 +55,12 @@ finalize-image:
 
 	sudo cp -r ../conf $(MOUNTPOINT)/$(SPARK_DIR)/
 	sudo cp -r ../assembly/target/scala-2.11/jars $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/
-	sudo cp    ../sgx/target/*jar $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/jars/
-	sudo cp    ../shm/target/*jar $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/jars/
+	sudo cp    ../sgx-spark-common/target/*jar $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/jars/
+	sudo cp    ../sgx-spark-shm/target/*jar $(MOUNTPOINT)/$(SPARK_DIR)/assembly/target/scala-2.11/jars/
 	sudo cp    ../examples/target/scala-2.11/jars/spark-examples_2.11-2.3.2-SGX.jar $(MOUNTPOINT)/$(SPARK_DIR)/examples/target/scala-2.11/jars/
-
+	sudo cp    /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/security/cacerts $(MOUNTPOINT)/opt/j2re-image/lib/security/
+	sudo cp    /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/security/nss.cfg $(MOUNTPOINT)/opt/j2re-image/lib/security/
+		   
 	sudo umount $(MOUNTPOINT)
 
 clean:

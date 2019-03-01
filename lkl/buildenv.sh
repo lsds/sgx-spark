@@ -9,7 +9,7 @@ cat /etc/apk/repositories
 echo "http://dl-cdn.alpinelinux.org/alpine/v3.7/community" >> /etc/apk/repositories
 
 apk update
-apk add iputils iproute2 unzip libstdc++ gcc musl-dev
+apk add iputils iproute2 unzip libstdc++ gcc musl-dev nss
 
 cd /spark/lib
 gcc -I. -shared -fpic -o libringbuff.so *.c
