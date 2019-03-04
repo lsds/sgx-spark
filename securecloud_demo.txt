@@ -1,0 +1,107 @@
+== Machines ==
+spark-master: master + client (submit job), HDFS namenode
+spark-slave1: worker1, HDFS datanode
+spark-slave2: worker2, HDFS datanode
+
+To ssh:
+```
+local$ ssh -A -i utfpr-key.ppk ubuntu@150.165.15.71
+spark-master$ ssh spark-slave[1-2]
+```
+
+
+== SGX-Spark ==
+
+We suppose you want to use SGX and you want to use HDFS encryption. The scripts are already configured for this.
+There are 2 modes: without SGX-LKL and with SGX-LKL. The first mode doesn't use SGX-LKL but still uses the 2 concurrent JVMs design.
+
+
+You need to run the following scripts:
+```
+spark-master$ ./start_utfpr_demo.sh 0		# steps 1-5 of manual instructions below
+spark-master$ ./start_utfpr_demo.sh 1	 	# steps 1-2,4,6-7 of manual instructions below
+```
+
+
+== HDFS ==
+
+On each machine there is a screen named hdfs in which the HDFS nodes are started. You normally don't have anything to do, unless there is a problem with HDFS (e.g., crash, reboot of the machine).
+
+To enter it, after connecting to the machine do `screen -r hdfs`. To leave the screen, press `ctrl+a` then `d`
+All the commands below have to be run from the `/home/ubuntu/hadoop-3.1.0-src/install/hadoop-3.1.0` directory.
+
+The procedure to start HDFS from scratch is as follow:
+spark-master$ ./bin/hdfs namenode -format sgxspark
+spark-master$ ./bin/hdfs namenode
+
+spark-slave1$ ./bin/hdfs datanode
+spark-slave2$./bin/hdfs datanode
+
+# now HDFS has started. You can leave screen. It's time to add data!
+# the other input files are in /home/ubuntu/sgx-spark/phasor/
+spark-master$ HDFS_ENCRYPTION=true ./bin/hdfs dfs -copyFromLocal /home/ubuntu/sgx-spark/phasor/e100/phasor50k.txt /phasor50k.txt
+
+
+# you have copied input data to HDFS, congrats! The data is now stored encrypted on HDFS.
+# you can copy other input data if you want
+# if you set HDFS_ENCRYPTION=false or omit it then the data will be stored on HDFS in plain text.
+```
+
+== SGX-Spark manual instructions in case of problems ==
+
+Every command needs to be run from /home/ubuntu/sgx-spark.
+
+0) verify the setup:
+0.1) spark-master:
+```
+$ cat variables.sh
+export SGX_ENABLED=false
+export USE_HDFS_ENCRYPTION=false
+
+$ cat submitutfpr.sh # these are the default values
+DATASTORE_URL=https://kvs.lsd.ufcg.edu.br:7778/datastores/   # HTTPS
+DATASTORE_NAME=sparkdemo
+INFILE=hdfs://spark-master:9000/phasor50k.txt
+```
+0.2) each worker
+```
+$ cat variables.sh
+export SGX_ENABLED=true
+export USE_HDFS_ENCRYPTION=true
+```
+
+1) kill old spark instances on each node: `$ ./kill_local_spark.sh`
+2) start the master
+spark-master$ ./master.sh
+3) delete and re-create the sparkdemo datastore (storage policy is sparkdemo_sp)
+
+4) start each worker (2 terminals per worker as you need to issue 2 commands, one after the others, but the programs stay in the foreground)
+```
+spark-slave[1-2]$ rm -rf /dev/shm/sgx-lkl-shmem*; ./worker.sh # run the untrusted worker side
+
+# you need to choose between without SGX-LKL and with SGX-LKL, so run one of these two commands:
+spark-slave[1-2]$ ./worker-enclave-nosgx.sh # without SGX-LKL, or
+spark-slave[1-2]$ ./worker-enclave.sh # with SGX-LKL
+```
+Note that if you want to use SGX-LKL you need to ensure that the tap device is on (see below)
+5) run the job in mode 0
+`spark-master$ ./submitutfpr.sh 0`
+6) before running mode 1, you need to kill and restart the workers, otherwise the execution will get stuck. ctrl-c in each of the worker terminals is enough, then do step 3 again.
+7) run the job in mode 1:
+`spark-master$ ./submitutfpr.sh 1`
+
+== SGX-LKL networking ==
+
+Normally you don't have to do anything here.
+Run these commands at each worker if the `sgxlkl_tap0` network device doesn't exist (do `ifconfig` to check)
+```
+sudo ip tuntap add dev sgxlkl_tap0 mode tap user `whoami`
+sudo ip link set dev sgxlkl_tap0 up
+sudo ip addr add dev sgxlkl_tap0 10.0.1.254/24
+
+sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
+
+sudo sysctl -w net.ipv4.ip_forward=1
+```
