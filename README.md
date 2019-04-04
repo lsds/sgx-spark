@@ -1,115 +1,256 @@
 # Sgx-Spark
 
-Please read the [dedicated Sgx-Spark readme file](SgxREADME.md) for how to
-compile and run Sgx-Spark.
+This is [Apache Spark](https://github.com/apache/spark) with modifications to run
+security sensitive code inside Intel SGX enclaves. The implementation leverages
+[sgx-lkl](https://github.com/lsds/sgx-lkl), a library OS that allows to run
+Java-based applications inside SGX enclaves.
 
-The description below is for the original Apache Spark project.
-This avoids merge conflicts when tracking the upstream project.
+## Docker quick start
 
-# Apache Spark
+This guide shows how to run Sgx-Spark in a few simple steps using Docker. 
+Most parts of the setup and deployment are wrapped within Docker containers.
+Compliation and deployment should thus be smooth.
 
-Spark is a fast and general cluster computing system for Big Data. It provides
-high-level APIs in Scala, Java, Python, and R, and an optimized engine that
-supports general computation graphs for data analysis. It also supports a
-rich set of higher-level tools including Spark SQL for SQL and DataFrames,
-MLlib for machine learning, GraphX for graph processing,
-and Spark Streaming for stream processing.
+### Preparing the Sgx-Spark Docker environment
 
-<http://spark.apache.org/>
+- Clone this Sgx-Spark repository
+
+- Build the Sgx-Spark base image. The name of the resulting Docker image is `sgxpsark`. This process might take a while (30-60 mins):
+    
+        sgx-spark/dockerfiles$ docker build -t sgxspark .
+
+- Prepare the disk image that will be required by sgx-lkl. Due to restrictions of Docker, this step can currently not be implemented as part of the above Docker build process. Thus, this step is platform-dependent. The process has been successfully tested on Ubuntu 16.04 and Arch Linux:
+
+        sgx-spark/lkl$ make prepare-image
+
+- Create a Docker network device that will be used for communication by the Docker containers. 
+Note that by creating a user-defined network, Docker will create an embedded DNS server so that workers can find the Spark master by name.
+
+        sgx-spark$ docker network create sgxsparknet
+
+### Running Sgx-Spark jobs using Docker
 
 
-## Online Documentation
+From within directory `sgx-spark/dockerfiles`, run the Sgx-Spark master node,
+the Sgx-Spark worker node, as well as the actual Sgx-Spark job as follows.
 
-You can find the latest Spark documentation, including a programming
-guide, on the [project web page](http://spark.apache.org/documentation.html).
-This README file only contains basic setup instructions.
+- Run the Sgx-Spark master node:
 
-## Building Spark
+        sgx-spark/dockerfiles$ docker run \
+        --user user \
+        --env-file $(pwd)/docker-env \
+        --net sgxsparknet \
+        --name sgxspark-docker-master \
+        -p 7077:7077 \
+        -p 8082:8082 \
+        -ti sgxspark /sgx-spark/master.sh
 
-Spark is built using [Apache Maven](http://maven.apache.org/).
-To build Spark and its example programs, run:
+- Run the Sgx-Spark worker node:
 
-    build/mvn -DskipTests clean package
+        sgx-spark/dockerfiles$ docker run \
+        --user user \
+        --memory="4g" \
+        --shm-size="8g" \
+        --env-file $(pwd)/docker-env \
+        --net sgxsparknet \
+        --privileged \
+        -v $(pwd)/../lkl:/spark-image:ro \
+        -ti sgxspark /sgx-spark/worker-and-enclave.sh
 
-To install
+- Run the Sgx-Spark job as follows.
 
-    build/mvn -DskipTests install
+    As of writing, the three jobs below are known to be fully supported:
 
-(You do not need to do this if you downloaded a pre-built package.)
+    - WordCount
+    
+            sgx-spark/dockerfiles$ docker run \
+            --user user \
+            --memory="4g" \
+            --shm-size="8g" \
+            --env-file $(pwd)/docker-env \
+            --net sgxsparknet \
+            --privileged \
+            -v $(pwd)/../lkl:/spark-image:ro \
+            -e SPARK_JOB_CLASS=org.apache.spark.examples.MyWordCount \
+            -e SPARK_JOB_NAME=WordCount \
+            -e SPARK_JOB_ARG0=README.md \
+            -e SPARK_JOB_ARG1=output \
+            -ti sgxspark /sgx-spark/driver-and-enclave.sh
+        
+    - KMeans
 
-You can build Spark using more than one thread by using the -T option with Maven, see ["Parallel builds in Maven 3"](https://cwiki.apache.org/confluence/display/MAVEN/Parallel+builds+in+Maven+3).
-More detailed documentation is available from the project site, at
-["Building Spark"](http://spark.apache.org/docs/latest/building-spark.html).
+            sgx-spark/dockerfiles$ docker run \
+            --user user \
+            --memory="4g" \
+            --shm-size="8g" \
+            --env-file $(pwd)/docker-env \
+            --net sgxsparknet \
+            --privileged \
+            -v $(pwd)/../lkl:/spark-image:ro \
+            -e SPARK_JOB_CLASS=org.apache.spark.examples.mllib.KMeansExample \
+            -e SPARK_JOB_NAME=KMeans \
+            -e SPARK_JOB_ARG0=data/mllib/kmeans_data.txt \
+            -ti sgxspark /sgx-spark/driver-and-enclave.sh
 
-For general development tips, including info on developing Spark using an IDE, see ["Useful Developer Tools"](http://spark.apache.org/developer-tools.html).
+    - LineCount
+    
+            sgx-spark/dockerfiles$ docker run \
+            --user user \
+            --memory="4g" \
+            --shm-size="8g" \
+            --env-file $(pwd)/docker-env \
+            --net sgxsparknet \
+            --privileged \
+            -v $(pwd)/../lkl:/spark-image:ro \
+            -e SPARK_JOB_CLASS=org.apache.spark.examples.LineCount \
+            -e SPARK_JOB_NAME=LineCount \
+            -e SPARK_JOB_ARG0=SgxREADME.md \
+            -ti sgxspark /sgx-spark/driver-and-enclave.sh
 
-## Interactive Scala Shell
+## Native compilation, installation and deployment
 
-The easiest way to start using Spark is through the Scala shell:
+To run Sgx-Spark natively, proceed as detailed in the following.
 
-    ./bin/spark-shell
+### Install package dependencies
 
-Try the following command, which should return 1000:
+Install all required dependencies. For Ubuntu 16.04, these can be installed as follows:
 
-    scala> sc.parallelize(1 to 1000).count()
+    $ sudo apt-get update
+    $ sudo apt-get install -y --no-install-recommends scala libtool autoconf curl xutils-dev git build-essential maven openjdk-8-jdk ssh bc python autogen wget autotools-dev sudo automake
+		
+### Compile and install Google Protocol Buffer 2.5.0
 
-## Interactive Python Shell
+Hadoop, and thus Spark, depends on Google Protocol Buffers (GPB) in version 2.5.0:
 
-Alternatively, if you prefer Python, you can use the Python shell:
+- Make sure to uninstall any other versions of GPB
+    
+- Install GPB v2.5.0. Instructions for Ubuntu 16.04 are as follows:
 
-    ./bin/pyspark
+        $ cd /tmp
+        /tmp$ wget https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.gz
+    	/tmp$ tar xvf protobuf-2.5.0.tar.gz
+    	/tmp$ cd protobuf-2.5.0
+    	/tmp/protobuf-2.5.0$ ./autogen.sh && ./configure && make && sudo make install
+    	/tmp/protobuf-2.5.0$ sudo apt-get install -y --no-install-recommends libprotoc-dev
 
-And run the following command, which should also return 1000:
 
-    >>> sc.parallelize(range(1000)).count()
+    Instructions for Arch Linux are available at https://stackoverflow.com/a/29799354/2273470.
 
-## Example Programs
+### Compile sgx-lkl
 
-Spark also comes with several sample programs in the `examples` directory.
-To run one of them, use `./bin/run-example <class> [params]`. For example:
+As Sgx-Spark uses [sgx-lkl](https://lsds.doc.ic.ac.uk/gitlab/sereca/sgx-lkl), the
+latter must have been downloaded and compiled successfully. As of writing (June 14, 2018),
+`sgx-lkl` should be compiled using branch `cleanup-musl`. Please
+follow the documentation of sgx-lkl and ensure that your
+installation of sgx-lkl executes simple Java applications successfully.
 
-    ./bin/run-example SparkPi
+### Compile Sgx-Spark
 
-will run the Pi example locally.
+    sgx-spark$ build/mvn -DskipTests package
 
-You can set the MASTER environment variable when running examples to submit
-examples to a cluster. This can be a mesos:// or spark:// URL,
-"yarn" to run on YARN, and "local" to run
-locally with one thread, or "local[N]" to run locally with N threads. You
-can also use an abbreviated class name if the class is in the `examples`
-package. For instance:
+- As part of this compilation process, a modified Hadoop library has been compiled. Copy the Hadoop JAR file into the Sgx-Spark jars directory:
 
-    MASTER=spark://host:7077 ./bin/run-example SparkPi
+        sgx-spark$ cp hadoop-2.6.5-src/hadoop-common-project/hadoop-common/target/hadoop-common-2.6.5.jar assembly/target/scala-2.11/jars/
+    
+- Sgx-Spark ships with a native C library (`libringbuff.so`) that enables shared-memory-based communication between two JVMs. Compile as follows:
+ 
+        sgx-spark/C$ make install
 
-Many of the example programs print usage help if no params are given.
+### Prepare the Sgx-Spark disk images that will be run using sgx-lkl
 
-## Running Tests
+- Adjust file `spark-sgx/lkl/Makefile` for your environment:
 
-Testing first requires [building Spark](#building-spark). Once Spark is built, tests
-can be run using:
+    Variable `SGX_LKL` must point to your `sgx-lkl` directory (see [Prerequisites](#prerequisites)). 
+ 
+- Build the Sgx-Spark disk image required for sgx-lkl:
 
-    ./dev/run-tests
+        sgx-spark/lkl$ make clean all
 
-Please see the guidance on how to
-[run tests for a module, or individual tests](http://spark.apache.org/developer-tools.html#individual-tests).
+### Run Sgx-Spark using sgx-lkl
 
-## A Note About Hadoop Versions
+Finally, we are ready to run (i) the Sgx-Spark master node,
+(ii) the Sgx-Spark worker node, (iii) the worker's enclave, (iv) the Sgx-Spark client, 
+and (v) the client's enclave. In the following commands, replace: `<hostname>` with
+the master node's actual hostname; `<sgx-lkl>` with the path to your `sgx-lkl` installation.
 
-Spark uses the Hadoop core library to talk to HDFS and other Hadoop-supported
-storage systems. Because the protocols have changed in different versions of
-Hadoop, you must build Spark against the same version that your cluster runs.
+*Note*: After running each example, make sure to (i) restart all processes, (ii) delete all shared memory files in `/dev/shm`.
 
-Please refer to the build documentation at
-["Specifying the Hadoop Version"](http://spark.apache.org/docs/latest/building-spark.html#specifying-the-hadoop-version)
-for detailed guidance on building for a particular distribution of Hadoop, including
-building for particular Hive and Hive Thriftserver distributions.
+- If you run all the nodes locally, you need to add the following line to `variables.sh`:
 
-## Configuration
+		export SPARK_LOCAL_IP=127.0.0.1
 
-Please refer to the [Configuration Guide](http://spark.apache.org/docs/latest/configuration.html)
-in the online documentation for an overview on how to configure Spark.
+- Run the Master node
 
-## Contributing
+        sgx-spark$ ./master.sh
 
-Please review the [Contribution to Spark guide](http://spark.apache.org/contributing.html)
-for information on how to get started contributing to the project.
+- Run the Worker node
+
+        sgx-spark$ ./worker.sh
+
+- Run the enclave for the Worker node
+
+        sgx-spark$ ./worker-enclave.sh
+
+- Run the enclave for the driver program. *This is the process that will output the job results!*
+
+        sgx-spark$ ./driver-enclave.sh
+
+- Finally, submit a Spark job. The result will be output in the process we started just before.
+
+    - WordCount
+
+            sgx-spark$ ./submitwordcount.sh
+    
+    - KMeans
+
+            sgx-spark$ ./submitkmeans.sh
+            
+    - LineCount
+    
+            sgx-spark$ ./submitlinecount.sh
+
+### Native execution of the same Spark installation
+
+In order to run the above installation without SGX, start your environment as follows:
+
+- Start the Master node as above
+
+- Start the Worker node as above, but change environment variable `SGX_ENABLED=true` to `SGX_ENABLED=false`
+
+- Do not start the enclaves
+
+- Submit the Spark job as above, but change evironment variable `SGX_ENABLED=true` to `SGX_ENABLED=false`
+
+## Important developer notes
+
+### Code changes and recompilation
+
+There are a few important things to keep in mind when developing Sgx-Spark:
+
+- Whenever you change parts of the code, obviously, you must recompile the Spark code
+
+        sgx-spark$ mvn package -DskipTests
+    
+    There have been (not clearly definable) situations in which the above command did not compile all of the changed files. In this case, issue:
+    
+        sgx-spark$ mvn clean package -DskipTests
+
+- After making changes to the Sgx-Spark code and after compiling the Java/Scala code (see above), you *always* need to rebuild the lkl image that will be used by sgx-lkl:
+
+        sgx-spark/lkl$ make clean all
+
+- If you changed parts of the Hadoop code (in directory `hadoop-2.6.5-src`), you will also need to copy the resulting `*jar` file:
+
+        sgx-spark$ cp hadoop-2.6.5-src/hadoop-common-project/hadoop-common/target/hadoop-common-2.6.5.jar assembly/target/scala-2.11/jars/
+
+- Lastly, do not forget to remove all related shared memory files in `/dev/shm/` before running your next experiment!
+
+### Running without sgx-lkl
+
+Development with sgx-lkl can be tedious. For development purposes, a special flag allows to run the
+enclave-side of Sgx-Spark in a regular JVM rather than on top of sgx-lkl. To make use of this feature,
+run the enclave JVMs using scripts `worker-enclave-nosgx.sh` and `driver-enclave-nosgx.sh`.
+
+Under the hood, these scripts set environment variable `DEBUG_IS_ENCLAVE_REAL=false` (defaults to `true`) and
+provide the JVM with a value for environment variable `SGXLKL_SHMEM_FILE`. Note that the value of `SGXLKL_SHMEM_FILE`
+must be the same as the one provided for the corresponding Worker (`worker.sh`) and Driver (`driver.sh`).
