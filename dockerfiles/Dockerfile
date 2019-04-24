@@ -33,6 +33,8 @@ RUN     apt-get update && \
 			  autotools-dev \
 			  sudo \
 			  automake \
+			  bison \
+			  flex \
 			  && apt-get clean \
 			  && apt-get autoclean \
 			  && rm -rf /var/lib/apt/lists/*
