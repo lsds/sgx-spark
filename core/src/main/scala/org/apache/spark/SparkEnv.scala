@@ -28,6 +28,7 @@ import com.google.common.collect.MapMaker
 
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.api.python.PythonWorkerFactory
+import org.apache.spark.api.sgx.SGXWorkerFactory
 import org.apache.spark.broadcast.BroadcastManager
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
@@ -115,6 +116,14 @@ class SparkEnv (
     synchronized {
       val key = (pythonExec, envVars)
       pythonWorkers.getOrElseUpdate(key, new PythonWorkerFactory(pythonExec, envVars)).create()
+    }
+  }
+
+  private[spark]
+  def createSGXWorker(envVars: Map[String, String]): java.net.Socket = {
+    synchronized {
+      // Need to keep track of the workers
+     new SGXWorkerFactory(envVars).create()
     }
   }
 

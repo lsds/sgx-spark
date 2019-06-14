@@ -19,11 +19,11 @@ package org.apache.spark.rdd
 
 import java.util.Random
 
-import scala.collection.{mutable, Map}
+import scala.collection.{Map, mutable}
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Codec
 import scala.language.implicitConversions
-import scala.reflect.{classTag, ClassTag}
+import scala.reflect.{ClassTag, classTag}
 import scala.util.hashing
 
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus
@@ -35,6 +35,7 @@ import org.apache.spark._
 import org.apache.spark.Partitioner._
 import org.apache.spark.annotation.{DeveloperApi, Experimental, Since}
 import org.apache.spark.api.java.JavaRDD
+import org.apache.spark.api.sgx.SGXRDD
 import org.apache.spark.internal.Logging
 import org.apache.spark.partial.BoundedDouble
 import org.apache.spark.partial.CountEvaluator
@@ -1165,7 +1166,24 @@ abstract class RDD[T: ClassTag](
   /**
    * Return the number of elements in the RDD.
    */
-  def count(): Long = sc.runJob(this, Utils.getIteratorSize _).sum
+  def count(): Long = {
+    if (sc.getConf.isSparkSGXEnabled()) {
+      val countFunc = (itr: Iterator[Any]) => {
+        var count = 0L
+        println("Exec??")
+        while (itr.hasNext) {
+          count += 1L
+          println("Count:"+ count)
+          itr.next()
+        }
+        Array(count).iterator
+      }
+      val wrapped = new SGXRDD(this, countFunc, true)
+      sc.runJob(wrapped, Utils.getIteratorSize _).sum
+    } else {
+      sc.runJob(this, Utils.getIteratorSize _).sum
+    }
+  }
 
   /**
    * Approximate version of count() that returns a potentially incomplete result
