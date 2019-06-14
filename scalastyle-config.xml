@@ -73,7 +73,7 @@ This file is divided into 3 sections:
 
   <check level="error" class="org.scalastyle.file.WhitespaceEndOfLineChecker" enabled="true"></check>
 
-  <check level="error" class="org.scalastyle.file.FileLineLengthChecker" enabled="true">
+  <check level="error" class="org.scalastyle.file.FileLineLengthChecker" enabled="false">
     <parameters>
       <parameter name="maxLineLength"><![CDATA[100]]></parameter>
       <parameter name="tabSize"><![CDATA[2]]></parameter>
@@ -148,19 +148,6 @@ This file is divided into 3 sections:
       // scalastyle:off println
       println(...)
       // scalastyle:on println]]></customMessage>
-  </check>
-
-  <check customId="hadoopconfiguration" level="error" class="org.scalastyle.file.RegexChecker" enabled="true">
-    <parameters><parameter name="regex">spark(.sqlContext)?.sparkContext.hadoopConfiguration</parameter></parameters>
-    <customMessage><![CDATA[
-      Are you sure that you want to use sparkContext.hadoopConfiguration? In most cases, you should use
-      spark.sessionState.newHadoopConf() instead, so that the hadoop configurations specified in Spark session
-      configuration will come into effect.
-      If you must use sparkContext.hadoopConfiguration, wrap the code block with
-      // scalastyle:off hadoopconfiguration
-      spark.sparkContext.hadoopConfiguration...
-      // scalastyle:on hadoopconfiguration
-    ]]></customMessage>
   </check>
 
   <check customId="visiblefortesting" level="error" class="org.scalastyle.file.RegexChecker" enabled="true">
@@ -242,11 +229,11 @@ This file is divided into 3 sections:
 
   <check customId="extractopt" level="error" class="org.scalastyle.scalariform.TokenChecker" enabled="true">
     <parameters><parameter name="regex">extractOpt</parameter></parameters>
-    <customMessage>Use jsonOption(x).map(.extract[T]) instead of .extractOpt[T], as the latter
+    <customMessage>Use Utils.jsonOption(x).map(.extract[T]) instead of .extractOpt[T], as the latter
     is slower.  </customMessage>
   </check>
 
-  <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="true">
+  <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="false">
     <parameters>
       <parameter name="groups">java,scala,3rdParty,spark</parameter>
       <parameter name="group.java">javax?\..*</parameter>
@@ -270,7 +257,7 @@ This file is divided into 3 sections:
     ]]></customMessage>
   </check>
 
-  <check customId="NoScalaDoc" level="error" class="org.scalastyle.file.RegexChecker" enabled="true">
+  <check customId="NoScalaDoc" level="error" class="org.scalastyle.file.RegexChecker" enabled="false">
     <parameters><parameter name="regex">(?m)^(\s*)/[*][*].*$(\r|)\n^\1  [*]</parameter></parameters>
     <customMessage>Use Javadoc style indentation for multiline comments</customMessage>
   </check>
