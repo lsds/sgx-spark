@@ -195,6 +195,23 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
     this
   }
 
+  /** SPARK-SGX configuration */
+  def enableSparkSGX(): Unit = {
+    set("spark.sgx.enabled", true.toString)
+  }
+
+  def disableSparkSGX(): Unit = {
+    set("spark.sgx.enabled", false.toString)
+  }
+
+  def isSparkSGXEnabled(): Boolean = {
+    getOption("spark.sgx.enabled") match {
+      case Some("true") => true
+      case Some("false") => false
+      case _ => false
+    }
+  }
+
   /**
    * Use Kryo serialization and register the given set of classes with Kryo.
    * If called multiple times, this will append the classes from all calls together.
