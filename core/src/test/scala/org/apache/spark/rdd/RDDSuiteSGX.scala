@@ -78,6 +78,40 @@ class RDDSuiteSGX extends SparkFunSuite {
     }
   }
 
+  test("SGX socket timing test: strings") {
+    val baos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(baos)
+
+    val itemCount = 999999
+    val input: List[String] = List.tabulate(itemCount)(n => "Here's a new string, count: " + n)
+
+    var receivedCount = 0
+    time {
+      SGXRDD.writeIteratorToStream(input.iterator, dos)
+      dos.writeInt(SpecialChars.END_OF_DATA_SECTION)
+
+      val bais = new ByteArrayInputStream(baos.toByteArray)
+      val dis = new DataInputStream(bais)
+
+      val it = new ReaderIterator(dis)
+      while (it.hasNext) {
+        val next = it.next()
+        receivedCount += 1
+      }
+    }
+    assert(itemCount == receivedCount)
+  }
+
+  // Helper function to time the execution of a given block
+  def time[R](blockToTime: => R): R = {
+    val t0 = System.nanoTime()
+    val result = blockToTime
+    val t1 = System.nanoTime()
+    val duration = (t1 - t0) / 1e9d
+    println("Socket timing test elapsed: " + duration + " (seconds)");
+    result
+  }
+
   val test_func = (it: Iterator[String]) => {
     var sum = ""
     while (it.hasNext) {
