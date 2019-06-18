@@ -21,12 +21,13 @@ import java.io.{DataInputStream, DataOutputStream, IOException}
 import java.net.{InetAddress, Socket}
 import java.nio.ByteBuffer
 
-import org.apache.spark.api.sgx.{SGXRDD, SpecialChars}
+import org.apache.spark.api.sgx.{SGXRDD, SpecialSGXChars}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.JavaSerializer
-import org.apache.spark.{SparkConf, SparkEnv, SparkException, TaskContext}
+import org.apache.spark.{SparkException, TaskContext}
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 private[spark] class SGXWorker extends Logging {
   val SYSTEM_NAME = "sparkSGXWorker"
@@ -34,9 +35,6 @@ private[spark] class SGXWorker extends Logging {
 
   val shuffleMemoryBytesSpilled: Int = 0
   val shuffleDiskBytesSpilled: Int = 0
-
-  val serializer = new JavaSerializer(null)
-  val instance = serializer.newInstance()
 
   def process(inSock: DataInputStream, outSock: DataOutputStream): Unit = {
     val boot_time = System.nanoTime()
@@ -46,7 +44,7 @@ private[spark] class SGXWorker extends Logging {
       System.exit(-1)
     }
     val sgx_version = SGXRDD.readUTF(inSock)
-    println(s"Current SGX version ${sgx_version}")
+    logInfo(s"Current SGX version ${sgx_version}")
     val boundPort = inSock.readInt()
     val taskContext = TaskContext.get()
     val stageId = inSock.readInt()
@@ -60,34 +58,27 @@ private[spark] class SGXWorker extends Logging {
       val v = SGXRDD.readUTF(inSock)
       localProps(k) = v
     }
-
-    println(localProps.toList.toString())
-
     val spark_files_dir = SGXRDD.readUTF(inSock)
+
+    // Read Function Type & Function
     val eval_type = inSock.readInt()
-
-    println(eval_type)
-
     val func = readFunction(inSock)
-//    if (eval_type == SGXEvalType.NON_UDF) {
-//      logInfo("We are getting somewhere")
-//    }
 
     val init_time = System.nanoTime()
-    //    iterator = deserializer.load_stream(infile)
-    //    serializer.dump_stream(func(split_index, iterator), outfile)
+
+    // Read Iterator
     val iterator = new ReaderIterator(inSock)
-
     val res = func(iterator)
-    println("Do miracles happen??")
 
-    SGXRDD.writeIteratorToStream(res.asInstanceOf[Iterator[Any]], outSock)
-    outSock.writeInt(SpecialChars.END_OF_DATA_SECTION)
+    SGXRDD.writeIteratorToStream[Any](res.asInstanceOf[Iterator[Any]], SGXWorker.serInstance, outSock)
+    outSock.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
     outSock.flush()
 
     val finishTime = System.nanoTime()
 
-    outSock.writeInt(SpecialChars.END_OF_STREAM)
+    // Write reportTimes AND Shuffle timestamps
+
+    outSock.writeInt(SpecialSGXChars.END_OF_STREAM)
     outSock.flush()
     // send metrics etc
   }
@@ -98,24 +89,24 @@ private[spark] class SGXWorker extends Logging {
   }
 
   def reportTimes(outfile: DataOutputStream, bootTime: Long, initTime: Long, finishTime: Long): Unit = {
-    outfile.writeInt(SpecialChars.TIMING_DATA)
+    outfile.writeInt(SpecialSGXChars.TIMING_DATA)
     outfile.writeLong(bootTime)
     outfile.writeLong(initTime)
     outfile.writeLong(finishTime)
   }
 
-  def readFunction(in_sock: DataInputStream): (Iterator[Any]) => Any = {
-    val func_size = in_sock.readInt()
+  def readFunction(inSock: DataInputStream): (Iterator[Any]) => Any = {
+    val func_size = inSock.readInt()
     val obj = new Array[Byte](func_size)
-    in_sock.readFully(obj)
-    instance.deserialize[(Iterator[Any]) => Any](ByteBuffer.wrap(obj))
-//    SparkEnv.get.closureSerializer.newInstance().deserialize[(Iterator[Any]) => Any](ByteBuffer.wrap(obj))
+    inSock.readFully(obj)
+    SGXWorker.serInstance.deserialize[(Iterator[Any]) => Any](ByteBuffer.wrap(obj))
   }
 }
 
-private[spark] class ReaderIterator(stream: DataInputStream) extends Iterator[Array[Byte]] with Logging {
+// Data is encrypted thus Array[Byte] - we should decode them to a type[IN]
+private[spark] class ReaderIterator[IN: ClassTag](stream: DataInputStream) extends Iterator[IN] with Logging {
 
-  private var nextObj: Array[Byte] = _
+  private var nextObj: IN = _
   private var eos = false
 
   override def hasNext: Boolean = nextObj != null || {
@@ -127,10 +118,10 @@ private[spark] class ReaderIterator(stream: DataInputStream) extends Iterator[Ar
     }
   }
 
-  override def next(): Array[Byte] = {
+  override def next(): IN = {
     if (hasNext) {
       val obj = nextObj
-      nextObj = null.asInstanceOf[Array[Byte]]
+      nextObj = null.asInstanceOf[IN]
       obj
     } else {
       Iterator.empty.next()
@@ -147,29 +138,32 @@ private[spark] class ReaderIterator(stream: DataInputStream) extends Iterator[Ar
     * When the stream reaches end of data, needs to process the following sections,
     * and then returns null.
     */
-  protected def read(): Array[Byte] = {
+  protected def read(): IN = {
     try {
       stream.readInt() match {
         case length if length > 0 =>
           val obj = new Array[Byte](length)
           stream.readFully(obj)
-          return obj
-        case SpecialChars.END_OF_DATA_SECTION =>
+          val elem = SGXWorker.serInstance.deserialize[IN](ByteBuffer.wrap(obj))
+          return elem.asInstanceOf[IN]
+        case SpecialSGXChars.END_OF_DATA_SECTION =>
           eos = true
-          Array.empty[Byte]
-        case SpecialChars.NULL =>
-          Array.empty[Byte]
+        case SpecialSGXChars.NULL =>
       }
     } catch {
       case ex: Exception =>
         logError(s"Failed to get Data ${ex}")
     }
-    null
+    null.asInstanceOf[IN]
   }
 }
 
 
 private[deploy] object SGXWorker extends Logging {
+
+  val serializer = new JavaSerializer(null)
+  val serInstance = serializer.newInstance()
+
   def localConnect(port: Int): Socket = {
     try {
       val ia = InetAddress.getByName("localhost")

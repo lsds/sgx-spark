@@ -22,13 +22,12 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 
 import scala.collection.mutable
-
-import org.apache.spark.{Partition, Partitioner, SparkException, TaskContext}
+import org.apache.spark._
 import org.apache.spark.api.java.JavaRDD
 import org.apache.spark.api.python.SpecialLengths
-import org.apache.spark.input.PortableDataStream
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.serializer.SerializerInstance
 
 private[spark] class SGXRDD(parent: RDD[_],
                             func: (Iterator[Any]) => Any,
@@ -60,24 +59,15 @@ private[spark] object SGXRDD extends Logging {
   // remember the broadcasts sent to each worker
   private val workerBroadcasts = new mutable.WeakHashMap[Socket, mutable.Set[Long]]()
 
-  def writeIteratorToStream[T](iter: Iterator[T], dataOut: DataOutputStream) {
+  def writeIteratorToStream[T](iter: Iterator[T], serializer: SerializerInstance, dataOut: DataOutputStream) {
     def write(obj: Any): Unit = obj match {
       case null =>
         dataOut.writeInt(SpecialLengths.NULL)
-      case arr: Array[Byte] =>
-        dataOut.writeInt(arr.length)
-        dataOut.write(arr)
-      case str: String =>
-        writeUTF(str, dataOut)
-      case stream: PortableDataStream =>
-        write(stream.toArray())
-      case (key, value) =>
-        write(key)
-        write(value)
-      case l: Long =>
-        dataOut.writeLong(l)
-      case other =>
-        throw new SparkException("Unexpected element type " + other.getClass)
+      case _ =>
+        val outSerArray = serializer.serialize(obj).array()
+        dataOut.writeInt(outSerArray.length)
+        dataOut.write(outSerArray)
+        // throw new SparkException("Unexpected element type " + other.getClass)
     }
     iter.foreach(write)
   }
