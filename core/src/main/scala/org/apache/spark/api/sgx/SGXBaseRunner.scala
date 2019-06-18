@@ -19,6 +19,7 @@ package org.apache.spark.api.sgx
 
 import java.io._
 import java.net.{ServerSocket, Socket}
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -28,24 +29,19 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
-private[spark] object SGXEvalType {
-  val NON_UDF = 0
-  val SQL_BATCHED_UDF = 100
+import scala.reflect.{ClassTag}
 
-  def toString(sgxEvalType: Int): String = sgxEvalType match {
-    case NON_UDF => "NON_UDF"
-    case SQL_BATCHED_UDF => "SQL_BATCHED_UDF"
-  }
-}
-
-private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) => Any,
-                                                     evalType: Int) extends Logging {
+private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
+                                           func: (Iterator[Any]) => Any,
+                                           evalType: Int) extends Logging {
 
   private val conf = SparkEnv.get.conf
   private val bufferSize = conf.getInt("spark.buffer.size", 65536)
 
-  protected val envVars = collection.mutable.Map[String, String]()
+  val closureSer = SparkEnv.get.closureSerializer.newInstance()
+  val iteratorSer = SparkEnv.get.serializer.newInstance()
 
+  protected val envVars = collection.mutable.Map[String, String]()
   // Expose a ServerSocket to support method calls via socket from SGX side
   private[spark] var serverSocket: Option[ServerSocket] = None
 
@@ -59,14 +55,12 @@ private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) =>
     envVars.put("SPARK_LOCAL_DIRS", localdir) // it's also used in monitor thread
 
     val worker: Socket = env.createSGXWorker(envVars.toMap)
-
-    // Whether is the worker released into idle pool or closed.
+    // Whether is the worker released into idle pool or closed
+    // TODO: Reuse workers from the pool
     val releasedOrClosed = new AtomicBoolean(false)
 
     // Start a thread to feed the process input from our parent's iterator
     val writerThread = sgxWriterThread(env, worker, inputIterator, partitionIndex, context)
-//    log.info(s"SGX compute iterator write size: ${inputIterator.size}")
-
     // Add task completion Listener
     context.addTaskCompletionListener[Unit] { _ =>
       writerThread.shutdownOnTaskCompletion()
@@ -81,39 +75,29 @@ private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) =>
     }
 
     writerThread.start()
-
     // Return an iterator that read lines from the process's stdout
     val stream = new DataInputStream(new BufferedInputStream(worker.getInputStream, bufferSize))
-
-    val stdoutIterator = sgxReaderIterator(stream, writerThread, startTime, env, worker, releasedOrClosed, context)
+    val stdoutIterator = new ReaderIterator[OUT](stream, writerThread, startTime, env, worker, releasedOrClosed, context)
     logInfo(s"SGX compute iterator read done")
     new InterruptibleIterator(context, stdoutIterator)
   }
 
-  // TODO: Implement SharedMemory/Arrow support
+  // TODO: Implement SharedMemory / Arrow support
   protected def sgxWriterThread(env: SparkEnv,
                                 worker: Socket,
                                 inputIterator: Iterator[IN],
                                 partitionIndex: Int,
-                                context: TaskContext): WriterThread
-
-  protected def sgxReaderIterator(stream: DataInputStream,
-                                  writerThread: WriterThread,
-                                  startTime: Long,
-                                  env: SparkEnv,
-                                  worker: Socket,
-                                  releasedOrClosed: AtomicBoolean,
-                                  context: TaskContext): Iterator[OUT]
+                                context: TaskContext): WriterIterator
 
   /**
     * The thread responsible for writing the data from the SGXRDD's parent iterator to the
     * SGX secure Worker
     */
-  abstract class WriterThread(env: SparkEnv,
-                              worker: Socket,
-                              inputIterator: Iterator[IN],
-                              partitionIndex: Int,
-                              context: TaskContext)
+  abstract class WriterIterator(env: SparkEnv,
+                                      worker: Socket,
+                                      inputIterator: Iterator[IN],
+                                      partitionIndex: Int,
+                                      context: TaskContext)
     extends Thread(s"stdout writer for SGXRunner TID:${context.taskAttemptId()}") {
 
     @volatile private var _exception: Exception = null
@@ -172,15 +156,16 @@ private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) =>
 
         // sparkFilesDir
         SGXRDD.writeUTF(SparkFiles.getRootDirectory(), dataOut)
-        // TODO PANOS: Broadcast variables
-        // TODO PANOS: ignore encrypted broadcast for now
+        // TODO PANOS: ignore encrypted Broadcast variables for now
         dataOut.flush()
 
+        // Write Function Type & Function
         dataOut.writeInt(evalType)
         writeFunction(dataOut)
 
+        // Write OUT Iterator
         writeIteratorToStream(dataOut)
-        dataOut.writeInt(SpecialChars.END_OF_STREAM)
+        dataOut.writeInt(SpecialSGXChars.END_OF_STREAM)
         dataOut.flush()
       } catch {
         case e: Exception if context.isCompleted || context.isInterrupted =>
@@ -200,13 +185,14 @@ private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) =>
     }
   }
 
-  abstract class ReaderIterator(stream: DataInputStream,
-                                writerThread: WriterThread,
-                                startTime: Long,
-                                env: SparkEnv,
-                                worker: Socket,
-                                releasedOrClosed: AtomicBoolean,
-                                context: TaskContext)
+  // OUT => Array[Byte] for encrypted data
+  class ReaderIterator[OUT: ClassTag](stream: DataInputStream,
+                                                    writerThread: WriterIterator,
+                                                    startTime: Long,
+                                                    env: SparkEnv,
+                                                    worker: Socket,
+                                                    releasedOrClosed: AtomicBoolean,
+                                                    context: TaskContext)
     extends Iterator[OUT] {
 
     private var nextObj: OUT = _
@@ -236,7 +222,32 @@ private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) =>
       * When the stream reaches end of data, needs to process the following sections,
       * and then returns null.
       */
-    protected def read(): OUT
+    protected def read(): OUT = {
+      if (writerThread.exception.isDefined) {
+        throw writerThread.exception.get
+      }
+      try {
+        stream.readInt() match {
+          case length if length > 0 =>
+            val obj = new Array[Byte](length)
+            stream.readFully(obj)
+            // Not necessary of we are dealing just with bytes
+            return iteratorSer.deserialize[OUT](ByteBuffer.wrap(obj))
+          case SpecialSGXChars.EMPTY_DATA =>
+            // Array.empty[Byte]
+            null.asInstanceOf[OUT]
+          case SpecialSGXChars.TIMING_DATA =>
+            handleTimingData()
+            read()
+          case SpecialSGXChars.SGX_EXCEPTION_THROWN =>
+            throw handleSGXException()
+          case SpecialSGXChars.END_OF_DATA_SECTION =>
+            // TODO PANOs: Send stats
+            handleEndOfDataSection()
+            null.asInstanceOf[OUT]
+        }
+      } catch handleException
+    }
 
     protected def handleTimingData(): Unit = {
       // Timing data from worker
@@ -267,15 +278,15 @@ private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) =>
     protected def handleEndOfDataSection(): Unit = {
       // We've finished the data section of the output, but we can still
       // read some accumulator updates:
-//      val numAccumulatorUpdates = stream.readInt()
-//      (1 to numAccumulatorUpdates).foreach { _ =>
-//        val updateLen = stream.readInt()
-//        val update = new Array[Byte](updateLen)
-//        stream.readFully(update)
-//        //        accumulator.add(update)
-//      }
+      //      val numAccumulatorUpdates = stream.readInt()
+      //      (1 to numAccumulatorUpdates).foreach { _ =>
+      //        val updateLen = stream.readInt()
+      //        val update = new Array[Byte](updateLen)
+      //        stream.readFully(update)
+      //        //        accumulator.add(update)
+      //      }
       // Check whether the worker is ready to be re-used.
-      if (stream.readInt() == SpecialChars.END_OF_STREAM) {
+      if (stream.readInt() == SpecialSGXChars.END_OF_STREAM) {
         if (releasedOrClosed.compareAndSet(false, true)) {
           logWarning("SGX Worker now ready to be released!")
           // env.releasePythonWorker(pythonExec, envVars.asScala.toMap, worker)
@@ -296,6 +307,27 @@ private[spark] abstract class SGXBaseRunner[IN, OUT](func: (Iterator[String]) =>
 
       case eof: EOFException =>
         throw new SparkException("SGX worker exited unexpectedly (crashed)", eof)
+
+      null.asInstanceOf[OUT]
     }
   }
+}
+
+private[spark] object SGXFunctionType {
+  val NON_UDF = 0
+  val BATCHED_UDF = 100
+  def toString(sgxFuncType: Int): String = sgxFuncType match {
+    case NON_UDF => "NON_UDF"
+    case BATCHED_UDF => "BATCHED_UDF"
+  }
+}
+
+private[spark] object SpecialSGXChars {
+  val EMPTY_DATA = 0
+  val END_OF_DATA_SECTION = -1
+  val SGX_EXCEPTION_THROWN = -2
+  val TIMING_DATA = -3
+  val END_OF_STREAM = -4
+  val NULL = -5
+  val START_ARROW_STREAM = -6
 }
