@@ -35,7 +35,7 @@ import org.apache.spark._
 import org.apache.spark.Partitioner._
 import org.apache.spark.annotation.{DeveloperApi, Experimental, Since}
 import org.apache.spark.api.java.JavaRDD
-import org.apache.spark.api.sgx.SGXRDD
+import org.apache.spark.api.sgx.{SGXException, SGXRDD}
 import org.apache.spark.internal.Logging
 import org.apache.spark.partial.BoundedDouble
 import org.apache.spark.partial.CountEvaluator
@@ -1167,19 +1167,30 @@ abstract class RDD[T: ClassTag](
    * Return the number of elements in the RDD.
    */
   def count(): Long = {
-    if (sc.getConf.isSparkSGXEnabled()) {
-      val countFunc = (itr: Iterator[Any]) => {
+    if (sc.getConf.isSGXWorkerEnabled()) {
+      val toIteratorSizeSGXFunc = (itr: Iterator[Any]) => {
         var count = 0L
-        println("Exec??")
         while (itr.hasNext) {
           count += 1L
-          println("Count:"+ count)
           itr.next()
         }
         Array(count).iterator
       }
-      val wrapped = new SGXRDD(this, countFunc, true)
-      sc.runJob(wrapped, Utils.getIteratorSize _).sum
+      val wrapped = new SGXRDD(this, toIteratorSizeSGXFunc, true)
+      // Results at this point are encrypted as Array[Byte]
+      val encryptedRes = sc.runJob(wrapped, (iter: Iterator[_]) => iter.toArray)
+      // In non-SGX driver just decrypt data here
+      if (!sc.getConf.isSGXDriverEnabled()) {
+        // Assuming that data are Longs
+        val dataIt = encryptedRes.toIterator.flatten
+        var sum = 0L
+        while (dataIt.hasNext) sum += dataIt.next().asInstanceOf[Long]
+        sum
+      }
+      // Send data to the SGX driver (to be decrypted there)
+      else {
+        throw new SGXException("Not implemented yet", new Exception("SGX exception"))
+      }
     } else {
       sc.runJob(this, Utils.getIteratorSize _).sum
     }

@@ -31,7 +31,7 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
   extends Logging {
 
   val sgxWorkerModule = "org.apache.spark.deploy.worker.sgx.SGXWorker"
-  val sgxWorkerExec = "/home/pg1712/IdeaProjects/sgx-spark/sbin/start-sgx-slave.sh"
+  val sgxWorkerExec = s"${System.getenv("SPARK_HOME")}/sbin/start-sgx-slave.sh"
 
 
   private def createSimpleSGXWorker(): Socket = {
@@ -43,13 +43,14 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
 
       val workerEnv = pb.environment()
       workerEnv.putAll(envVars.asJava)
-      println(s"Unsecure worker port: ${serverSocket.getLocalPort.toString}")
+
+      logInfo(s"Unsecure worker port: ${serverSocket.getLocalPort.toString}")
       workerEnv.put("SGX_WORKER_FACTORY_PORT", serverSocket.getLocalPort.toString)
       // TODO PANOS: Keep track of running workers
-//      val worker = pb.start()
+      val worker = pb.start()
 
       // Redirect worker stdout and stderr
-//      redirectStreamsToStderr(worker.getInputStream, worker.getErrorStream)
+      redirectStreamsToStderr(worker.getInputStream, worker.getErrorStream)
 
       // Wait for worker to connect to our socket
       serverSocket.setSoTimeout(100000)
@@ -72,7 +73,7 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
   }
 
   def create(): Socket = {
-    // TODO: Panos Avoid starting a new worker every time - use a Daemon instead ?
+    // TODO: Panos Avoid starting a new worker every time - use a Daemon instead?
     createSimpleSGXWorker()
   }
 

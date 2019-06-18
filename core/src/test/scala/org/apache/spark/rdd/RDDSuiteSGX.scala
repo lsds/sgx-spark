@@ -18,15 +18,10 @@
 package org.apache.spark.rdd
 
 import scala.collection.mutable
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import java.io._
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
 
 import org.apache.spark._
-import org.apache.spark.api.python.PythonFunction
-import org.apache.spark.api.sgx.{SGXEvalType, SGXRDD, SpecialChars}
+import org.apache.spark.api.sgx.{SGXFunctionType, SGXRDD, SpecialSGXChars}
 import org.apache.spark.deploy.worker.sgx.{ReaderIterator, SGXWorker}
 import org.apache.spark.util.Utils
 
@@ -39,7 +34,7 @@ class RDDSuiteSGX extends SparkFunSuite {
   override def beforeAll(): Unit = {
     tempDir = Utils.createTempDir()
     conf = new SparkConf().setMaster("local").setAppName("RDD SGX suite test")
-    conf.enableSparkSGX()
+    conf.enableSGXWorker()
     sc = new SparkContext(conf)
   }
 
@@ -52,28 +47,29 @@ class RDDSuiteSGX extends SparkFunSuite {
   }
 
   test("basic SGX operations") {
-    val nums = sc.makeRDD(Array("1", "2", "3", "4"), 1)
-    assert(nums.getNumPartitions === 1)
-    println(nums.count())
-//    val pRdd = new SGXRDD(nums, null, false, false)
-//    pRdd.compute(nums.partitions(0), TaskContext.get())
-//    assert(pRdd.collect().toList === List(1, 2, 3, 4))
+    val nums = sc.makeRDD(Array("1", "2", "3", "4"), 2)
+    assert(nums.getNumPartitions === 2)
+    val res = nums.count()
+    assert(res == 4)
   }
 
   test("SGX Iterator Reader test") {
     val baos = new ByteArrayOutputStream
     val dos = new DataOutputStream(baos)
-    SGXRDD.writeIteratorToStream(Iterator("a", "b", "c"), dos)
-    dos.writeInt(SpecialChars.END_OF_DATA_SECTION)
+    val iteratorSerializer = SparkEnv.get.serializer.newInstance()
+    SGXRDD.writeIteratorToStream(Iterator("a", "b", "c"), iteratorSerializer, dos)
+    dos.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
 
     val bais = new ByteArrayInputStream(baos.toByteArray)
     val dis = new DataInputStream(bais)
 
-    val it = new ReaderIterator(dis)
+    val it = new ReaderIterator[String](dis)
     var count = 0
     val expected_val = List("a", "b", "c")
     while (it.hasNext) {
-      assert(expected_val(count) == new String(it.next(), StandardCharsets.UTF_8))
+      val elem = it.next()
+      assert(elem.getClass == "".getClass)
+      assert(expected_val(count) == elem)
       count += 1
     }
   }
@@ -85,10 +81,13 @@ class RDDSuiteSGX extends SparkFunSuite {
     val itemCount = 999999
     val input: List[String] = List.tabulate(itemCount)(n => "Here's a new string, count: " + n)
 
+    // Can be Java/Kryo/Avro etc.
+    val iteratorSerializer = SparkEnv.get.serializer.newInstance()
+
     var receivedCount = 0
     time {
-      SGXRDD.writeIteratorToStream(input.iterator, dos)
-      dos.writeInt(SpecialChars.END_OF_DATA_SECTION)
+      SGXRDD.writeIteratorToStream(input.iterator, iteratorSerializer, dos)
+      dos.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
 
       val bais = new ByteArrayInputStream(baos.toByteArray)
       val dis = new DataInputStream(bais)
@@ -113,11 +112,12 @@ class RDDSuiteSGX extends SparkFunSuite {
   }
 
   val test_func = (it: Iterator[String]) => {
-    var sum = ""
+    var sum = 0
     while (it.hasNext) {
-      sum += it.next()
+      sum += 1
+      it.next()
     }
-    Array("Success").toIterator
+    Array(sum).toIterator
   }
 
   test("SGXWorker write/read process test") {
@@ -145,24 +145,25 @@ class RDDSuiteSGX extends SparkFunSuite {
       SGXRDD.writeUTF(v, dos)
     }
 
+    val iteratorSerializer = SparkEnv.get.serializer.newInstance()
+
     SGXRDD.writeUTF(SparkFiles.getRootDirectory(), dos)
     dos.flush()
-    dos.writeInt(SGXEvalType.NON_UDF)
+
+    dos.writeInt(SGXFunctionType.NON_UDF)
     // Func serialize
     val command = SparkEnv.get.closureSerializer.newInstance().serialize(test_func)
     dos.writeInt(command.array().size)
     dos.write(command.array())
     // Data serialize
-    SGXRDD.writeIteratorToStream(Iterator("1", "2", "3"), dos)
-    dos.writeInt(SpecialChars.END_OF_DATA_SECTION)
-
+    SGXRDD.writeIteratorToStream(Iterator("1", "2", "3"), iteratorSerializer, dos)
+    dos.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
     dos.flush()
 
     val worker = new SGXWorker()
     // Convert bytestream to input
     val bais = new ByteArrayInputStream(baos.toByteArray)
     val dis = new DataInputStream(bais)
-
 
     val baosIn = new ByteArrayOutputStream
     val dosIn = new DataOutputStream(baosIn)
@@ -172,18 +173,10 @@ class RDDSuiteSGX extends SparkFunSuite {
     val baisIn = new ByteArrayInputStream(baosIn.toByteArray)
     val disIn = new DataInputStream(baisIn)
 
-    val itIn = new ReaderIterator(disIn)
-    println(new String(itIn.next(), StandardCharsets.UTF_8))
+    val itIn = new ReaderIterator[Any](disIn)
+    while(itIn.hasNext) {
+      val v = itIn.next()
+      assert(v == 3)
+    }
   }
-
-
-  // This Python UDF is dummy and just for testing. Unable to execute.
-  class DummyUDF extends PythonFunction(
-    command = Array[Byte](),
-    envVars = Map("" -> "").asJava,
-    pythonIncludes = ArrayBuffer("").asJava,
-    pythonExec = "",
-    pythonVer = "",
-    broadcastVars = null,
-    accumulator = null)
 }

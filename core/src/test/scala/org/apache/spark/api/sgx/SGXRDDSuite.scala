@@ -20,30 +20,33 @@ package org.apache.spark.api.sgx
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 import java.nio.charset.StandardCharsets
 
-import org.apache.spark.SparkFunSuite
+import org.apache.spark.serializer.JavaSerializer
+import org.apache.spark.{SparkConf, SparkFunSuite}
 
 
 class SGXRDDSuite extends SparkFunSuite {
 
   test("Writing large strings to the worker") {
+    val iteratorSerializer = new JavaSerializer(new SparkConf()).newInstance()
     val input: List[String] = List("a"*100000)
     val buffer = new DataOutputStream(new ByteArrayOutputStream)
-    SGXRDD.writeIteratorToStream(input.iterator, buffer)
+    SGXRDD.writeIteratorToStream(input.iterator, iteratorSerializer, buffer)
   }
 
   test("Handle nulls gracefully") {
     val buffer = new DataOutputStream(new ByteArrayOutputStream)
+    val iteratorSerializer = new JavaSerializer(new SparkConf()).newInstance()
     // Should not have NPE when write an Iterator with null in it
     // The correctness will be tested in Python
-    SGXRDD.writeIteratorToStream(Iterator("a", null), buffer)
-    SGXRDD.writeIteratorToStream(Iterator(null, "a"), buffer)
-    SGXRDD.writeIteratorToStream(Iterator("a".getBytes(StandardCharsets.UTF_8), null), buffer)
-    SGXRDD.writeIteratorToStream(Iterator(null, "a".getBytes(StandardCharsets.UTF_8)), buffer)
-    SGXRDD.writeIteratorToStream(Iterator((null, null), ("a", null), (null, "b")), buffer)
+    SGXRDD.writeIteratorToStream(Iterator("a", null), iteratorSerializer, buffer)
+    SGXRDD.writeIteratorToStream(Iterator(null, "a"), iteratorSerializer, buffer)
+    SGXRDD.writeIteratorToStream(Iterator("a".getBytes(StandardCharsets.UTF_8), null), iteratorSerializer, buffer)
+    SGXRDD.writeIteratorToStream(Iterator(null, "a".getBytes(StandardCharsets.UTF_8)), iteratorSerializer, buffer)
+    SGXRDD.writeIteratorToStream(Iterator((null, null), ("a", null), (null, "b")), iteratorSerializer, buffer)
     SGXRDD.writeIteratorToStream(Iterator(
       (null, null),
       ("a".getBytes(StandardCharsets.UTF_8), null),
-      (null, "b".getBytes(StandardCharsets.UTF_8))), buffer)
+      (null, "b".getBytes(StandardCharsets.UTF_8))), iteratorSerializer, buffer)
   }
 
 //  test("python server error handling") {
