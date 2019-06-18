@@ -196,16 +196,32 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
   }
 
   /** SPARK-SGX configuration */
-  def enableSparkSGX(): Unit = {
-    set("spark.sgx.enabled", true.toString)
+  def enableSGXWorker(): Unit = {
+    set("spark.sgx.worker.enabled", true.toString)
   }
 
-  def disableSparkSGX(): Unit = {
-    set("spark.sgx.enabled", false.toString)
+  def disableSGXWorker(): Unit = {
+    set("spark.sgx.worker.enabled", false.toString)
   }
 
-  def isSparkSGXEnabled(): Boolean = {
-    getOption("spark.sgx.enabled") match {
+  def isSGXWorkerEnabled(): Boolean = {
+    getOption("spark.sgx.worker.enabled") match {
+      case Some("true") => true
+      case Some("false") => false
+      case _ => false
+    }
+  }
+
+  def enableSGXDriver(): Unit = {
+    set("spark.sgx.driver.enabled", true.toString)
+  }
+
+  def disableSGXDriver(): Unit = {
+    set("spark.sgx.driver.enabled", false.toString)
+  }
+
+  def isSGXDriverEnabled(): Boolean = {
+    getOption("spark.sgx.driver.enabled") match {
       case Some("true") => true
       case Some("false") => false
       case _ => false
