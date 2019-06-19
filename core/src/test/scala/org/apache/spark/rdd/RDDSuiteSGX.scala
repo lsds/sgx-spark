@@ -53,6 +53,17 @@ class RDDSuiteSGX extends SparkFunSuite {
     assert(res == 4)
   }
 
+  test("SGX shuffle operation") {
+    val kvPairs = sc.parallelize(Array(
+      ("USA", 1), ("USA", 2), ("USA", 8), ("USA", 3),
+      ("UK", 6), ("UK", 9), ("UK", 5), ("UK", 1),
+      ("India", 4), ("India", 9), ("India", 4), ("India", 1)
+    ), 1)
+    val res = kvPairs.groupByKey().map(s => (s._1, (s._2.sum)))
+    val resK = res.collect
+    assert(resK.size == 3)
+  }
+
   test("SGX Iterator Reader test") {
     val baos = new ByteArrayOutputStream
     val dos = new DataOutputStream(baos)

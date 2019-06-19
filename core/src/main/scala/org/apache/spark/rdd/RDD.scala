@@ -943,8 +943,31 @@ abstract class RDD[T: ClassTag](
    * all the data is loaded into the driver's memory.
    */
   def collect(): Array[T] = withScope {
-    val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
-    Array.concat(results: _*)
+    if (sc.getConf.isSGXWorkerEnabled()) {
+      val toIteratorSizeSGXFunc = (itr: Iterator[Any]) => {
+        val result = new mutable.ArrayBuffer[Any]
+        itr.foreach(e => result.append(e))
+        result.toArray.iterator
+      }
+      val wrapped = new SGXRDD(this, toIteratorSizeSGXFunc, true)
+      // Results at this point are encrypted as Array[Byte]
+      val encryptedRes = sc.runJob(wrapped, (iter: Iterator[_]) => iter.toArray)
+      // In non-SGX driver just decrypt data here
+      if (!sc.getConf.isSGXDriverEnabled()) {
+        // Assuming that data are Longs
+        val dataIt = encryptedRes.toIterator.flatten
+        val toRet = new mutable.ArrayBuffer[T]
+        dataIt.foreach(e => toRet.append(e.asInstanceOf[T]))
+        toRet.toArray
+      }
+      // Send data to the SGX driver (to be decrypted there)
+      else {
+        throw new SGXException("Not implemented yet", new Exception("SGX exception"))
+      }
+    } else {
+      val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
+      Array.concat(results: _*)
+    }
   }
 
   /**
