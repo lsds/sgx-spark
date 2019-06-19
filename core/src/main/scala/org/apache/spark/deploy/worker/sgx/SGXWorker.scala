@@ -24,6 +24,7 @@ import java.nio.ByteBuffer
 import org.apache.spark.api.sgx.{SGXRDD, SpecialSGXChars}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.JavaSerializer
+import org.apache.spark.util.Utils
 import org.apache.spark.{SparkException, TaskContext}
 
 import scala.collection.mutable
@@ -44,7 +45,7 @@ private[spark] class SGXWorker extends Logging {
       System.exit(-1)
     }
     val sgx_version = SGXRDD.readUTF(inSock)
-    logInfo(s"Current SGX version ${sgx_version}")
+    logInfo(s"SGXWorker version ${sgx_version}")
     val boundPort = inSock.readInt()
     val taskContext = TaskContext.get()
     val stageId = inSock.readInt()
@@ -122,6 +123,7 @@ private[spark] class ReaderIterator[IN: ClassTag](stream: DataInputStream) exten
     if (hasNext) {
       val obj = nextObj
       nextObj = null.asInstanceOf[IN]
+      logDebug(s"Next is: ${obj}")
       obj
     } else {
       Iterator.empty.next()
@@ -177,6 +179,7 @@ private[deploy] object SGXWorker extends Logging {
   }
 
   def main(args: Array[String]): Unit = {
+    Utils.initDaemon(log)
     val workerDebugEnabled = sys.env("SGX_WORKER_DEBUG").toBoolean
     val worker = new SGXWorker
     val socket = localConnect(if (workerDebugEnabled) 65000 else sys.env("SGX_WORKER_FACTORY_PORT").toInt)

@@ -211,6 +211,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
       if (hasNext) {
         val obj = nextObj
         nextObj = null.asInstanceOf[OUT]
+        logDebug(s"SGX => Reading ${obj}")
         obj
       } else {
         Iterator.empty.next()

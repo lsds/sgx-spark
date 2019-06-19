@@ -23,7 +23,7 @@ import java.util.Arrays
 
 import scala.collection.JavaConverters._
 
-import org.apache.spark.SparkException
+import org.apache.spark.{SparkEnv, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.RedirectThread
 
@@ -36,8 +36,10 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
 
   private def createSimpleSGXWorker(): Socket = {
     var serverSocket: ServerSocket = null
+    val workerDebug = SparkEnv.get.conf.isSGXDebugEnabled()
+    val serverSockerPort = if (workerDebug) 65000 else 0
     try {
-      serverSocket = new ServerSocket(0, 1, InetAddress.getByAddress(Array(127, 0, 0, 1)))
+      serverSocket = new ServerSocket(serverSockerPort, 1, InetAddress.getByAddress(Array(127, 0, 0, 1)))
       // Create and start the worker
       val pb = new ProcessBuilder(Arrays.asList(sgxWorkerExec, sgxWorkerModule))
 
@@ -46,14 +48,17 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
 
       logInfo(s"Unsecure worker port: ${serverSocket.getLocalPort.toString}")
       workerEnv.put("SGX_WORKER_FACTORY_PORT", serverSocket.getLocalPort.toString)
+      workerEnv.put("SGX_WORKER_DEBUG", workerDebug.toString)
       // TODO PANOS: Keep track of running workers
-      val worker = pb.start()
-
-      // Redirect worker stdout and stderr
-      redirectStreamsToStderr(worker.getInputStream, worker.getErrorStream)
+      if (!workerDebug) {
+        val worker = pb.start()
+        // Redirect worker stdout and stderr
+        redirectStreamsToStderr(worker.getInputStream, worker.getErrorStream)
+      }
+      // else connect manually
 
       // Wait for worker to connect to our socket
-      serverSocket.setSoTimeout(100000)
+      serverSocket.setSoTimeout(if (!workerDebug) 100000 else 1000000)
 
       try {
         val socket = serverSocket.accept()
