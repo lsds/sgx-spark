@@ -228,6 +228,22 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
     }
   }
 
+  def enableSGXDebug(): Unit = {
+    set("spark.sgx.debug.enabled", true.toString)
+  }
+
+  def disableSGXDebug(): Unit = {
+    set("spark.sgx.debug.enabled", false.toString)
+  }
+
+  def isSGXDebugEnabled(): Boolean = {
+    getOption("spark.sgx.debug.enabled") match {
+      case Some("true") => true
+      case Some("false") => false
+      case _ => false
+    }
+  }
+
   /**
    * Use Kryo serialization and register the given set of classes with Kryo.
    * If called multiple times, this will append the classes from all calls together.

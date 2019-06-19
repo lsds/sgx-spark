@@ -177,9 +177,9 @@ private[deploy] object SGXWorker extends Logging {
   }
 
   def main(args: Array[String]): Unit = {
-    val port_argument = sys.env("SGX_WORKER_FACTORY_PORT").toInt
+    val workerDebugEnabled = sys.env("SGX_WORKER_DEBUG").toBoolean
     val worker = new SGXWorker
-    val socket = localConnect(port_argument)
+    val socket = localConnect(if (workerDebugEnabled) 65000 else sys.env("SGX_WORKER_FACTORY_PORT").toInt)
     val outStream = new DataOutputStream(socket.getOutputStream())
     val inStream = new DataInputStream(socket.getInputStream())
 
