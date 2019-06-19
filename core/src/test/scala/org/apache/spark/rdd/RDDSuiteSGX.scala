@@ -92,7 +92,7 @@ class RDDSuiteSGX extends SparkFunSuite {
       val bais = new ByteArrayInputStream(baos.toByteArray)
       val dis = new DataInputStream(bais)
 
-      val it = new ReaderIterator(dis)
+      val it = new ReaderIterator[String](dis)
       while (it.hasNext) {
         val next = it.next()
         receivedCount += 1
