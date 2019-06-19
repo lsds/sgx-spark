@@ -24,6 +24,8 @@ import org.apache.spark._
 import org.apache.spark.api.sgx.{SGXFunctionType, SGXRDD, SpecialSGXChars}
 import org.apache.spark.deploy.worker.sgx.{ReaderIterator, SGXWorker}
 import org.apache.spark.util.Utils
+import org.apache.spark.serializer.KryoSerializer
+
 
 
 class RDDSuiteSGX extends SparkFunSuite {
@@ -35,6 +37,7 @@ class RDDSuiteSGX extends SparkFunSuite {
     tempDir = Utils.createTempDir()
     conf = new SparkConf().setMaster("local").setAppName("RDD SGX suite test")
     conf.enableSGXWorker()
+    // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sc = new SparkContext(conf)
   }
 
