@@ -74,15 +74,45 @@ class RDDSuiteSGX extends SparkFunSuite {
     }
   }
 
-  test("SGX socket timing test: strings") {
-    val baos = new ByteArrayOutputStream
-    val dos = new DataOutputStream(baos)
+  test("SGX socket timing test: clone objects") {
+    val itemCount = 999999
+    // Tuple is: (NAME, AGE, MALE?)
+    val input: List[Tuple3[String, Int, Boolean]] = List.tabulate(itemCount)(n => new Tuple3("Human: " + n, n, true))
 
+    // Can be Java/Kryo/Avro etc.
+    val iteratorSerializer = SparkEnv.get.serializer.newInstance()
+
+    val receivedCount = writeToAndReadFromStream(itemCount, input, iteratorSerializer)
+    assert(itemCount == receivedCount)
+  }
+
+  test("SGX socket timing test: ints") {
+    val itemCount = 999999
+    val input: List[Int] = List.tabulate(itemCount)(n => n)
+
+    // Can be Java/Kryo/Avro etc.
+    val iteratorSerializer = SparkEnv.get.serializer.newInstance()
+
+    val receivedCount = writeToAndReadFromStream(itemCount, input, iteratorSerializer)
+    assert(itemCount == receivedCount)
+  }
+
+  test("SGX socket timing test: strings") {
     val itemCount = 999999
     val input: List[String] = List.tabulate(itemCount)(n => "Here's a new string, count: " + n)
 
     // Can be Java/Kryo/Avro etc.
     val iteratorSerializer = SparkEnv.get.serializer.newInstance()
+
+    val receivedCount = writeToAndReadFromStream(itemCount, input, iteratorSerializer)
+    assert(itemCount == receivedCount)
+  }
+
+  // Helper method to write items to stream, and read items from stream using serializer
+  def writeToAndReadFromStream(itemCount: Int, input: List[Any],
+                               iteratorSerializer: org.apache.spark.serializer.SerializerInstance) : Int = {
+    val baos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(baos)
 
     var receivedCount = 0
     time {
@@ -92,13 +122,14 @@ class RDDSuiteSGX extends SparkFunSuite {
       val bais = new ByteArrayInputStream(baos.toByteArray)
       val dis = new DataInputStream(bais)
 
-      val it = new ReaderIterator[String](dis)
+      val it = new ReaderIterator[Any](dis)
       while (it.hasNext) {
         val next = it.next()
         receivedCount += 1
       }
     }
-    assert(itemCount == receivedCount)
+
+    receivedCount
   }
 
   // Helper function to time the execution of a given block
@@ -107,7 +138,7 @@ class RDDSuiteSGX extends SparkFunSuite {
     val result = blockToTime
     val t1 = System.nanoTime()
     val duration = (t1 - t0) / 1e9d
-    println("Socket timing test elapsed: " + duration + " (seconds)");
+    println("Time elapsed: " + duration + " (seconds)");
     result
   }
 
