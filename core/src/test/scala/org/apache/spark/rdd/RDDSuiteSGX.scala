@@ -24,8 +24,6 @@ import org.apache.spark._
 import org.apache.spark.api.sgx.{SGXFunctionType, SGXRDD, SpecialSGXChars}
 import org.apache.spark.deploy.worker.sgx.{ReaderIterator, SGXWorker}
 import org.apache.spark.util.Utils
-import org.apache.spark.serializer.KryoSerializer
-
 
 
 class RDDSuiteSGX extends SparkFunSuite {
@@ -37,7 +35,8 @@ class RDDSuiteSGX extends SparkFunSuite {
     tempDir = Utils.createTempDir()
     conf = new SparkConf().setMaster("local").setAppName("RDD SGX suite test")
     conf.enableSGXWorker()
-    // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+//    conf.enableSGXDebug()
+    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sc = new SparkContext(conf)
   }
 
@@ -77,7 +76,7 @@ class RDDSuiteSGX extends SparkFunSuite {
     val bais = new ByteArrayInputStream(baos.toByteArray)
     val dis = new DataInputStream(bais)
 
-    val it = new ReaderIterator[String](dis)
+    val it = new ReaderIterator[String](dis, iteratorSerializer)
     var count = 0
     val expected_val = List("a", "b", "c")
     while (it.hasNext) {
@@ -136,7 +135,7 @@ class RDDSuiteSGX extends SparkFunSuite {
       val bais = new ByteArrayInputStream(baos.toByteArray)
       val dis = new DataInputStream(bais)
 
-      val it = new ReaderIterator[Any](dis)
+      val it = new ReaderIterator[Any](dis, iteratorSerializer)
       while (it.hasNext) {
         val next = it.next()
         receivedCount += 1
@@ -205,7 +204,7 @@ class RDDSuiteSGX extends SparkFunSuite {
     dos.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
     dos.flush()
 
-    val worker = new SGXWorker()
+    val worker = new SGXWorker(SparkEnv.get.closureSerializer.newInstance(), SparkEnv.get.serializer.newInstance())
     // Convert bytestream to input
     val bais = new ByteArrayInputStream(baos.toByteArray)
     val dis = new DataInputStream(bais)
@@ -218,7 +217,7 @@ class RDDSuiteSGX extends SparkFunSuite {
     val baisIn = new ByteArrayInputStream(baosIn.toByteArray)
     val disIn = new DataInputStream(baisIn)
 
-    val itIn = new ReaderIterator[Any](disIn)
+    val itIn = new ReaderIterator[Any](disIn, iteratorSerializer)
     while(itIn.hasNext) {
       val v = itIn.next()
       assert(v == 3)

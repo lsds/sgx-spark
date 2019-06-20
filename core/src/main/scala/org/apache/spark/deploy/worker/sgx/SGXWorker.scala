@@ -21,18 +21,21 @@ import java.io.{DataInputStream, DataOutputStream, IOException}
 import java.net.{InetAddress, Socket}
 import java.nio.ByteBuffer
 
-import org.apache.spark.api.sgx.{SGXRDD, SpecialSGXChars}
+import org.apache.spark.api.sgx.{SGXException, SGXRDD, SpecialSGXChars}
 import org.apache.spark.internal.Logging
-import org.apache.spark.serializer.JavaSerializer
+import org.apache.spark.serializer._
 import org.apache.spark.util.Utils
-import org.apache.spark.{SparkException, TaskContext}
+import org.apache.spark.{SparkConf, SparkEnv, SparkException, TaskContext}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-private[spark] class SGXWorker extends Logging {
+private[spark] class SGXWorker(closuseSer: SerializerInstance, dataSer: SerializerInstance) extends Logging {
   val SYSTEM_NAME = "sparkSGXWorker"
   val ENDPOINT_NAME = "SGXWorker"
+  if (dataSer == null || closuseSer == null) {
+    throw new SGXException("Worker Serializer not set", new RuntimeException)
+  }
 
   val shuffleMemoryBytesSpilled: Int = 0
   val shuffleDiskBytesSpilled: Int = 0
@@ -68,10 +71,10 @@ private[spark] class SGXWorker extends Logging {
     val init_time = System.nanoTime()
 
     // Read Iterator
-    val iterator = new ReaderIterator(inSock)
+    val iterator = new ReaderIterator(inSock, dataSer)
     val res = func(iterator)
 
-    SGXRDD.writeIteratorToStream[Any](res.asInstanceOf[Iterator[Any]], SGXWorker.serInstance, outSock)
+    SGXRDD.writeIteratorToStream[Any](res.asInstanceOf[Iterator[Any]], dataSer, outSock)
     outSock.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
     outSock.flush()
 
@@ -100,12 +103,12 @@ private[spark] class SGXWorker extends Logging {
     val func_size = inSock.readInt()
     val obj = new Array[Byte](func_size)
     inSock.readFully(obj)
-    SGXWorker.serInstance.deserialize[(Iterator[Any]) => Any](ByteBuffer.wrap(obj))
+    closuseSer.deserialize[(Iterator[Any]) => Any](ByteBuffer.wrap(obj))
   }
 }
 
 // Data is encrypted thus Array[Byte] - we should decode them to a type[IN]
-private[spark] class ReaderIterator[IN: ClassTag](stream: DataInputStream) extends Iterator[IN] with Logging {
+private[spark] class ReaderIterator[IN: ClassTag](stream: DataInputStream, dataSer: SerializerInstance) extends Iterator[IN] with Logging {
 
   private var nextObj: IN = _
   private var eos = false
@@ -146,7 +149,7 @@ private[spark] class ReaderIterator[IN: ClassTag](stream: DataInputStream) exten
         case length if length > 0 =>
           val obj = new Array[Byte](length)
           stream.readFully(obj)
-          val elem = SGXWorker.serInstance.deserialize[IN](ByteBuffer.wrap(obj))
+          val elem = dataSer.deserialize[IN](ByteBuffer.wrap(obj))
           return elem.asInstanceOf[IN]
         case SpecialSGXChars.END_OF_DATA_SECTION =>
           eos = true
@@ -154,7 +157,7 @@ private[spark] class ReaderIterator[IN: ClassTag](stream: DataInputStream) exten
       }
     } catch {
       case ex: Exception =>
-        logError(s"Failed to get Data ${ex}")
+        logError(s"SGXWorker Failed to get Data ${ex}")
     }
     null.asInstanceOf[IN]
   }
@@ -163,8 +166,10 @@ private[spark] class ReaderIterator[IN: ClassTag](stream: DataInputStream) exten
 
 private[deploy] object SGXWorker extends Logging {
 
-  val serializer = new JavaSerializer(null)
-  val serInstance = serializer.newInstance()
+  val conf = new SparkConf(loadDefaults = false)
+  var dataSerializer: SerializerInstance = null
+  // should always use JavaSerializer for closures
+  val closureSerializer = new JavaSerializer(null).newInstance()
 
   def localConnect(port: Int): Socket = {
     try {
@@ -178,10 +183,32 @@ private[deploy] object SGXWorker extends Logging {
     }
   }
 
+  def instantiateClass[T](className: String): T = {
+    val cls = Utils.classForName(className)
+    // Look for a constructor taking a SparkConf and a boolean isDriver, then one taking just
+    // SparkConf, then one taking no arguments
+    try {
+      cls.getConstructor(classOf[SparkConf], java.lang.Boolean.TYPE)
+        .newInstance(conf, new java.lang.Boolean(false))
+        .asInstanceOf[T]
+    } catch {
+      case _: NoSuchMethodException =>
+        try {
+          cls.getConstructor(classOf[SparkConf]).newInstance(conf).asInstanceOf[T]
+        } catch {
+          case _: NoSuchMethodException =>
+            cls.getConstructor().newInstance().asInstanceOf[T]
+        }
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     Utils.initDaemon(log)
     val workerDebugEnabled = sys.env("SGX_WORKER_DEBUG").toBoolean
-    val worker = new SGXWorker
+    val workerSerializer = sys.env("SGX_WORKER_SERIALIZER")
+    dataSerializer = SGXWorker.instantiateClass[Serializer](workerSerializer).newInstance()
+
+    val worker = new SGXWorker(closureSerializer, dataSerializer)
     val socket = localConnect(if (workerDebugEnabled) 65000 else sys.env("SGX_WORKER_FACTORY_PORT").toInt)
     val outStream = new DataOutputStream(socket.getOutputStream())
     val inStream = new DataInputStream(socket.getInputStream())

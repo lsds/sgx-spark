@@ -48,6 +48,8 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
 
       logInfo(s"Unsecure worker port: ${serverSocket.getLocalPort.toString}")
       workerEnv.put("SGX_WORKER_FACTORY_PORT", serverSocket.getLocalPort.toString)
+      workerEnv.put("SGX_WORKER_SERIALIZER", SparkEnv.get.conf.getOption("spark.serializer").
+        getOrElse("org.apache.spark.serializer.JavaSerializer"))
       workerEnv.put("SGX_WORKER_DEBUG", workerDebug.toString)
       // TODO PANOS: Keep track of running workers
       if (!workerDebug) {
