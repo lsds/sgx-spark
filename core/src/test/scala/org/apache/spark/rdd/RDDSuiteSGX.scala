@@ -20,6 +20,8 @@ package org.apache.spark.rdd
 import scala.collection.mutable
 import java.io._
 
+import jocket.net.ServerJocket
+
 import org.apache.spark._
 import org.apache.spark.api.sgx.{SGXFunctionType, SGXRDD, SpecialSGXChars}
 import org.apache.spark.deploy.worker.sgx.{ReaderIterator, SGXWorker}
@@ -85,6 +87,12 @@ class RDDSuiteSGX extends SparkFunSuite {
       assert(expected_val(count) == elem)
       count += 1
     }
+  }
+
+  test("SGX Jocket Test") {
+    // server
+    val srv = new ServerJocket(4242)
+    assert(srv.getLocalPort == 4242)
   }
 
   test("SGX socket timing test: clone objects") {

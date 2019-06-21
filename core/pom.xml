@@ -408,7 +408,12 @@
       <artifactId>libfb303</artifactId>
       <scope>provided</scope>
     </dependency>
-
+    <!-- SPARK-SGX deps -->
+    <dependency>
+      <groupId>com.github.pcdv.jocket</groupId>
+      <artifactId>jocket</artifactId>
+      <version>0.2</version>
+    </dependency>
   </dependencies>
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
