@@ -21,11 +21,10 @@ import scala.collection.mutable
 import java.io._
 
 import jocket.net.ServerJocket
-
 import org.apache.spark._
 import org.apache.spark.api.sgx.{SGXFunctionType, SGXRDD, SpecialSGXChars}
 import org.apache.spark.deploy.worker.sgx.{ReaderIterator, SGXWorker}
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SGXUtils, Utils}
 
 
 class RDDSuiteSGX extends SparkFunSuite {
@@ -37,7 +36,7 @@ class RDDSuiteSGX extends SparkFunSuite {
     tempDir = Utils.createTempDir()
     conf = new SparkConf().setMaster("local").setAppName("RDD SGX suite test")
     conf.enableSGXWorker()
-//    conf.enableSGXDebug()
+    conf.enableSGXDebug()
     conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sc = new SparkContext(conf)
   }
@@ -57,11 +56,43 @@ class RDDSuiteSGX extends SparkFunSuite {
     assert(res == 4)
   }
 
+  ignore("SGX mapPartitionsWithIndex") {
+    val nums = sc.makeRDD(Array(1, 2, 3, 4), 2)
+    assert(nums.getNumPartitions === 2)
+    val partitionSumsWithSplit = nums.mapPartitionsWithIndex(SGXUtils.mapPartitionsWithIndex)
+    assert(partitionSumsWithSplit.collect().toList === List((0, 3), (1, 7)))
+  }
+
+  test("SGX pipelined operations") {
+    val nums = sc.makeRDD(Array(1, 2, 3, 4), 2)
+    assert(nums.getNumPartitions === 2)
+    val res = nums.
+      map(SGXUtils.mapIncrementOneFunc).
+      filter(SGXUtils.filterEvenNumFunc).
+      collect()
+    assert(res.size == 2)
+    assert(res(0) == 2)
+    assert(res(1) == 4)
+  }
+
+  test("SGX mapPartitions operations") {
+    val nums = sc.makeRDD(Array(1, 2, 3, 4), 2)
+    assert(nums.getNumPartitions === 2)
+    val partitionSums = nums.mapPartitions(SGXUtils.mapPartitionsSum)
+    assert(partitionSums.collect().toList === List(3, 7))
+  }
+
+  test("SGX flatMap operations") {
+    val nums = sc.makeRDD(Array(1, 2, 3, 4), 1)
+    assert(nums.getNumPartitions === 1)
+    assert(nums.flatMap(SGXUtils.flatMapOneToVal).collect().toList === List(1, 1, 2, 1, 2, 3, 1, 2, 3, 4))
+  }
+
   test("SGX shuffle operation") {
     val kvPairs = sc.parallelize(Array(
-      ("USA", 1), ("USA", 2), ("USA", 8), ("USA", 3),
-      ("UK", 6), ("UK", 9), ("UK", 5), ("UK", 1),
-      ("India", 4), ("India", 9), ("India", 4), ("India", 1)
+      ("USA", 1), ("USA", 2), ("UK", 6), ("UK", 9),
+      ("India", 4), ("India", 1), ("USA", 8), ("USA", 3),
+      ("UK", 5), ("UK", 1), ("India", 4), ("India", 9)
     ), 1)
     val res = kvPairs.groupByKey().map(s => (s._1, (s._2.sum)))
     val resK = res.collect
