@@ -19,6 +19,7 @@ package org.apache.spark.rdd
 
 import scala.reflect.ClassTag
 
+import org.apache.spark.SparkEnv
 import org.apache.spark.{Partition, TaskContext}
 
 /**
@@ -39,6 +40,7 @@ import org.apache.spark.{Partition, TaskContext}
 private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
     var prev: RDD[T],
     f: (TaskContext, Int, Iterator[T]) => Iterator[U],  // (TaskContext, partition index, iterator)
+    cleanFunc: (Iterator[Any]) => Any = null,
     preservesPartitioning: Boolean = false,
     isFromBarrier: Boolean = false,
     isOrderSensitive: Boolean = false)
@@ -48,8 +50,25 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-  override def compute(split: Partition, context: TaskContext): Iterator[U] =
-    f(context, split.index, firstParent[T].iterator(split, context))
+  override def compute(split: Partition, context: TaskContext): Iterator[U] = {
+    // SGX - ShuffleAggregation is actually performed here
+    val toRet = if (!SparkEnv.get.conf.isSGXWorkerEnabled()) {
+      f(context, split.index, firstParent[T].iterator(split, context))
+    } else {
+      // Trigger iterator pipeline and gather closures
+      firstParent[T].iterator(split, context)
+      for (parFunc <- firstParent[T].funcBuff) {
+        if (!funcBuff.contains(parFunc)) {
+          funcBuff.append(parFunc)
+        }
+      }
+      // TODO: support mapPartitionsWithIndex Case?
+      assert(cleanFunc != null)
+      if (!funcBuff.contains(cleanFunc)) funcBuff.append(cleanFunc)
+      firstParent[T].iterator(split, context).asInstanceOf[Iterator[U]]
+    }
+    toRet
+  }
 
   override def clearDependencies() {
     super.clearDependencies()

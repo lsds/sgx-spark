@@ -49,7 +49,7 @@ class RDDBarrier[T: ClassTag] private[spark] (rdd: RDD[T]) {
     new MapPartitionsRDD(
       rdd,
       (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
-      preservesPartitioning,
+      preservesPartitioning = preservesPartitioning,
       isFromBarrier = true
     )
   }

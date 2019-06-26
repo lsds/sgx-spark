@@ -101,6 +101,8 @@ abstract class RDD[T: ClassTag](
     _sc
   }
 
+  private[spark] val funcBuff: ArrayBuffer[(Iterator[Any]) => Any] = mutable.ArrayBuffer[(Iterator[Any]) => Any]()
+
   /** Construct an RDD with just a one-to-one dependency on one parent */
   def this(@transient oneParent: RDD[_]) =
     this(oneParent.context, List(new OneToOneDependency(oneParent)))
@@ -369,8 +371,11 @@ abstract class RDD[T: ClassTag](
    * Return a new RDD by applying a function to all elements of this RDD.
    */
   def map[U: ClassTag](f: T => U): RDD[U] = withScope {
-    val cleanF = sc.clean(f)
-    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))
+    val cleanF = sc.clean[Any => Any](f.asInstanceOf[Any => Any])
+    new MapPartitionsRDD[U, T](
+      this,
+      f = (context, pid, iter) => iter.map(cleanF.asInstanceOf[T => U]),
+      cleanFunc = (iter: Iterator[Any]) => iter.map(cleanF))
   }
 
   /**
@@ -379,17 +384,20 @@ abstract class RDD[T: ClassTag](
    */
   def flatMap[U: ClassTag](f: T => TraversableOnce[U]): RDD[U] = withScope {
     val cleanF = sc.clean(f)
-    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.flatMap(cleanF))
+    new MapPartitionsRDD[U, T](this,
+      (context, pid, iter) => iter.flatMap(cleanF),
+      cleanFunc = (iter: Iterator[Any]) => iter.flatMap(cleanF.asInstanceOf[Any => Iterator[Any]]))
   }
 
   /**
    * Return a new RDD containing only the elements that satisfy a predicate.
    */
   def filter(f: T => Boolean): RDD[T] = withScope {
-    val cleanF = sc.clean(f)
+    val cleanF = sc.clean[Any => Boolean](f.asInstanceOf[Any => Boolean])
     new MapPartitionsRDD[T, T](
       this,
       (context, pid, iter) => iter.filter(cleanF),
+      cleanFunc = (iter: Iterator[Any]) => iter.filter(cleanF),
       preservesPartitioning = true)
   }
 
@@ -800,7 +808,8 @@ abstract class RDD[T: ClassTag](
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
-      preservesPartitioning)
+      cleanFunc = cleanedF.asInstanceOf[(Iterator[Any]) => Iterator[Any]],
+      preservesPartitioning = preservesPartitioning)
   }
 
   /**
@@ -819,9 +828,11 @@ abstract class RDD[T: ClassTag](
       f: (Int, Iterator[T]) => Iterator[U],
       preservesPartitioning: Boolean = false,
       isOrderSensitive: Boolean = false): RDD[U] = withScope {
+    val cleanedF = sc.clean(f)
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => f(index, iter),
+      cleanFunc = cleanedF.asInstanceOf[(Iterator[Any]) => Iterator[Any]],
       preservesPartitioning = preservesPartitioning,
       isOrderSensitive = isOrderSensitive)
   }
@@ -832,10 +843,12 @@ abstract class RDD[T: ClassTag](
   private[spark] def mapPartitionsInternal[U: ClassTag](
       f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
+    val cleanedF = sc.clean(f)
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => f(iter),
-      preservesPartitioning)
+      cleanFunc = cleanedF.asInstanceOf[(Iterator[Any]) => Iterator[Any]],
+      preservesPartitioning = preservesPartitioning)
   }
 
   /**
@@ -852,7 +865,7 @@ abstract class RDD[T: ClassTag](
     new MapPartitionsRDD(
       this,
       (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
-      preservesPartitioning)
+      preservesPartitioning = preservesPartitioning)
   }
 
   /**

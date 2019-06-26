@@ -21,18 +21,18 @@ import java.io.{DataInputStream, DataOutputStream, IOException}
 import java.net.{InetAddress, Socket}
 import java.nio.ByteBuffer
 
-import org.apache.spark.api.sgx.{SGXException, SGXRDD, SpecialSGXChars}
+import org.apache.spark.api.sgx.{SGXException, SGXFunctionType, SGXRDD, SpecialSGXChars}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer._
 import org.apache.spark.util.Utils
-import org.apache.spark.{SparkConf, SparkEnv, SparkException, TaskContext}
+import org.apache.spark.{SparkConf, SparkException, TaskContext}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 private[spark] class SGXWorker(closuseSer: SerializerInstance, dataSer: SerializerInstance) extends Logging {
-  val SYSTEM_NAME = "sparkSGXWorker"
-  val ENDPOINT_NAME = "SGXWorker"
+  val SYSTEM_NAME = "SparkSGXWorker"
+  val ENDPOINT_NAME = "SecureWorker"
   if (dataSer == null || closuseSer == null) {
     throw new SGXException("Worker Serializer not set", new RuntimeException)
   }
@@ -65,23 +65,38 @@ private[spark] class SGXWorker(closuseSer: SerializerInstance, dataSer: Serializ
     val spark_files_dir = SGXRDD.readUTF(inSock)
 
     // Read Function Type & Function
-    val eval_type = inSock.readInt()
-    val func = readFunction(inSock)
-
     val init_time = System.nanoTime()
+    val eval_type = inSock.readInt()
 
-    // Read Iterator
-    val iterator = new ReaderIterator(inSock, dataSer)
-    val res = func(iterator)
+    val funcArray: mutable.ArrayBuffer[(Iterator[Any]) => Any] = readFunction(inSock)
+    logInfo(s"Executing ${funcArray.size} (pipelined) funcs")
 
-    SGXRDD.writeIteratorToStream[Any](res.asInstanceOf[Iterator[Any]], dataSer, outSock)
-    outSock.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
-    outSock.flush()
+    eval_type match {
+      case SGXFunctionType.NON_UDF =>
+        // Read Iterator
+        val iterator = new ReaderIterator(inSock, dataSer)
+        val res = funcArray.head(iterator)
+        SGXRDD.writeIteratorToStream[Any](res.asInstanceOf[Iterator[Any]], dataSer, outSock)
+        outSock.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
+        outSock.flush()
+      case SGXFunctionType.PIPELINED =>
+        val iterator = new ReaderIterator(inSock, dataSer)
+
+        var res: Iterator[Any] = null
+        for (func <- funcArray) {
+          logDebug(s"Running Func ${func.getClass}")
+          res = if (res == null) func(iterator).asInstanceOf[Iterator[Any]] else func(res).asInstanceOf[Iterator[Any]]
+        }
+        SGXRDD.writeIteratorToStream[Any](res, dataSer, outSock)
+        outSock.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
+        outSock.flush()
+      case _ =>
+        logError(s"Unsupported FunctionType ${eval_type}")
+    }
 
     val finishTime = System.nanoTime()
 
     // Write reportTimes AND Shuffle timestamps
-
     outSock.writeInt(SpecialSGXChars.END_OF_STREAM)
     outSock.flush()
     // send metrics etc
@@ -99,11 +114,22 @@ private[spark] class SGXWorker(closuseSer: SerializerInstance, dataSer: Serializ
     outfile.writeLong(finishTime)
   }
 
-  def readFunction(inSock: DataInputStream): (Iterator[Any]) => Any = {
-    val func_size = inSock.readInt()
-    val obj = new Array[Byte](func_size)
-    inSock.readFully(obj)
-    closuseSer.deserialize[(Iterator[Any]) => Any](ByteBuffer.wrap(obj))
+  def readFunction(inSock: DataInputStream): mutable.ArrayBuffer[(Iterator[Any]) => Any] = {
+    val functionArr = mutable.ArrayBuffer[(Iterator[Any]) => Any]()
+    var done = false
+    while (!done) {
+      inSock.readInt() match {
+        case func_size if func_size > 0 =>
+          val obj = new Array[Byte](func_size)
+          inSock.readFully(obj)
+          val closure = closuseSer.deserialize[(Iterator[Any]) => Any](ByteBuffer.wrap(obj))
+          functionArr.append(closure)
+        case SpecialSGXChars.END_OF_FUNC_SECTION =>
+          logDebug(s"Read ${functionArr.size} functions Done")
+          done = true
+      }
+    }
+    functionArr
   }
 }
 

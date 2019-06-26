@@ -22,15 +22,25 @@ import java.net.Socket
 
 import org.apache.spark._
 
+import scala.collection.mutable.ArrayBuffer
+
 private[spark] object SGXRunner {
   def apply(func: (Iterator[Any]) => Any): SGXRunner = {
-    new SGXRunner(func)
+    new SGXRunner(func, SGXFunctionType.NON_UDF, ArrayBuffer.empty)
+  }
+
+  def apply(func: (Iterator[Any]) => Any, funcType: Int): SGXRunner = {
+    new SGXRunner(func, funcType, ArrayBuffer.empty)
+  }
+
+  def apply(func: (Iterator[Any]) => Any, funcType: Int, funcs: ArrayBuffer[(Iterator[Any]) => Any]): SGXRunner = {
+    new SGXRunner(func, funcType, funcs)
   }
 }
 
 /** Helper class to run a function in SGX Spark */
-private[spark] class SGXRunner(func: (Iterator[Any]) => Any) extends
-  SGXBaseRunner[Array[Byte], Array[Byte]](func, SGXFunctionType.NON_UDF) {
+private[spark] class SGXRunner(func: (Iterator[Any]) => Any, funcType: Int, funcs: ArrayBuffer[(Iterator[Any]) => Any])
+  extends SGXBaseRunner[Array[Byte], Array[Byte]](func, funcType, funcs) {
 
   override protected def sgxWriterThread(env: SparkEnv,
                                          worker: Socket,
@@ -39,9 +49,18 @@ private[spark] class SGXRunner(func: (Iterator[Any]) => Any) extends
     new WriterIterator(env, worker, inputIterator, partitionIndex, context) {
       /** Writes a command section to the stream connected to the SGX worker */
       override protected def writeFunction(dataOut: DataOutputStream): Unit = {
+        logInfo(s"Ser ${funcs.size + 1} closures")
+        for (currFunc <- funcs) {
+          logDebug(s"Ser closure: ${currFunc.getClass}")
+          val command = closureSer.serialize(currFunc)
+          dataOut.writeInt(command.array().size)
+          dataOut.write(command.array())
+        }
         val command = closureSer.serialize(func)
+        logDebug(s"Ser func: ${func.getClass}")
         dataOut.writeInt(command.array().size)
         dataOut.write(command.array())
+        dataOut.writeInt(SpecialSGXChars.END_OF_FUNC_SECTION)
         dataOut.flush()
       }
 

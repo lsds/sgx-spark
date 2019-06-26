@@ -29,11 +29,13 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
-import scala.reflect.{ClassTag}
+import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 
 private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
                                            func: (Iterator[Any]) => Any,
-                                           evalType: Int) extends Logging {
+                                           evalType: Int,
+                                           funcs: ArrayBuffer[(Iterator[Any]) => Any]) extends Logging {
 
   private val conf = SparkEnv.get.conf
   private val bufferSize = conf.getInt("spark.buffer.size", 65536)
@@ -316,6 +318,9 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
 
 private[spark] object SGXFunctionType {
   val NON_UDF = 0
+  val PIPELINED = 1
+  val SHUFFLE_MAP = 2
+  val SHUFFLE_REDUCE = 3
   val BATCHED_UDF = 100
   def toString(sgxFuncType: Int): String = sgxFuncType match {
     case NON_UDF => "NON_UDF"
@@ -324,11 +329,11 @@ private[spark] object SGXFunctionType {
 }
 
 private[spark] object SpecialSGXChars {
-  val EMPTY_DATA = 0
+  val END_OF_FUNC_SECTION = 0
   val END_OF_DATA_SECTION = -1
   val SGX_EXCEPTION_THROWN = -2
   val TIMING_DATA = -3
   val END_OF_STREAM = -4
-  val NULL = -5
-  val START_ARROW_STREAM = -6
+  val EMPTY_DATA = -5
+  val NULL = -6
 }

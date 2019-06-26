@@ -66,7 +66,7 @@ private[spark] object SGXRDD extends Logging {
       case _ =>
         val outSerArray = serializer.serialize(obj).array()
         dataOut.writeInt(outSerArray.length)
-        logDebug(s"SGX => Writing: ${outSerArray}")
+        logDebug(s"SGX => Writing: ${obj}")
         dataOut.write(outSerArray)
         // throw new SparkException("Unexpected element type " + other.getClass)
     }
