@@ -26,6 +26,8 @@ import scala.util.Properties
 
 import com.google.common.collect.MapMaker
 
+import jocket.net.JocketSocket
+
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.api.python.PythonWorkerFactory
 import org.apache.spark.api.sgx.SGXWorkerFactory
@@ -120,7 +122,7 @@ class SparkEnv (
   }
 
   private[spark]
-  def createSGXWorker(envVars: Map[String, String]): java.net.Socket = {
+  def createSGXWorker(envVars: Map[String, String]): JocketSocket = {
     synchronized {
       // Need to keep track of the workers
      new SGXWorkerFactory(envVars).create()

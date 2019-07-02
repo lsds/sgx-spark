@@ -18,11 +18,12 @@
 package org.apache.spark.api.sgx
 
 import java.io._
-import java.net.Socket
 
 import org.apache.spark._
 
 import scala.collection.mutable.ArrayBuffer
+
+import jocket.net.JocketSocket
 
 private[spark] object SGXRunner {
   def apply(func: (Iterator[Any]) => Any): SGXRunner = {
@@ -43,7 +44,7 @@ private[spark] class SGXRunner(func: (Iterator[Any]) => Any, funcType: Int, func
   extends SGXBaseRunner[Array[Byte], Array[Byte]](func, funcType, funcs) {
 
   override protected def sgxWriterThread(env: SparkEnv,
-                                         worker: Socket,
+                                         worker: JocketSocket,
                                          inputIterator: Iterator[Array[Byte]],
                                          partitionIndex: Int, context: TaskContext): WriterIterator = {
     new WriterIterator(env, worker, inputIterator, partitionIndex, context) {

@@ -18,7 +18,6 @@
 package org.apache.spark.api.sgx
 
 import java.io._
-import java.net.{ServerSocket, Socket}
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
@@ -31,6 +30,9 @@ import org.apache.spark.util.Utils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
+
+import jocket.net.JocketSocket
+import jocket.net.ServerJocket
 
 private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
                                            func: (Iterator[Any]) => Any,
@@ -45,7 +47,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
 
   protected val envVars = collection.mutable.Map[String, String]()
   // Expose a ServerSocket to support method calls via socket from SGX side
-  private[spark] var serverSocket: Option[ServerSocket] = None
+  private[spark] var serverSocket: Option[ServerJocket] = None
 
 
   def compute(inputIterator: Iterator[IN],
@@ -56,7 +58,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
     val localdir = env.blockManager.diskBlockManager.localDirs.map(f => f.getPath()).mkString(",")
     envVars.put("SPARK_LOCAL_DIRS", localdir) // it's also used in monitor thread
 
-    val worker: Socket = env.createSGXWorker(envVars.toMap)
+    val worker: JocketSocket = env.createSGXWorker(envVars.toMap)
     // Whether is the worker released into idle pool or closed
     // TODO: Reuse workers from the pool
     val releasedOrClosed = new AtomicBoolean(false)
@@ -86,7 +88,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
 
   // TODO: Implement SharedMemory / Arrow support
   protected def sgxWriterThread(env: SparkEnv,
-                                worker: Socket,
+                                worker: JocketSocket,
                                 inputIterator: Iterator[IN],
                                 partitionIndex: Int,
                                 context: TaskContext): WriterIterator
@@ -96,7 +98,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
     * SGX secure Worker
     */
   abstract class WriterIterator(env: SparkEnv,
-                                      worker: Socket,
+                                      worker: JocketSocket,
                                       inputIterator: Iterator[IN],
                                       partitionIndex: Int,
                                       context: TaskContext)
@@ -132,7 +134,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
         val sgxVer = "999"
         SGXRDD.writeUTF(sgxVer, dataOut)
         // TODO: Add barrier support
-        // Close ServerSocket on task completion.
+        // Close ServerJocket on task completion.
         serverSocket.foreach { server =>
           context.addTaskCompletionListener[Unit](_ => server.close())
         }
@@ -172,17 +174,17 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
       } catch {
         case e: Exception if context.isCompleted || context.isInterrupted =>
           logDebug("Exception thrown after task completion (likely due to cleanup)", e)
-          if (!worker.isClosed) {
-            Utils.tryLog(worker.shutdownOutput())
-          }
+          // if (!worker.isClosed) {
+          //   Utils.tryLog(worker.shutdownOutput())
+          // }
 
         case e: Exception =>
           // We must avoid throwing exceptions here, because the thread uncaught exception handler
           // will kill the whole executor (see org.apache.spark.executor.Executor).
           _exception = e
-          if (!worker.isClosed) {
-            Utils.tryLog(worker.shutdownOutput())
-          }
+          // if (!worker.isClosed) {
+          //   Utils.tryLog(worker.shutdownOutput())
+          // }
       }
     }
   }
@@ -192,7 +194,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
                                                     writerThread: WriterIterator,
                                                     startTime: Long,
                                                     env: SparkEnv,
-                                                    worker: Socket,
+                                                    worker: JocketSocket,
                                                     releasedOrClosed: AtomicBoolean,
                                                     context: TaskContext)
     extends Iterator[OUT] {

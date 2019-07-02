@@ -18,7 +18,6 @@
 package org.apache.spark.deploy.worker.sgx
 
 import java.io.{DataInputStream, DataOutputStream, IOException}
-import java.net.{InetAddress, Socket}
 import java.nio.ByteBuffer
 
 import org.apache.spark.api.sgx.{SGXException, SGXFunctionType, SGXRDD, SpecialSGXChars}
@@ -199,11 +198,9 @@ private[deploy] object SGXWorker extends Logging {
   // should always use JavaSerializer for closures
   val closureSerializer = new JavaSerializer(null).newInstance()
 
-  def localConnect(port: Int): Socket = {
+  def localConnect(port: Int): JocketSocket = {
     try {
-      val ia = InetAddress.getByName("localhost")
-      val workerJocket = sys.env("SGX_WORKER_JOCKET").toBoolean
-      val socket = if (workerJocket) new JocketSocket(port) else new Socket(ia, port)
+      val socket = new JocketSocket(port)
       socket
     } catch {
       case e: IOException =>
