@@ -244,6 +244,22 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
     }
   }
 
+  def enableJocket(): Unit = {
+    set("spark.sgx.jocket.enabled", true.toString)
+  }
+
+  def disableJocket(): Unit = {
+    set("spark.sgx.jocket.enabled", false.toString)
+  }
+
+  def isJocketEnabled(): Boolean = {
+    getOption("spark.sgx.jocket.enabled") match {
+      case Some("true") => true
+      case Some("false") => false
+      case _ => false
+    }
+  }
+
   /**
    * Use Kryo serialization and register the given set of classes with Kryo.
    * If called multiple times, this will append the classes from all calls together.

@@ -27,6 +27,8 @@ import org.apache.spark.{SparkEnv, SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.RedirectThread
 
+import jocket.net.ServerJocket
+
 private[spark] class SGXWorkerFactory(envVars: Map[String, String])
   extends Logging {
 
@@ -37,9 +39,15 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
   private def createSimpleSGXWorker(): Socket = {
     var serverSocket: ServerSocket = null
     val workerDebug = SparkEnv.get.conf.isSGXDebugEnabled()
-    val serverSockerPort = if (workerDebug) 65000 else 0
+    val serverSocketPort = if (workerDebug) 65000 else 0
     try {
-      serverSocket = new ServerSocket(serverSockerPort, 1, InetAddress.getByAddress(Array(127, 0, 0, 1)))
+      val enableJocket = SparkEnv.get.conf.isJocketEnabled()
+      if (enableJocket) {
+        serverSocket = new ServerJocket(serverSocketPort)
+      } else {
+        serverSocket = new ServerSocket(serverSocketPort, 1, InetAddress.getByAddress(Array(127, 0, 0, 1)))
+      }
+
       // Create and start the worker
       val pb = new ProcessBuilder(Arrays.asList(sgxWorkerExec, sgxWorkerModule))
 
@@ -51,6 +59,7 @@ private[spark] class SGXWorkerFactory(envVars: Map[String, String])
       workerEnv.put("SGX_WORKER_SERIALIZER", SparkEnv.get.conf.getOption("spark.serializer").
         getOrElse("org.apache.spark.serializer.JavaSerializer"))
       workerEnv.put("SGX_WORKER_DEBUG", workerDebug.toString)
+      workerEnv.put("SGX_WORKER_JOCKET", enableJocket.toString)
       // TODO PANOS: Keep track of running workers
       if (!workerDebug) {
         val worker = pb.start()

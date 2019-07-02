@@ -30,6 +30,8 @@ import org.apache.spark.{SparkConf, SparkException, TaskContext}
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
+import jocket.net.JocketSocket
+
 private[spark] class SGXWorker(closuseSer: SerializerInstance, dataSer: SerializerInstance) extends Logging {
   val SYSTEM_NAME = "SparkSGXWorker"
   val ENDPOINT_NAME = "SecureWorker"
@@ -200,7 +202,8 @@ private[deploy] object SGXWorker extends Logging {
   def localConnect(port: Int): Socket = {
     try {
       val ia = InetAddress.getByName("localhost")
-      val socket = new Socket(ia, port)
+      val workerJocket = sys.env("SGX_WORKER_JOCKET").toBoolean
+      val socket = if (workerJocket) new JocketSocket(port) else new Socket(ia, port)
       socket
     } catch {
       case e: IOException =>
