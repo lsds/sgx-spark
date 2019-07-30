@@ -36,7 +36,7 @@ class RDDSuiteSGX extends SparkFunSuite {
     tempDir = Utils.createTempDir()
     conf = new SparkConf().setMaster("local").setAppName("RDD SGX suite test")
     conf.enableSGXWorker()
-    conf.enableSGXDebug()
+//    conf.enableSGXDebug()
     conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sc = new SparkContext(conf)
   }
@@ -88,13 +88,13 @@ class RDDSuiteSGX extends SparkFunSuite {
     assert(nums.flatMap(SGXUtils.flatMapOneToVal).collect().toList === List(1, 1, 2, 1, 2, 3, 1, 2, 3, 4))
   }
 
-  test("SGX shuffle operation") {
+  test("SGX BypassMergeSort shuffle operation") {
     val kvPairs = sc.parallelize(Array(
       ("USA", 1), ("USA", 2), ("UK", 6), ("UK", 9),
       ("India", 4), ("India", 1), ("USA", 8), ("USA", 3),
       ("UK", 5), ("UK", 1), ("India", 4), ("India", 9)
-    ), 1)
-    val res = kvPairs.groupByKey().map(s => (s._1, (s._2.sum)))
+    ), 2)
+    val res = kvPairs.groupByKey().map(SGXUtils.groupBySum)
     val resK = res.collect
     assert(resK.size == 3)
   }
