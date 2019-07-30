@@ -25,7 +25,7 @@ import org.apache.spark.api.sgx.{SGXException, SGXFunctionType, SGXRDD, SpecialS
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer._
 import org.apache.spark.util.Utils
-import org.apache.spark.{SparkConf, SparkException, TaskContext}
+import org.apache.spark.{SGXPartitioner, SparkConf, SparkException, TaskContext}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -52,6 +52,7 @@ private[spark] class SGXWorker(closuseSer: SerializerInstance, dataSer: Serializ
     val boundPort = inSock.readInt()
     val taskContext = TaskContext.get()
     val stageId = inSock.readInt()
+    val numOfPartitions = inSock.readInt()
     val partitionId = inSock.readInt()
     val attemptId = inSock.readInt()
     val taskAttemptId = inSock.readLong()
