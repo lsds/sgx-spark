@@ -29,6 +29,10 @@ private[spark] abstract class ShuffleWriter[K, V] {
   @throws[IOException]
   def write(records: Iterator[Product2[K, V]]): Unit
 
+  /** Write a sequence of encrypted records to this task's output following the given recordKey-Partition mapping */
+  @throws[IOException]
+  def sgxWrite(records: Iterator[Product2[K, V]], recordMapping: java.util.Map[K, Integer]): Unit
+
   /** Close this writer, passing along whether the map completed */
   def stop(success: Boolean): Option[MapStatus]
 }
