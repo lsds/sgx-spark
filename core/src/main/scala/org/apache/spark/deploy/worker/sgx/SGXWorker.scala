@@ -73,6 +73,21 @@ private[spark] class SGXWorker(closuseSer: SerializerInstance, dataSer: Serializ
     logInfo(s"Executing ${funcArray.size} (pipelined) funcs")
 
     eval_type match {
+
+      case SGXFunctionType.SHUFFLE_MAP_BYPASS =>
+        logDebug(s"ShuffleMap Bypass #Partitions ${numOfPartitions}")
+        val iterator = new ReaderIterator(inSock, dataSer).asInstanceOf[Iterator[_ <: Product2[Any, Any]]]
+        val sgxPartitioner = new SGXPartitioner(numOfPartitions)
+        // Mapping of encrypted keys to partitions (needed by the shuffler Writter)
+        val keyMapping = scala.collection.mutable.Map[Any, Any]()
+        while (iterator.hasNext) {
+          val record = iterator.next()
+          keyMapping(record._1) = sgxPartitioner.getPartition(record._1)
+        }
+        SGXRDD.writeIteratorToStream[Any](keyMapping.toIterator, dataSer, outSock)
+        outSock.writeInt(SpecialSGXChars.END_OF_DATA_SECTION)
+        outSock.flush()
+
       case SGXFunctionType.NON_UDF =>
         // Read Iterator
         val iterator = new ReaderIterator(inSock, dataSer)

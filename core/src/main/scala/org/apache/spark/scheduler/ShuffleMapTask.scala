@@ -21,13 +21,16 @@ import java.lang.management.ManagementFactory
 import java.nio.ByteBuffer
 import java.util.Properties
 
+import scala.collection.JavaConverters._
 import scala.language.existentials
 
 import org.apache.spark._
+import org.apache.spark.api.sgx.{SGXFunctionType, SGXRunner}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.ShuffleWriter
+import org.apache.spark.util.SGXUtils
 
 /**
  * A ShuffleMapTask divides the elements of an RDD into multiple buckets (based on a partitioner
@@ -96,7 +99,18 @@ private[spark] class ShuffleMapTask(
     try {
       val manager = SparkEnv.get.shuffleManager
       writer = manager.getWriter[Any, Any](dep.shuffleHandle, partitionId, context)
-      writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+
+      if (SparkEnv.get.conf.isSGXWorkerEnabled()) {
+        val runner = SGXRunner(SGXUtils.toIteratorSizeSGXFunc, SGXFunctionType.SHUFFLE_MAP_BYPASS)
+        // Need to explicitly set the number of partitions here
+        val keyMapping = runner.compute(rdd.iterator(partition, context).asInstanceOf[Iterator[Array[Byte]]],
+          partitionId, context, dep.partitioner.numPartitions).asInstanceOf[Iterator[_ <: Product2[Any, Any]]]
+        val keyMap = scala.collection.mutable.Map[Any, Integer]()
+        for (i <- keyMapping) keyMap(i._1) = i._2.asInstanceOf[Integer]
+        writer.sgxWrite(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]], keyMap.asJava)
+      } else {
+        writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      }
       writer.stop(success = true).get
     } catch {
       case e: Exception =>
