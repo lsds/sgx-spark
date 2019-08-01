@@ -100,6 +100,11 @@ private[spark] class SortShuffleWriter[K, V, C](
       }
     }
   }
+
+  /** Write a sequence of encrypted records to this task's output following the given recordPartition mapping */
+  override def sgxWrite(records: Iterator[Product2[K, V]], recordMapping: java.util.Map[K, Integer]): Unit = {
+    throw new RuntimeException("Not implemented yet!")
+  }
 }
 
 private[spark] object SortShuffleWriter {

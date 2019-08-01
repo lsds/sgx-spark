@@ -45,8 +45,10 @@ private[spark] class SGXRunner(func: (Iterator[Any]) => Any, funcType: Int, func
   override protected def sgxWriterThread(env: SparkEnv,
                                          worker: Socket,
                                          inputIterator: Iterator[Array[Byte]],
-                                         partitionIndex: Int, context: TaskContext): WriterIterator = {
-    new WriterIterator(env, worker, inputIterator, partitionIndex, context) {
+                                         numOfPartitions: Int,
+                                         partitionIndex: Int,
+                                         context: TaskContext): WriterIterator = {
+    new WriterIterator(env, worker, inputIterator, numOfPartitions, partitionIndex, context) {
       /** Writes a command section to the stream connected to the SGX worker */
       override protected def writeFunction(dataOut: DataOutputStream): Unit = {
         logInfo(s"Ser ${funcs.size + 1} closures")

@@ -129,6 +129,33 @@ class HashPartitioner(partitions: Int) extends Partitioner {
   override def hashCode: Int = numPartitions
 }
 
+
+/**
+  * A [[org.apache.spark.Partitioner]] that implements hash-based partitioning using
+  * Java's `Object.hashCode`.
+  *
+  * TODO: Make sure that the partitioner satisfies the pseudorandom properties we need
+  */
+class SGXPartitioner(partitions: Int) extends Partitioner {
+  require(partitions >= 0, s"Number of partitions ($partitions) cannot be negative.")
+
+  def numPartitions: Int = partitions
+
+  def getPartition(key: Any): Int = key match {
+    case null => 0
+    case _ => Utils.nonNegativeMod(key.hashCode, numPartitions)
+  }
+
+  override def equals(other: Any): Boolean = other match {
+    case h: HashPartitioner =>
+      h.numPartitions == numPartitions
+    case _ =>
+      false
+  }
+
+  override def hashCode: Int = numPartitions
+}
+
 /**
  * A [[org.apache.spark.Partitioner]] that partitions sortable records by range into roughly
  * equal ranges. The ranges are determined by sampling the content of the RDD passed in.

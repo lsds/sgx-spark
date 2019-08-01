@@ -50,7 +50,8 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
 
   def compute(inputIterator: Iterator[IN],
               partitionIndex: Int,
-              context: TaskContext): Iterator[OUT] = {
+              context: TaskContext,
+              numOfPartitions: Int = 1): Iterator[OUT] = {
     val startTime = System.currentTimeMillis
     val env = SparkEnv.get
     val localdir = env.blockManager.diskBlockManager.localDirs.map(f => f.getPath()).mkString(",")
@@ -62,7 +63,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
     val releasedOrClosed = new AtomicBoolean(false)
 
     // Start a thread to feed the process input from our parent's iterator
-    val writerThread = sgxWriterThread(env, worker, inputIterator, partitionIndex, context)
+    val writerThread = sgxWriterThread(env, worker, inputIterator, numOfPartitions, partitionIndex, context)
     // Add task completion Listener
     context.addTaskCompletionListener[Unit] { _ =>
       writerThread.shutdownOnTaskCompletion()
@@ -88,6 +89,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
   protected def sgxWriterThread(env: SparkEnv,
                                 worker: Socket,
                                 inputIterator: Iterator[IN],
+                                numOfPartitions: Int,
                                 partitionIndex: Int,
                                 context: TaskContext): WriterIterator
 
@@ -98,6 +100,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
   abstract class WriterIterator(env: SparkEnv,
                                       worker: Socket,
                                       inputIterator: Iterator[IN],
+                                      numOfPartitions: Int,
                                       partitionIndex: Int,
                                       context: TaskContext)
     extends Thread(s"stdout writer for SGXRunner TID:${context.taskAttemptId()}") {
@@ -146,6 +149,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
         // Write out the TaskContextInfo
         dataOut.writeInt(boundPort)
         dataOut.writeInt(context.stageId())
+        dataOut.writeInt(numOfPartitions)
         dataOut.writeInt(context.partitionId())
         dataOut.writeInt(context.attemptNumber())
         dataOut.writeLong(context.taskAttemptId())
@@ -319,7 +323,7 @@ private[spark] abstract class SGXBaseRunner[IN: ClassTag, OUT: ClassTag](
 private[spark] object SGXFunctionType {
   val NON_UDF = 0
   val PIPELINED = 1
-  val SHUFFLE_MAP = 2
+  val SHUFFLE_MAP_BYPASS = 2
   val SHUFFLE_REDUCE = 3
   val BATCHED_UDF = 100
   def toString(sgxFuncType: Int): String = sgxFuncType match {

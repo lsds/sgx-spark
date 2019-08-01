@@ -17,6 +17,8 @@
 
 package org.apache.spark.util
 
+import scala.collection.mutable
+
 
 object SGXUtils {
   /** Closures used for SGX tests should be written here (not in Tests) as SGXRunner is using
@@ -32,4 +34,17 @@ object SGXUtils {
   val mapToList = (iter: Array[Int]) => iter.toList
 
   val flatMapOneToVal: (Int) => TraversableOnce[Int] = (x: Int) => 1 to x
+
+
+  val groupBySum = (s: (String, scala.Iterable[Int])) => (s._1, (s._2.sum))
+
+
+  /**
+    * Dummy closure to maintain API consisent (used for shuffles - even though not used)
+    */
+  val toIteratorSizeSGXFunc = (itr: Iterator[Any]) => {
+    val result = new mutable.ArrayBuffer[Any]
+    itr.foreach(e => result.append(e))
+    result.toArray.iterator
+  }
 }

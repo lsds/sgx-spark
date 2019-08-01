@@ -17,23 +17,13 @@
 
 package org.apache.spark.shuffle.sort;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.io.Closeables;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import javax.annotation.Nullable;
-
-import scala.None$;
-import scala.Option;
-import scala.Product2;
-import scala.Tuple2;
-import scala.collection.Iterator;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.io.Closeables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
@@ -45,8 +35,19 @@ import org.apache.spark.serializer.Serializer;
 import org.apache.spark.serializer.SerializerInstance;
 import org.apache.spark.shuffle.IndexShuffleBlockResolver;
 import org.apache.spark.shuffle.ShuffleWriter;
-import org.apache.spark.storage.*;
+import org.apache.spark.storage.BlockId;
+import org.apache.spark.storage.BlockManager;
+import org.apache.spark.storage.DiskBlockObjectWriter;
+import org.apache.spark.storage.FileSegment;
+import org.apache.spark.storage.TempShuffleBlockId;
 import org.apache.spark.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.None$;
+import scala.Option;
+import scala.Product2;
+import scala.Tuple2;
+import scala.collection.Iterator;
 
 /**
  * This class implements sort-based shuffle's hash-style shuffle fallback path. This write path
@@ -69,6 +70,13 @@ import org.apache.spark.util.Utils;
  * refactored into its own class in order to reduce code complexity; see SPARK-7855 for details.
  * <p>
  * There have been proposals to completely remove this code path; see SPARK-6026 for details.
+ *
+ * The bypassMergeThreshold parameter and associated use of a hash-ish shuffle when the number of
+ * partitions is less than this, is basically a workaround for SparkSQL, because the fact that the
+ * sort-based shuffle stores non-serialized objects is a deal-breaker for SparkSQL,
+ * which re-uses objects. Once the sort-based shuffle is changed to store serialized objects,
+ * we should never be secretly doing hash-ish shuffle even when the user has specified to use
+ * sort-based shuffle (because of its otherwise worse performance).
  */
 final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
 
@@ -149,6 +157,59 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
       final Product2<K, V> record = records.next();
       final K key = record._1();
       partitionWriters[partitioner.getPartition(key)].write(key, record._2());
+    }
+
+    for (int i = 0; i < numPartitions; i++) {
+      final DiskBlockObjectWriter writer = partitionWriters[i];
+      partitionWriterSegments[i] = writer.commitAndGet();
+      writer.close();
+    }
+
+    File output = shuffleBlockResolver.getDataFile(shuffleId, mapId);
+    File tmp = Utils.tempFileWith(output);
+    try {
+      partitionLengths = writePartitionedFile(tmp);
+      shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, tmp);
+    } finally {
+      if (tmp.exists() && !tmp.delete()) {
+        logger.error("Error while deleting temp file {}", tmp.getAbsolutePath());
+      }
+    }
+    mapStatus = MapStatus$.MODULE$.apply(blockManager.shuffleServerId(), partitionLengths);
+  }
+
+  @Override
+  public void sgxWrite(Iterator<Product2<K, V>> records, java.util.Map<K, Integer> recordMapping) throws IOException {
+    assert (partitionWriters == null);
+    logger.debug("sgxWriter...");
+    if (!records.hasNext()) {
+      partitionLengths = new long[numPartitions];
+      shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, null);
+      mapStatus = MapStatus$.MODULE$.apply(blockManager.shuffleServerId(), partitionLengths);
+      return;
+    }
+    final SerializerInstance serInstance = serializer.newInstance();
+    final long openStartTime = System.nanoTime();
+    partitionWriters = new DiskBlockObjectWriter[numPartitions];
+    partitionWriterSegments = new FileSegment[numPartitions];
+    for (int i = 0; i < numPartitions; i++) {
+      final Tuple2<TempShuffleBlockId, File> tempShuffleBlockIdPlusFile =
+          blockManager.diskBlockManager().createTempShuffleBlock();
+      final File file = tempShuffleBlockIdPlusFile._2();
+      final BlockId blockId = tempShuffleBlockIdPlusFile._1();
+      partitionWriters[i] =
+          blockManager.getDiskWriter(blockId, file, serInstance, fileBufferSize, writeMetrics);
+    }
+    // Creating the file to write to and creating a disk writer both involve interacting with
+    // the disk, and can take a long time in aggregate when we open many files, so should be
+    // included in the shuffle write time.
+    writeMetrics.incWriteTime(System.nanoTime() - openStartTime);
+
+    // Using the encrypted key mapping as propagated by the enclave
+    while (records.hasNext()) {
+      final Product2<K, V> record = records.next();
+      final K key = record._1();
+      partitionWriters[recordMapping.get(key)].write(key, record._2());
     }
 
     for (int i = 0; i < numPartitions; i++) {
